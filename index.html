@@ -1,0 +1,2145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gepestcon Co. — Job Accomplishment Report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<style>
+/* ============================================================
+   GEPESTCON JAR SYSTEM — DESIGN TOKENS
+   Palette grounded in the field-inspection world: manifest paper,
+   bottle-green service ink, rust control-number stamps, amber caution.
+   ============================================================ */
+:root{
+  --paper: #EFF3EE;
+  --paper-alt: #E4EBE2;
+  --surface: #FFFFFF;
+  --ink: #16211B;
+  --ink-soft: #55645B;
+  --ink-faint: #8A9690;
+  --line: #D6DED3;
+  --line-strong: #B7C4B3;
+
+  --forest: #1F5C46;
+  --forest-dark: #123A2C;
+  --forest-pale: #DCEAE2;
+  --forest-pale2: #CFE3D8;
+
+  --rust: #AE402C;
+  --rust-dark: #832C1D;
+  --rust-pale: #F5DEDA;
+
+  --amber: #BD7C1F;
+  --amber-pale: #F5E7CC;
+
+  --white: #ffffff;
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(18,28,22,.07);
+  --shadow-md: 0 6px 20px rgba(18,28,22,.10);
+  --shadow-lg: 0 18px 48px rgba(18,28,22,.20);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+
+  --header-h: 60px;
+  --footer-h: 84px;
+}
+
+@media (prefers-color-scheme: dark){
+  :root{ /* app intentionally stays light — field paperwork context; keep legible in direct sun */ }
+}
+
+*,*::before,*::after{ box-sizing: border-box; }
+html,body{ height:100%; }
+body{
+  margin:0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-size: 15px;
+  line-height: 1.5;
+}
+img{ max-width:100%; display:block; }
+button{ font-family: inherit; }
+input,select,textarea{ font-family: inherit; font-size: 15px; }
+a{ color: inherit; }
+h1,h2,h3,h4{ margin:0; font-weight:700; letter-spacing:-.01em; }
+p{ margin:0; }
+ul{ margin:0; padding:0; list-style:none; }
+button{ cursor:pointer; }
+:focus-visible{ outline: 2.5px solid var(--forest); outline-offset: 2px; border-radius: 4px; }
+
+@media (prefers-reduced-motion: reduce){
+  *{ animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+
+.eyebrow{
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: 600;
+}
+
+/* ---------- App shell ---------- */
+#appRoot{ min-height:100%; display:flex; flex-direction:column; }
+
+.app-header{
+  position: sticky; top:0; z-index: 40;
+  height: var(--header-h);
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 0 16px;
+  background: rgba(239,243,238,.92);
+  backdrop-filter: blur(10px) saturate(1.1);
+  border-bottom: 1px solid var(--line);
+}
+.brand{ display:flex; align-items:center; gap:10px; background:none; border:none; padding:0; }
+.brand-mark{ width:34px; height:34px; flex:0 0 auto; }
+.brand-word{ display:flex; flex-direction:column; align-items:flex-start; line-height:1.05; }
+.brand-word b{ font-size:15px; letter-spacing:.02em; font-weight:800; color: var(--forest-dark); }
+.brand-word span{ font-family: var(--font-mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color: var(--ink-faint); }
+.header-actions{ display:flex; align-items:center; gap:6px; }
+.icon-btn{
+  width:38px; height:38px; border-radius: var(--radius-pill);
+  display:flex; align-items:center; justify-content:center;
+  background: transparent; border: 1px solid transparent; color: var(--ink-soft);
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.icon-btn:hover{ background: var(--forest-pale); color: var(--forest-dark); }
+.icon-btn.is-active{ background: var(--forest); color: var(--white); }
+.icon-btn svg{ width:19px; height:19px; }
+
+.app-main{ flex:1; width:100%; max-width: 760px; margin: 0 auto; padding: 20px 16px calc(var(--footer-h) + 28px); position:relative; }
+.app-main.no-footer-pad{ padding-bottom: 40px; }
+
+/* ---------- Buttons ---------- */
+.btn{
+  appearance:none; border:none; border-radius: var(--radius-md);
+  padding: 12px 18px; font-size: 14.5px; font-weight: 700; letter-spacing:.01em;
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  transition: transform .12s ease, box-shadow .12s ease, background .15s ease, opacity .15s ease;
+  white-space: nowrap;
+}
+.btn svg{ width:17px; height:17px; flex:0 0 auto; }
+.btn:active{ transform: scale(.97); }
+.btn-primary{ background: var(--forest); color:#fff; box-shadow: var(--shadow-sm); }
+.btn-primary:hover{ background: var(--forest-dark); }
+.btn-primary:disabled{ opacity:.45; cursor:not-allowed; transform:none; }
+.btn-secondary{ background: var(--surface); color: var(--ink); border:1.5px solid var(--line-strong); }
+.btn-secondary:hover{ border-color: var(--forest); color: var(--forest-dark); }
+.btn-ghost{ background: transparent; color: var(--ink-soft); padding: 10px 12px; }
+.btn-ghost:hover{ color: var(--forest-dark); }
+.btn-danger{ background: var(--rust-pale); color: var(--rust-dark); }
+.btn-danger:hover{ background: #f0cac3; }
+.btn-block{ width:100%; }
+.btn-lg{ padding: 15px 22px; font-size: 15.5px; border-radius: var(--radius-md); }
+.btn-sm{ padding: 8px 12px; font-size: 13px; border-radius: var(--radius-sm); }
+
+/* ---------- Cards / sections ---------- */
+.card{
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+  padding: 20px;
+}
+.section-title{ font-size: 17px; font-weight: 800; letter-spacing:-.01em; margin-bottom:2px; }
+.section-hint{ color: var(--ink-soft); font-size: 13.5px; margin-bottom: 16px; }
+.hairline{ height:1px; background: var(--line); border:none; margin: 18px 0; }
+
+/* ---------- Type-select cards (home) ---------- */
+.type-grid{ display:grid; grid-template-columns: 1fr; gap:12px; }
+@media(min-width:600px){ .type-grid{ grid-template-columns: repeat(3,1fr); } }
+.type-card{
+  text-align:left; background: var(--surface); border:1.5px solid var(--line);
+  border-radius: var(--radius-lg); padding:18px; display:flex; flex-direction:column; gap:10px;
+  transition: border-color .15s ease, transform .12s ease, box-shadow .15s ease;
+  position:relative; overflow:hidden;
+}
+.type-card:hover{ border-color: var(--forest); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.type-card:active{ transform: translateY(0) scale(.99); }
+.type-card .type-icon{
+  width:44px; height:44px; border-radius: var(--radius-md);
+  background: var(--forest-pale); color: var(--forest-dark);
+  display:flex; align-items:center; justify-content:center;
+}
+.type-card .type-icon svg{ width:23px; height:23px; }
+.type-card h3{ font-size:15.5px; }
+.type-card p{ color: var(--ink-soft); font-size:13px; line-height:1.45; }
+.type-card .type-go{ margin-top:auto; display:flex; align-items:center; gap:5px; color: var(--forest-dark); font-weight:700; font-size:13px; }
+.type-card .type-go svg{ width:15px; height:15px; transition: transform .15s ease; }
+.type-card:hover .type-go svg{ transform: translateX(3px); }
+
+/* ---------- Stepper / progress rail ---------- */
+.wizard-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+.back-link{ display:flex; align-items:center; gap:5px; color: var(--ink-soft); font-size:13.5px; font-weight:600; background:none; border:none; padding:6px 2px; }
+.back-link:hover{ color: var(--forest-dark); }
+.back-link svg{ width:16px; height:16px; }
+.step-tag{ font-family: var(--font-mono); font-size:12px; color: var(--ink-faint); letter-spacing:.04em; }
+.step-rail{ display:flex; gap:5px; margin-bottom:22px; }
+.step-rail i{ flex:1; height:5px; border-radius: var(--radius-pill); background: var(--line); overflow:hidden; position:relative; }
+.step-rail i.is-done{ background: var(--forest); }
+.step-rail i.is-current{ background: var(--line); }
+.step-rail i.is-current::after{ content:''; position:absolute; inset:0; width:45%; background: var(--forest); border-radius: var(--radius-pill); }
+
+/* ---------- Form primitives ---------- */
+.field{ margin-bottom: 16px; }
+.field label{ display:block; font-size:12.5px; font-weight:700; color: var(--ink-soft); margin-bottom:6px; letter-spacing:.01em; }
+.field label .req{ color: var(--rust); margin-left:2px; }
+.field .hint{ font-size:12px; color: var(--ink-faint); margin-top:5px; }
+.field .err{ font-size:12.5px; color: var(--rust-dark); margin-top:5px; font-weight:600; display:none; }
+.field.has-error .err{ display:block; }
+.field.has-error input, .field.has-error select, .field.has-error textarea{ border-color: var(--rust); background: var(--rust-pale); }
+
+.input, select.input, textarea.input{
+  width:100%; background: var(--paper); border:1.5px solid var(--line);
+  border-radius: var(--radius-sm); padding: 11px 13px; color: var(--ink);
+  transition: border-color .15s ease, background .15s ease;
+}
+.input::placeholder{ color: var(--ink-faint); }
+.input:focus{ border-color: var(--forest); background: var(--surface); outline:none; }
+textarea.input{ resize: vertical; min-height: 84px; line-height:1.5; }
+select.input{ appearance:none; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="%2355645B" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>'); background-repeat:no-repeat; background-position: right 12px center; padding-right:34px; }
+
+.row-2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.row-3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+@media(max-width:520px){ .row-3{ grid-template-columns:1fr 1fr; } }
+
+.chip-group{ display:flex; flex-wrap:wrap; gap:8px; }
+.chip{
+  border:1.5px solid var(--line); background: var(--surface); color: var(--ink-soft);
+  padding: 9px 14px; border-radius: var(--radius-pill); font-size:13.5px; font-weight:600;
+  display:flex; align-items:center; gap:7px; transition: all .12s ease;
+}
+.chip svg{ width:15px; height:15px; opacity:0; transition: opacity .12s ease; margin-left:-3px; width:0; }
+.chip.is-on{ background: var(--forest-pale); border-color: var(--forest); color: var(--forest-dark); }
+.chip.is-on svg{ opacity:1; width:15px; }
+.chip:hover{ border-color: var(--forest); }
+
+.check-grid{ display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+@media(max-width:480px){ .check-grid{ grid-template-columns:1fr; } }
+.check-row{
+  display:flex; align-items:center; gap:10px; padding:10px 12px;
+  border:1.5px solid var(--line); border-radius: var(--radius-sm); background: var(--surface);
+  transition: border-color .12s ease, background .12s ease;
+}
+.check-row.is-on{ border-color: var(--forest); background: var(--forest-pale); }
+.check-row input[type=checkbox]{ width:17px; height:17px; accent-color: var(--forest); flex:0 0 auto; }
+.check-row span{ font-size:13.5px; font-weight:600; }
+
+fieldset{ border:none; padding:0; margin:0; }
+legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); margin-bottom:8px; }
+
+.group-block{ border:1.5px solid var(--line); border-radius: var(--radius-md); padding:14px 14px 6px; margin-bottom:14px; background: var(--paper); }
+.group-block > .group-title{ font-size:12.5px; font-weight:800; text-transform:uppercase; letter-spacing:.07em; color: var(--forest-dark); margin-bottom:10px; }
+
+/* ---------- Severity gauge (signature element) ---------- */
+.gauge{ display:flex; align-items:center; gap:14px; }
+.gauge-track{ flex:1; display:flex; gap:4px; height:14px; }
+.gauge-seg{ flex:1; border-radius:4px; background: var(--line); position:relative; transition: background .18s ease; }
+.gauge-seg[data-level="1"].is-active{ background: var(--forest); }
+.gauge-seg[data-level="2"].is-active{ background: var(--amber); }
+.gauge-seg[data-level="3"].is-active{ background: var(--rust); }
+.gauge-label{ font-family: var(--font-mono); font-size:12px; font-weight:700; letter-spacing:.03em; min-width:74px; text-align:right; }
+.gauge-label[data-level="0"]{ color: var(--ink-faint); }
+.gauge-label[data-level="1"]{ color: var(--forest-dark); }
+.gauge-label[data-level="2"]{ color: var(--amber); }
+.gauge-label[data-level="3"]{ color: var(--rust); }
+.gauge-picker{ display:flex; gap:6px; margin-top:8px; }
+.gauge-btn{ flex:1; border:1.5px solid var(--line); background: var(--surface); border-radius: var(--radius-sm); padding:8px 4px; font-size:12px; font-weight:700; color: var(--ink-soft); text-align:center; }
+.gauge-btn[data-lv="1"].is-picked{ background: var(--forest-pale); border-color: var(--forest); color: var(--forest-dark); }
+.gauge-btn[data-lv="2"].is-picked{ background: var(--amber-pale); border-color: var(--amber); color: var(--amber); }
+.gauge-btn[data-lv="3"].is-picked{ background: var(--rust-pale); border-color: var(--rust); color: var(--rust-dark); }
+
+.pest-severity-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 0; border-bottom:1px solid var(--line); }
+.pest-severity-row:last-child{ border-bottom:none; }
+.pest-severity-row .pest-name{ font-weight:700; font-size:13.5px; min-width:92px; }
+
+/* ---------- Control-number ticket stub ---------- */
+.ticket{
+  display:inline-flex; align-items:center; gap:9px; background: var(--ink); color: var(--paper);
+  border-radius: var(--radius-sm); padding: 8px 12px 8px 10px; position:relative;
+}
+.ticket::before{ content:''; position:absolute; left:-4px; top:50%; transform:translateY(-50%); width:8px; height:8px; background: var(--paper); border-radius:50%; }
+.ticket .t-label{ font-size:9.5px; text-transform:uppercase; letter-spacing:.1em; color: #9CB0A4; }
+.ticket .t-num{ font-family: var(--font-mono); font-weight:700; font-size:14px; color:#F0B79E; letter-spacing:.03em; }
+
+/* ---------- Photo uploader ---------- */
+.photo-grid{ display:grid; grid-template-columns: repeat(3,1fr); gap:10px; margin-top:12px; }
+.photo-tile{ position:relative; aspect-ratio:1; border-radius: var(--radius-sm); overflow:hidden; border:1.5px solid var(--line); background: var(--paper-alt); }
+.photo-tile img{ width:100%; height:100%; object-fit:cover; }
+.photo-tile .photo-remove{
+  position:absolute; top:5px; right:5px; width:24px; height:24px; border-radius:50%;
+  background: rgba(20,28,22,.72); color:#fff; display:flex; align-items:center; justify-content:center; border:none;
+}
+.photo-tile .photo-remove svg{ width:13px; height:13px; }
+.photo-add{
+  aspect-ratio:1; border-radius: var(--radius-sm); border:1.6px dashed var(--line-strong);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+  color: var(--ink-soft); background: var(--paper); font-size:11.5px; font-weight:700; text-align:center;
+}
+.photo-add svg{ width:22px; height:22px; }
+.photo-add:hover{ border-color: var(--forest); color: var(--forest-dark); }
+
+/* ---------- Signature pad ---------- */
+.sig-wrap{ border:1.5px solid var(--line); border-radius: var(--radius-md); background: var(--surface); overflow:hidden; }
+.sig-wrap canvas{ width:100%; height:150px; display:block; touch-action:none; background:
+  repeating-linear-gradient(var(--surface) 0 27px, var(--line) 27px 28px); }
+.sig-toolbar{ display:flex; justify-content:space-between; align-items:center; padding:8px 10px; border-top:1px dashed var(--line); background: var(--paper); }
+.sig-toolbar span{ font-size:11.5px; color: var(--ink-faint); font-family: var(--font-mono); }
+
+/* ---------- Review screen ---------- */
+.review-block{ margin-bottom:18px; }
+.review-block .rb-title{ font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.07em; color: var(--forest-dark); margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; }
+.review-block .rb-title button{ background:none; border:none; color: var(--ink-soft); font-size:12px; font-weight:700; display:flex; align-items:center; gap:4px; }
+.review-block .rb-title button:hover{ color: var(--forest-dark); }
+.review-block .rb-title button svg{ width:13px; height:13px; }
+.kv{ display:grid; grid-template-columns: 40% 60%; gap:7px 10px; font-size:13.5px; }
+.kv dt{ color: var(--ink-soft); }
+.kv dd{ margin:0; font-weight:600; }
+.kv dd.empty{ color: var(--ink-faint); font-weight:400; font-style:italic; }
+
+/* ---------- Table (responsive) ---------- */
+.rtable{ width:100%; border-collapse:collapse; font-size:12.8px; }
+.rtable th{ text-align:left; background: var(--forest-pale); color: var(--forest-dark); font-size:11px; text-transform:uppercase; letter-spacing:.05em; padding:8px 9px; border:1px solid var(--forest-pale2); }
+.rtable td{ padding:8px 9px; border:1px solid var(--line); vertical-align:top; }
+.rtable-scroll{ overflow-x:auto; border-radius: var(--radius-sm); border:1px solid var(--line); }
+.rtable-scroll .rtable{ border:none; min-width:640px; }
+.rtable-scroll .rtable th, .rtable-scroll .rtable td{ border-left:none; border-right:none; }
+
+/* ---------- Sticky footer action bar ---------- */
+.footer-bar{
+  position: fixed; left:0; right:0; bottom:0; z-index:35;
+  background: rgba(239,243,238,.94); backdrop-filter: blur(10px);
+  border-top:1px solid var(--line); padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+}
+.footer-bar-inner{ max-width:760px; margin:0 auto; display:flex; gap:10px; }
+.footer-bar-inner .btn{ flex:1; }
+
+/* ---------- Toast ---------- */
+.toast-root{ position: fixed; top: 14px; left:50%; transform:translateX(-50%); z-index:80; display:flex; flex-direction:column; gap:8px; align-items:center; width:100%; padding:0 16px; pointer-events:none; }
+.toast{
+  pointer-events:auto; max-width: 420px; background: var(--ink); color: var(--paper);
+  padding: 12px 16px; border-radius: var(--radius-md); font-size:13.5px; font-weight:600;
+  box-shadow: var(--shadow-lg); display:flex; align-items:center; gap:9px;
+  animation: toastIn .22s ease;
+}
+.toast svg{ width:17px; height:17px; flex:0 0 auto; }
+.toast.is-error{ background: var(--rust-dark); }
+.toast.is-success{ background: var(--forest-dark); }
+@keyframes toastIn{ from{ opacity:0; transform: translateY(-8px);} to{ opacity:1; transform:translateY(0);} }
+
+/* ---------- Modal ---------- */
+.modal-overlay{ position:fixed; inset:0; background: rgba(15,22,18,.55); z-index:60; display:flex; align-items:flex-end; justify-content:center; animation: fadeIn .15s ease; }
+@media(min-width:640px){ .modal-overlay{ align-items:center; } }
+@keyframes fadeIn{ from{opacity:0;} to{opacity:1;} }
+.modal-sheet{ background: var(--surface); width:100%; max-width:480px; border-radius: 20px 20px 0 0; padding:22px; max-height:88vh; overflow-y:auto; animation: sheetUp .22s cubic-bezier(.2,.8,.3,1); }
+@media(min-width:640px){ .modal-sheet{ border-radius: var(--radius-lg); } }
+@keyframes sheetUp{ from{ transform: translateY(24px); opacity:0;} to{ transform:translateY(0); opacity:1;} }
+.modal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.modal-head h3{ font-size:16.5px; }
+.modal-close{ width:30px; height:30px; border-radius:50%; background: var(--paper); border:none; display:flex; align-items:center; justify-content:center; color: var(--ink-soft); }
+.modal-close svg{ width:15px; height:15px; }
+
+/* ---------- History list ---------- */
+.hist-item{
+  display:flex; align-items:center; gap:12px; padding:13px 4px; border-bottom:1px solid var(--line);
+  background:none; border-left:none; border-right:none; border-top:none; width:100%; text-align:left;
+}
+.hist-item:hover{ background: var(--paper-alt); }
+.hist-item .hi-icon{ width:38px; height:38px; border-radius: var(--radius-sm); background: var(--forest-pale); color: var(--forest-dark); display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
+.hist-item .hi-icon svg{ width:19px; height:19px; }
+.hist-item .hi-main{ flex:1; min-width:0; }
+.hist-item .hi-main .hi-title{ font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hist-item .hi-main .hi-sub{ font-size:12px; color: var(--ink-soft); font-family: var(--font-mono); }
+.hist-item .hi-status{ font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; padding:4px 8px; border-radius: var(--radius-pill); flex:0 0 auto; }
+.hi-status.st-sent{ background: var(--forest-pale); color: var(--forest-dark); }
+.hi-status.st-manual{ background: var(--amber-pale); color: var(--amber); }
+.hi-status.st-draft{ background: var(--line); color: var(--ink-soft); }
+
+.empty-state{ text-align:center; padding: 52px 20px; color: var(--ink-soft); }
+.empty-state svg{ width:46px; height:46px; color: var(--line-strong); margin-bottom:14px; }
+.empty-state h3{ font-size:15px; color: var(--ink); margin-bottom:6px; }
+.empty-state p{ font-size:13px; max-width:280px; margin:0 auto; }
+
+/* ---------- Rating (client feedback) ---------- */
+.rate-row{ display:flex; gap:10px; }
+.rate-btn{ flex:1; border:1.5px solid var(--line); background: var(--surface); border-radius: var(--radius-md); padding:14px 6px; display:flex; flex-direction:column; align-items:center; gap:6px; }
+.rate-btn .rate-emoji{ font-size:26px; }
+.rate-btn span{ font-size:11.5px; font-weight:700; color: var(--ink-soft); }
+.rate-btn.is-picked{ border-color: var(--forest); background: var(--forest-pale); }
+.rate-btn.is-picked span{ color: var(--forest-dark); }
+
+/* ---------- Settings ---------- */
+.status-pill{ display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; padding:5px 10px; border-radius: var(--radius-pill); }
+.status-pill.ok{ background: var(--forest-pale); color: var(--forest-dark); }
+.status-pill.off{ background: var(--line); color: var(--ink-soft); }
+.status-pill svg{ width:12px; height:12px; }
+
+/* ---------- Success / stamp ---------- */
+.success-wrap{ display:flex; flex-direction:column; align-items:center; text-align:center; padding: 30px 10px 10px; }
+.stamp{
+  width:118px; height:118px; border-radius:50%; border:4px solid var(--forest);
+  color: var(--forest); display:flex; align-items:center; justify-content:center;
+  transform: scale(2.4) rotate(-14deg); opacity:0;
+  animation: stampDown .55s cubic-bezier(.2,1.6,.4,1) .1s forwards;
+}
+.stamp svg{ width:56px; height:56px; }
+@keyframes stampDown{ 0%{ transform: scale(2.4) rotate(-14deg); opacity:0; } 60%{ transform: scale(.94) rotate(-14deg); opacity:1;} 80%{ transform: scale(1.06) rotate(-14deg);} 100%{ transform: scale(1) rotate(-14deg); opacity:1; } }
+.success-wrap h2{ margin-top:20px; font-size:20px; }
+.success-wrap p{ color: var(--ink-soft); margin-top:6px; font-size:14px; max-width:320px; }
+
+/* ---------- Misc ---------- */
+.divider-label{ display:flex; align-items:center; gap:10px; color: var(--ink-faint); font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; margin: 18px 0; }
+.divider-label::before, .divider-label::after{ content:''; flex:1; height:1px; background: var(--line); }
+.helper-banner{ display:flex; gap:10px; background: var(--forest-pale); border:1px solid var(--forest-pale2); border-radius: var(--radius-md); padding:13px 14px; font-size:13px; color: var(--forest-dark); margin-bottom:18px; }
+.helper-banner.amber{ background: var(--amber-pale); border-color:#e8cf9c; color:#7a521a; }
+.helper-banner svg{ width:18px; height:18px; flex:0 0 auto; margin-top:1px; }
+.pill-mono{ font-family: var(--font-mono); background: var(--paper-alt); border:1px solid var(--line); border-radius:6px; padding:2px 6px; font-size:12px; }
+.link-btn{ background:none; border:none; color: var(--forest-dark); font-weight:700; text-decoration:underline; padding:0; font-size:inherit; }
+.small-muted{ font-size:12px; color: var(--ink-faint); }
+.center{ text-align:center; }
+.stack-8 > * + *{ margin-top:8px; }
+.stack-14 > * + *{ margin-top:14px; }
+</style>
+</head>
+<body>
+<div id="toastRoot" class="toast-root" aria-live="polite"></div>
+<div id="appRoot">
+  <header class="app-header">
+    <button class="brand" id="navHomeBtn" aria-label="Go home">
+      <span class="brand-mark" id="brandMark"></span>
+      <span class="brand-word"><b>GEPESTCON</b><span>Job Reports</span></span>
+    </button>
+    <nav class="header-actions">
+      <button class="icon-btn" id="navHistoryBtn" aria-label="Report history" title="History"></button>
+      <button class="icon-btn" id="navSettingsBtn" aria-label="Settings" title="Settings"></button>
+    </nav>
+  </header>
+  <main class="app-main" id="app"></main>
+</div>
+<div id="modalRoot"></div>
+<script>
+"use strict";
+/* ============================================================
+   GEPESTCON CO. — JOB ACCOMPLISHMENT REPORT SYSTEM
+   Single-page app · 3 report types · PDF export · email delivery
+   ============================================================ */
+
+
+/* ---------------- ICONS (inline, stroke-based, currentColor) ---------------- */
+const ICONS = {
+  shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l7 3v5.2c0 4.9-3 8.4-7 9.8-4-1.4-7-4.9-7-9.8V6l7-3z"/><path d="M9 12.2l2 2 4-4.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  house: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5L12 4l8 7.5"/><path d="M6 10v9a1 1 0 0 0 1 1h3v-6h4v6h3a1 1 0 0 0 1-1v-9"/></svg>',
+  bank: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M4 21V10M8 21V10M12 21V10M16 21V10M20 21V10"/><path d="M2.5 10L12 4l9.5 6"/></svg>',
+  store: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5V20h16V9.5"/><path d="M3 4h18l1.4 5.2a2.4 2.4 0 0 1-4.6 1.2 2.4 2.4 0 0 1-4.4 0 2.4 2.4 0 0 1-4.4 0 2.4 2.4 0 0 1-4.6-1.2L3 4z"/><path d="M10 20v-5h4v5"/></svg>',
+  chevronRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
+  chevronLeft: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>',
+  history: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3.5 2"/></svg>',
+  gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/><path d="M19.4 13.5a7.4 7.4 0 0 0 0-3l1.9-1.5-2-3.4-2.2.8a7.5 7.5 0 0 0-2.6-1.5L14 2.5h-4l-.5 2.4a7.5 7.5 0 0 0-2.6 1.5l-2.2-.8-2 3.4L4.6 10.5a7.4 7.4 0 0 0 0 3L2.7 15l2 3.4 2.2-.8c.76.66 1.64 1.18 2.6 1.5l.5 2.4h4l.5-2.4a7.5 7.5 0 0 0 2.6-1.5l2.2.8 2-3.4-1.9-1.5z"/></svg>',
+  camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.2-1.8A1 1 0 0 1 9.5 4.7h5a1 1 0 0 1 .83.5L16.5 7h2A1.5 1.5 0 0 1 20 8.5v9A1.5 1.5 0 0 1 18.5 19h-13A1.5 1.5 0 0 1 4 17.5v-9z"/><circle cx="12" cy="13" r="3.4"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>',
+  checkSeal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5l2.2 1.3 2.5-.3 1 2.3 2.3 1-.3 2.5L21 11.5l-1.3 2.2.3 2.5-2.3 1-1 2.3-2.5-.3L12 20.5l-2.2-1.3-2.5.3-1-2.3-2.3-1 .3-2.5L3 11.5l1.3-2.2-.3-2.5 2.3-1 1-2.3 2.5.3z"/><path d="M8.3 12l2.4 2.4 5-5.3"/></svg>',
+  pencil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l.9-3.6L16.6 4.7a1.5 1.5 0 0 1 2.1 0l.6.6a1.5 1.5 0 0 1 0 2.1L7.6 19.1 4 20z"/><path d="M14.8 6.5l2.7 2.7"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6 7l1 12.5A1.5 1.5 0 0 0 8.5 21h7a1.5 1.5 0 0 0 1.5-1.5L18 7"/></svg>',
+  mail: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5A1.5 1.5 0 0 1 5.5 5h13A1.5 1.5 0 0 1 20 6.5v11a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5v-11z"/><path d="M4.5 6.5l7.5 6 7.5-6"/></svg>',
+  send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3L10.5 13.5"/><path d="M21 3l-6.5 18-4-8-8-4L21 3z"/></svg>',
+  download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11.5"/><path d="M7 11l5 5 5-5"/><path d="M5 20h14"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l9.5 16.5H2.5L12 4z"/><path d="M12 10v4.2M12 17.2v.1"/></svg>',
+  info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 8v.1"/></svg>',
+  bug: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 8.5h6M9 8.5a3 3 0 0 1 6 0M7 12h10M7 12a5 5 0 0 0 10 0M7 12l-3-2M17 12l3-2M7 15l-2.5 2.5M17 15l2.5 2.5M9 8.5L7 6M15 8.5l2-2.5"/><ellipse cx="12" cy="13" rx="4" ry="5.6"/></svg>',
+  inbox: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13l2.2-7.3A1 1 0 0 1 7.1 5h9.8a1 1 0 0 1 1 .7L20 13"/><path d="M4 13v5.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V13"/><path d="M4 13h4.8l1 2h4.4l1-2H20"/></svg>',
+  calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5.5" width="16" height="14.5" rx="1.6"/><path d="M4 10h16M8 3.5v3M16 3.5v3"/></svg>',
+  eye: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6"/></svg>',
+  refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11A8 8 0 1 0 18.6 16"/><path d="M20 5v6h-6"/></svg>'
+};
+function icon(name){ return ICONS[name] || ''; }
+
+/* ---------------- CONFIG ---------------- */
+const CONFIG = {
+  companyName: 'Gepestcon Co.',
+  companyTagline: 'Pest Management Services',
+  companyAddress: '23-M Sct. Ybardolaza, Brgy. Sacred Heart, Quezon City',
+  companyPhone: '02-79068414 / 0905-3017710',
+  companyEmail: 'gepestcon_co@yahoo.com',
+  companyWeb: 'gepestcon.co'
+};
+
+const TYPE_META = {
+  private: { label: 'Private / Residential', short: 'PRIVATE', desc: 'Condominiums, residences & private residential accounts', icon: 'house', docPrefix: 'JO-', numLen: 7 },
+  government: { label: 'Government / Commercial', short: 'GOV\u2019T', desc: 'Government offices & institutional / commercial establishments', icon: 'bank', docPrefix: '', numLen: 5 },
+  seven11: { label: '7-Eleven Store', short: '7-ELEVEN', desc: 'Franchise convenience stores serviced under the 7-Eleven account', icon: 'store', docPrefix: '', numLen: 6 }
+};
+const CONTROL_BASE = { private: 75229, government: 33414, seven11: 109908 };
+
+const WIZARD_STEPS = ['client','service','photos','concern','signoff'];
+const STEP_LABELS = { client:'Client & Schedule', service:'Service Details', photos:'Photo Evidence', concern:'Findings & Remarks', signoff:'Sign-off & Feedback' };
+
+const PEST_LIST = ['Cockroaches','Flies','Mosquitoes','Rodents / Mice','Ants','Termites'];
+const LOCATIONS_5 = ['L1','L2','L4','L5','VRBU'];
+
+/* ---------------- STATE ---------------- */
+const state = {
+  screen: 'home',
+  reportType: null,
+  step: 0,
+  draft: null,
+  history: [],
+  settings: { serviceId:'', templateId:'', publicKey:'', fromName:'Gepestcon Co.', configured:false },
+  viewingReportId: null
+};
+
+/* ---------------- DOM / GENERAL UTILS ---------------- */
+function qs(sel, root){ return (root||document).querySelector(sel); }
+function qsa(sel, root){ return Array.from((root||document).querySelectorAll(sel)); }
+function escapeHTML(str){
+  if(str===undefined||str===null) return '';
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function uid(){ return Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4); }
+function pad2(n){ return String(n).padStart(2,'0'); }
+function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+function nowHM(){ const d=new Date(); return pad2(d.getHours())+':'+pad2(d.getMinutes()); }
+function formatDateDisplay(iso){
+  if(!iso) return '';
+  const d = new Date(iso+'T00:00:00');
+  if(isNaN(d)) return iso;
+  return d.toLocaleDateString('en-PH', { year:'numeric', month:'short', day:'numeric' });
+}
+function formatTimeDisplay(hm){
+  if(!hm) return '';
+  const [h,m] = hm.split(':').map(Number);
+  const ap = h>=12?'PM':'AM'; const h12 = ((h+11)%12)+1;
+  return h12+':'+pad2(m)+' '+ap;
+}
+function formatDateTimeStamp(iso){
+  const d = iso ? new Date(iso) : new Date();
+  return d.toLocaleString('en-PH', { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+function validateEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||'').trim()); }
+function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
+function fmtControlNo(type, n){
+  const meta = TYPE_META[type];
+  if(type==='private') return meta.docPrefix + String(n).padStart(meta.numLen,'0');
+  return String(n);
+}
+
+/* ---------------- STORAGE (window.storage wrapper, safe) ---------------- */
+async function sset(key, value, shared){
+  try{ await window.storage.set(key, JSON.stringify(value), !!shared); return true; }
+  catch(e){ console.error('storage.set failed', key, e); return false; }
+}
+async function sget(key, shared){
+  try{ const r = await window.storage.get(key, !!shared); return r ? JSON.parse(r.value) : null; }
+  catch(e){ return null; }
+}
+async function sdel(key, shared){
+  try{ await window.storage.delete(key, !!shared); return true; }
+  catch(e){ return false; }
+}
+async function slist(prefix, shared){
+  try{ const r = await window.storage.list(prefix, !!shared); return r ? r.keys : []; }
+  catch(e){ return []; }
+}
+
+/* ---------------- TOAST ---------------- */
+function toast(message, kind){
+  const root = qs('#toastRoot');
+  const t = document.createElement('div');
+  t.className = 'toast' + (kind==='error' ? ' is-error' : kind==='success' ? ' is-success' : '');
+  t.innerHTML = icon(kind==='error'?'alert':kind==='success'?'check':'info') + '<span>'+escapeHTML(message)+'</span>';
+  root.appendChild(t);
+  setTimeout(()=>{ t.style.transition='opacity .25s ease, transform .25s ease'; t.style.opacity='0'; t.style.transform='translateY(-6px)'; setTimeout(()=>t.remove(), 260); }, 3400);
+}
+
+/* ---------------- MODAL ---------------- */
+function openModal(innerHTML, opts){
+  opts = opts || {};
+  const root = qs('#modalRoot');
+  root.innerHTML = '<div class="modal-overlay" id="modalOverlay"><div class="modal-sheet" role="dialog" aria-modal="true">'+
+    '<div class="modal-head"><h3>'+escapeHTML(opts.title||'')+'</h3><button class="modal-close" id="modalCloseBtn">'+icon('x')+'</button></div>'+
+    '<div id="modalBody">'+innerHTML+'</div></div></div>';
+  qs('#modalCloseBtn').addEventListener('click', closeModal);
+  qs('#modalOverlay').addEventListener('click', (e)=>{ if(e.target.id==='modalOverlay') closeModal(); });
+  return qs('#modalBody');
+}
+function closeModal(){ qs('#modalRoot').innerHTML = ''; }
+
+/* ---------------- TYPE-SPECIFIC FIELD DATA (from the source JAR forms) ---------------- */
+const PRIVATE_SERVICES = ['Wet Spraying','Mist Blowing','Air Misting','Gel Application','Rat Adhesive','Larvaciding','Powder Application'];
+const PRIVATE_PESTS = ['Cockroaches','Flies','Mosquitos','Rodent / Mice','Ants','Termite'];
+
+const SEVEN11_AREAS = ['Counter Area','Selling Area','Dining Area','Backlot Room / Storage','Comfort Room','Backlot Area','Blue Lights','Fastfood Counter'];
+const SEVEN11_OTHER_PARAMS = ['Check area for possible pest entry point','Check area/s for possible nesting of pest','Outside factors concerning pest'];
+const SEVEN11_POST_PESTS = ['Rat / Mice','Cockroach','Flies','Mosquitoes'];
+
+const GOV_NATURE_OF_WORK = ['General Pest Control','Rodent Control','Fumigation','Fogging / Misting'];
+const GOV_GPC_PESTS = ['Flying & Crawling Insects','Roaches','Mosquitoes','Flies','Other Pests'];
+const GOV_ACTIONS = ['Insecticide Applications','Mist Spraying','Cold / Thermal Fogging','Larvaciding'];
+const GOV_AREA_GROUPS = [
+  { group:'Front & Common Areas', items:['Office','Counter Area','Dining Area','Reception / Lobby','Hallways / Stairways','Comfort Room','Locker Room'] },
+  { group:'Kitchen & Food Prep', items:['Kitchen','Sink','Freezer / Chiller','Meat Counter','Meat Cutting Blocks','Cabinets','Drainage','Refrigerators'] },
+  { group:'Storage & Utility', items:['Storage Area','Dishwashing Area','Receiving Area','Garbage / Storage Area','Pallets','Racks'] },
+  { group:'Electrical & Fixtures', items:['Electrical Outlets','Switches','Receptacles','Fuse Boxes','Generator Room','Electrical Room'] },
+  { group:'Exterior & Surroundings', items:['Surroundings','Guard House','Canals','Gas Room','Ornamental Plants','Convenience Outlets'] }
+];
+const GOV_FINDINGS_PESTS = ['Flies','Roaches','Mosquito','Rodents','Ants'];
+
+/* ---------------- EMPTY DRAFT FACTORY ---------------- */
+function emptyDraft(type){
+  return {
+    localId: uid(),
+    type: type,
+    createdAt: new Date().toISOString(),
+    client: { name:'', contactPerson:'', address:'', phone:'', email:'', ccEmail:'',
+      storeNumber:'', storeName:'', storeCluster:'', storeManager:'',
+      structureType:'Commercial Establishment', natureOfBusiness:'' },
+    schedule: { serviceDate: todayISO(), actualDate: todayISO(), timeStarted:'', timeFinished:'' },
+    service: {
+      typesOfServices: [], activePests: [], activePestOther:'', degreeOfInfestation:'',
+      chemicalUsed:'', scopeRows:{}, otherParams:{}, weather:'',
+      natureOfWork: [], gpcPests: [], actionTaken: [], areasTreated: [], rodentEntryPoint:'', barriers:'', sealing:'',
+      sanitationNeeds:'', repairMaintenance:'', renovation:''
+    },
+    findings: { postAction:{}, byPest:{} },
+    photos: [],
+    concern: { finding:'', recommendation:'', remarks:'', category:'', location:'' },
+    signOff: { technicianName:'', technicianSig:null, clientRepName:'', clientSig:null, satisfaction:'', clientRemarks:'' },
+    controlNo: null,
+    status: 'draft'
+  };
+}
+
+/* ---------------- FOOTER BAR ---------------- */
+function setFooterBar(innerHTML){
+  let bar = qs('#footerBar');
+  if(!bar){
+    bar = document.createElement('div');
+    bar.id = 'footerBar';
+    bar.className = 'footer-bar';
+    document.body.appendChild(bar);
+  }
+  bar.innerHTML = '<div class="footer-bar-inner">'+innerHTML+'</div>';
+  qs('#app').classList.remove('no-footer-pad');
+}
+function removeFooterBar(){
+  const bar = qs('#footerBar');
+  if(bar) bar.remove();
+  const app = qs('#app');
+  if(app) app.classList.add('no-footer-pad');
+}
+
+/* ---------------- FIELD RENDER HELPERS ---------------- */
+function field(label, id, type, value, opts){
+  opts = opts || {};
+  const req = opts.required ? '<span class="req">*</span>' : '';
+  const ph = opts.placeholder ? ' placeholder="'+escapeHTML(opts.placeholder)+'"' : '';
+  return '<div class="field"><label for="'+id+'">'+escapeHTML(label)+req+'</label>'+
+    '<input class="input" type="'+type+'" id="'+id+'" value="'+escapeHTML(value||'')+'"'+ph+'>'+
+    '<span class="err"></span></div>';
+}
+function fieldMini(label, id, value){
+  return '<div class="field" style="margin-bottom:10px;"><label>'+escapeHTML(label)+'</label>'+
+    '<input class="input" id="'+id+'" value="'+escapeHTML(value||'')+'"></div>';
+}
+function textareaField(label, id, value, opts){
+  opts = opts || {};
+  const req = opts.required ? '<span class="req">*</span>' : '';
+  const ph = opts.placeholder ? ' placeholder="'+escapeHTML(opts.placeholder)+'"' : '';
+  const rows = opts.rows || 3;
+  return '<div class="field"><label for="'+id+'">'+escapeHTML(label)+req+'</label>'+
+    '<textarea class="input" id="'+id+'" rows="'+rows+'"'+ph+'>'+escapeHTML(value||'')+'</textarea>'+
+    '<span class="err"></span></div>';
+}
+function chipHTML(label, isOn){
+  return '<button type="button" class="chip'+(isOn?' is-on':'')+'" data-val="'+escapeHTML(label)+'">'+icon('check')+'<span>'+escapeHTML(label)+'</span></button>';
+}
+function markFieldError(id, message){
+  const input = qs('#'+id);
+  if(!input) return;
+  const fieldEl = input.closest('.field');
+  if(!fieldEl) return;
+  fieldEl.classList.add('has-error');
+  const err = qs('.err', fieldEl);
+  if(err) err.textContent = message || 'Required';
+  input.focus();
+}
+
+/* ---------------- SEVERITY GAUGE (signature UI element) ---------------- */
+function gaugeHTML(id, value, labels){
+  const btns = labels.map((l,i)=>{
+    const lvNum = i+1;
+    const picked = (value===l) ? ' is-picked' : '';
+    return '<button type="button" class="gauge-btn'+picked+'" data-lv="'+lvNum+'" data-label="'+escapeHTML(l)+'">'+escapeHTML(l)+'</button>';
+  }).join('');
+  return '<div class="gauge-picker" id="'+id+'" data-value="'+escapeHTML(value||'')+'">'+btns+'</div>';
+}
+function wireGauge(container, id){
+  const wrap = qs('#'+id, container);
+  if(!wrap) return;
+  qsa('.gauge-btn', wrap).forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const already = b.classList.contains('is-picked');
+      qsa('.gauge-btn', wrap).forEach(x=>x.classList.remove('is-picked'));
+      if(!already){ b.classList.add('is-picked'); wrap.dataset.value = b.dataset.label; }
+      else { wrap.dataset.value = ''; }
+    });
+  });
+}
+function getGaugeValue(container, id){
+  const wrap = qs('#'+id, container);
+  return wrap ? wrap.dataset.value : '';
+}
+
+/* ---------------- PEST x SEVERITY reusable list ---------------- */
+function pestSeverityListHTML(prefix, pests, dataObj, opts){
+  opts = opts || {};
+  const labels = opts.labels || ['Light','Medium','High'];
+  return pests.map((p,i)=>{
+    const key = 'p'+i;
+    const rec = dataObj[key] || {};
+    const loc = opts.withLocation ? '<input class="input" style="margin-top:8px;" id="'+prefix+'_loc_'+key+'" placeholder="Location / area" value="'+escapeHTML(rec.location||'')+'">' : '';
+    return '<div style="padding:12px 0;border-bottom:1px solid var(--line);">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">'+
+        '<span class="pest-name">'+escapeHTML(p)+'</span>'+
+        gaugeHTML(prefix+'_sev_'+key, rec.severity||'', labels) +
+      '</div>'+ loc +
+    '</div>';
+  }).join('');
+}
+function wirePestSeverityList(container, prefix, pests){
+  pests.forEach((p,i)=>{ wireGauge(container, prefix+'_sev_p'+i); });
+}
+function readPestSeverityList(container, prefix, pests, withLocation){
+  const out = {};
+  pests.forEach((p,i)=>{
+    const key='p'+i;
+    const sev = getGaugeValue(container, prefix+'_sev_'+key);
+    const locEl = withLocation ? qs('#'+prefix+'_loc_'+key, container) : null;
+    out[key] = { pest:p, severity: sev, location: locEl ? locEl.value.trim() : '' };
+  });
+  return out;
+}
+
+/* ---------------- ACCORDION (7-Eleven scope of work) ---------------- */
+function scopeAccordionHTML(areas, dataObj){
+  return areas.map((area,i)=>{
+    const key = 'a'+i;
+    const rec = dataObj[key] || {};
+    const filled = !!(rec.pest||rec.services||rec.chemicals||rec.dilution||rec.brand||rec.recommendation);
+    return '<div class="group-block acc-item" data-key="'+key+'" style="padding:0;overflow:hidden;">'+
+      '<button type="button" class="acc-head" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:13px 14px;background:none;border:none;text-align:left;">'+
+        '<span style="font-weight:700;font-size:13.5px;">'+escapeHTML(area)+(filled?' <span style="color:var(--forest-dark);font-size:11px;">\u25CF logged</span>':'')+'</span>'+
+        '<span class="acc-chevron" style="display:flex;color:var(--ink-faint);transition:transform .15s ease;">'+icon('chevronRight')+'</span>'+
+      '</button>'+
+      '<div class="acc-body" style="display:none;padding:2px 14px 14px;">'+
+        '<div class="row-2">'+ fieldMini('Pest spotted', key+'_pest', rec.pest) + fieldMini('Services rendered', key+'_services', rec.services) + '</div>'+
+        '<div class="row-2">'+ fieldMini('Chemicals applied', key+'_chemicals', rec.chemicals) + fieldMini('Dilution (mL/L)', key+'_dilution', rec.dilution) + '</div>'+
+        '<div class="row-2">'+ fieldMini('Brand', key+'_brand', rec.brand) + fieldMini('Recommendation', key+'_recommendation', rec.recommendation) + '</div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+function wireAccordion(container){
+  qsa('.acc-item', container).forEach(item=>{
+    const head = qs('.acc-head', item);
+    const body = qs('.acc-body', item);
+    head.addEventListener('click', ()=>{
+      const open = body.style.display !== 'none';
+      body.style.display = open ? 'none' : 'block';
+      qs('.acc-chevron', item).style.transform = open ? '' : 'rotate(90deg)';
+    });
+  });
+}
+
+/* ---------------- SIGNATURE PAD ---------------- */
+function setupSignatureCanvas(canvas){
+  const ratio = Math.max(window.devicePixelRatio || 1, 1);
+  const cssWidth = canvas.clientWidth || 300;
+  const cssHeight = canvas.clientHeight || 150;
+  canvas.width = Math.round(cssWidth * ratio);
+  canvas.height = Math.round(cssHeight * ratio);
+  const ctx = canvas.getContext('2d');
+  ctx.scale(ratio, ratio);
+  ctx.lineWidth = 2.3;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#16211B';
+  let drawing = false, hasInk = false, last = null;
+  function getPos(e){
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+  function down(e){
+    try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
+    drawing = true; last = getPos(e); e.preventDefault();
+  }
+  function move(e){
+    if(!drawing) return;
+    const p = getPos(e);
+    ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+    last = p; hasInk = true; e.preventDefault();
+  }
+  function up(e){ drawing = false; }
+  canvas.addEventListener('pointerdown', down);
+  canvas.addEventListener('pointermove', move);
+  canvas.addEventListener('pointerup', up);
+  canvas.addEventListener('pointercancel', up);
+  canvas.addEventListener('pointerleave', up);
+  return {
+    clear(){ ctx.clearRect(0,0,canvas.width,canvas.height); hasInk = false; },
+    isEmpty(){ return !hasInk; },
+    markHasInk(){ hasInk = true; },
+    dataURL(){ return canvas.toDataURL('image/png'); }
+  };
+}
+function drawExistingSignature(canvas, sigApi, dataUrl){
+  const img = new Image();
+  img.onload = function(){
+    const ctx = canvas.getContext('2d');
+    const ratio = Math.max(window.devicePixelRatio||1,1);
+    ctx.drawImage(img, 0, 0, canvas.width/ratio, canvas.height/ratio);
+    sigApi.markHasInk();
+  };
+  img.src = dataUrl;
+}
+
+/* ---------------- PHOTO CAPTURE + RESIZE ---------------- */
+function readAndResizeImage(file, maxDim, quality){
+  maxDim = maxDim || 1280; quality = quality || 0.82;
+  return new Promise(function(resolve, reject){
+    if(!file || !file.type || file.type.indexOf('image/') !== 0){
+      reject(new Error('That file isn\u2019t an image.')); return;
+    }
+    const reader = new FileReader();
+    reader.onerror = function(){ reject(new Error('Could not read that photo. Try again.')); };
+    reader.onload = function(){
+      const img = new Image();
+      img.onerror = function(){ reject(new Error('That photo could not be opened.')); };
+      img.onload = function(){
+        let width = img.width, height = img.height;
+        if(width > maxDim || height > maxDim){
+          if(width >= height){ height = Math.round(height * (maxDim/width)); width = maxDim; }
+          else { width = Math.round(width * (maxDim/height)); height = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ============================================================
+   WIZARD STEP 1 — CLIENT & SCHEDULE
+   ============================================================ */
+function buildStepClient(container){
+  const d = state.draft;
+  const type = state.reportType;
+  let html = '';
+
+  if(type==='seven11'){
+    html += '<div class="row-2">'+
+      field('Store number', 'f_storeNumber', 'text', d.client.storeNumber, {required:true, placeholder:'e.g. 3021'}) +
+      field('Store name', 'f_storeName', 'text', d.client.storeName, {required:true, placeholder:'e.g. 7-Eleven Katipunan'}) +
+    '</div>';
+    html += '<div class="row-2">'+
+      field('Store cluster', 'f_storeCluster', 'text', d.client.storeCluster, {placeholder:'e.g. Cluster 4'}) +
+      field('Name of store manager', 'f_storeManager', 'text', d.client.storeManager, {placeholder:'e.g. Juan Dela Cruz'}) +
+    '</div>';
+    html += field('Store address', 'f_address', 'text', d.client.address, {required:true, placeholder:'Complete store address'});
+  } else if(type==='government'){
+    html += field('Client / institution name', 'f_name', 'text', d.client.name, {required:true, placeholder:'e.g. Quezon City Hall'});
+    html += field('Address', 'f_address', 'text', d.client.address, {required:true, placeholder:'Complete site address'});
+    html += '<div class="row-2">'+
+      field('Contact person', 'f_contactPerson', 'text', d.client.contactPerson, {placeholder:'Name of on-site contact'}) +
+      field('Tel. number', 'f_phone', 'tel', d.client.phone, {placeholder:'Landline or mobile'}) +
+    '</div>';
+    html += '<div class="field"><label>Type of structure</label><div class="chip-group" id="structureChips">'+
+      ['Residential','Commercial Establishment'].map(function(s){ return chipHTML(s, d.client.structureType===s); }).join('') +
+    '</div></div>';
+    html += field('Nature of business (if commercial)', 'f_natureOfBusiness', 'text', d.client.natureOfBusiness, {placeholder:'e.g. Retail, warehousing, office'});
+  } else {
+    html += field('Company / property name', 'f_name', 'text', d.client.name, {required:true, placeholder:'e.g. Sea Residences'});
+    html += field('Address', 'f_address', 'text', d.client.address, {required:true, placeholder:'Complete property address'});
+    html += '<div class="row-2">'+
+      field('Contact person', 'f_contactPerson', 'text', d.client.contactPerson, {placeholder:'Name of on-site contact'}) +
+      field('Phone', 'f_phone', 'tel', d.client.phone, {placeholder:'Mobile number'}) +
+    '</div>';
+  }
+
+  html += '<hr class="hairline">';
+  html += '<div class="helper-banner"><span style="display:flex;">'+icon('mail')+'</span><span>The finished report is sent to this address automatically — double-check it before continuing.</span></div>';
+  html += '<div class="row-2">'+
+    field('Client email', 'f_email', 'email', d.client.email, {required:true, placeholder:'client@email.com'}) +
+    field('CC email (optional)', 'f_ccEmail', 'email', d.client.ccEmail, {placeholder:'office@gepestcon.co'}) +
+  '</div>';
+
+  html += '<hr class="hairline">';
+  html += '<div class="row-2">'+
+    field('Service schedule', 'f_serviceDate', 'date', d.schedule.serviceDate, {required:true}) +
+    field('Actual date of service', 'f_actualDate', 'date', d.schedule.actualDate, {}) +
+  '</div>';
+  html += '<div class="row-2">'+
+    field('Time started', 'f_timeStarted', 'time', d.schedule.timeStarted, {}) +
+    field('Time finished', 'f_timeFinished', 'time', d.schedule.timeFinished, {}) +
+  '</div>';
+
+  container.innerHTML = html;
+
+  if(type==='government'){
+    qsa('#structureChips .chip', container).forEach(function(c){
+      c.addEventListener('click', function(){
+        qsa('#structureChips .chip', container).forEach(function(x){ x.classList.remove('is-on'); });
+        c.classList.add('is-on');
+      });
+    });
+  }
+}
+function saveClientStep(){
+  const container = qs('#stepBody');
+  const d = state.draft;
+  const type = state.reportType;
+  function val(id){ const el = qs('#'+id, container); return el ? el.value.trim() : ''; }
+
+  if(type==='seven11'){
+    d.client.storeNumber = val('f_storeNumber');
+    d.client.storeName = val('f_storeName');
+    d.client.storeCluster = val('f_storeCluster');
+    d.client.storeManager = val('f_storeManager');
+    d.client.address = val('f_address');
+    d.client.name = d.client.storeName;
+  } else if(type==='government'){
+    d.client.name = val('f_name');
+    d.client.address = val('f_address');
+    d.client.contactPerson = val('f_contactPerson');
+    d.client.phone = val('f_phone');
+    d.client.natureOfBusiness = val('f_natureOfBusiness');
+    const chosenChip = qs('#structureChips .chip.is-on', container);
+    d.client.structureType = chosenChip ? chosenChip.dataset.val : d.client.structureType;
+  } else {
+    d.client.name = val('f_name');
+    d.client.address = val('f_address');
+    d.client.contactPerson = val('f_contactPerson');
+    d.client.phone = val('f_phone');
+  }
+  d.client.email = val('f_email');
+  d.client.ccEmail = val('f_ccEmail');
+  d.schedule.serviceDate = val('f_serviceDate') || todayISO();
+  d.schedule.actualDate = val('f_actualDate');
+  d.schedule.timeStarted = val('f_timeStarted');
+  d.schedule.timeFinished = val('f_timeFinished');
+
+  const nameOk = type==='seven11' ? d.client.storeName : d.client.name;
+  if(!nameOk){
+    const fid = type==='seven11' ? 'f_storeName' : 'f_name';
+    markFieldError(fid, 'This is required.');
+    return { valid:false, message: type==='seven11' ? 'Enter the store name to continue.' : 'Enter the client / property name to continue.' };
+  }
+  if(!d.client.address){ markFieldError('f_address','This is required.'); return { valid:false, message:'Enter the site address to continue.' }; }
+  if(!d.client.email || !validateEmail(d.client.email)){
+    markFieldError('f_email','Enter a valid email address.');
+    return { valid:false, message:'Enter a valid client email \u2014 this is where the report gets sent.' };
+  }
+  return { valid:true };
+}
+
+/* ============================================================
+   WIZARD STEP 2 — SERVICE DETAILS (type-specific)
+   ============================================================ */
+function serviceHTMLPrivate(d){
+  let html = '<div class="field"><label>Types of service performed</label><div class="chip-group" id="svcChips">'+
+    PRIVATE_SERVICES.map(function(s){ return chipHTML(s, d.service.typesOfServices.indexOf(s)!==-1); }).join('') + '</div></div>';
+  html += '<div class="field"><label>Active pest observed</label><div class="chip-group" id="pestChips">'+
+    PRIVATE_PESTS.map(function(s){ return chipHTML(s, d.service.activePests.indexOf(s)!==-1); }).join('') + '</div></div>';
+  html += field('Other pest (if any)', 'f_pestOther', 'text', d.service.activePestOther, {placeholder:'Specify if not listed above'});
+  html += '<div class="field"><label>Degree of infestation</label>'+ gaugeHTML('gaugeInfest', d.service.degreeOfInfestation, ['Light','Medium','High']) + '</div>';
+  html += field('Chemical used', 'f_chemical', 'text', d.service.chemicalUsed, {placeholder:'e.g. Cypermethrin 10EC'});
+  return html;
+}
+function wireServicePrivate(container){
+  qsa('#svcChips .chip', container).forEach(function(c){ c.addEventListener('click', function(){ c.classList.toggle('is-on'); }); });
+  qsa('#pestChips .chip', container).forEach(function(c){ c.addEventListener('click', function(){ c.classList.toggle('is-on'); }); });
+  wireGauge(container, 'gaugeInfest');
+}
+function readServicePrivate(container, d){
+  d.service.typesOfServices = qsa('#svcChips .chip.is-on', container).map(function(c){ return c.dataset.val; });
+  d.service.activePests = qsa('#pestChips .chip.is-on', container).map(function(c){ return c.dataset.val; });
+  d.service.activePestOther = qs('#f_pestOther', container).value.trim();
+  d.service.degreeOfInfestation = getGaugeValue(container, 'gaugeInfest');
+  d.service.chemicalUsed = qs('#f_chemical', container).value.trim();
+}
+
+function serviceHTMLSeven11(d){
+  let html = '<p class="eyebrow" style="margin-bottom:10px;">Scope of work \u2014 tap an area to log it</p>';
+  html += scopeAccordionHTML(SEVEN11_AREAS, d.service.scopeRows);
+  html += '<hr class="hairline">';
+  html += field('Weather condition during application', 'f_weather', 'text', d.service.weather, {placeholder:'e.g. Fair, humid, rainy'});
+  html += '<hr class="hairline">';
+  html += '<p class="eyebrow" style="margin-bottom:6px;">Post action level</p>';
+  html += pestSeverityListHTML('post', SEVEN11_POST_PESTS, d.findings.postAction, {labels:['Light','Moderate','Heavy'], withLocation:true});
+  html += '<hr class="hairline">';
+  html += '<p class="eyebrow" style="margin-bottom:10px;">Other parameters of concern</p>';
+  html += SEVEN11_OTHER_PARAMS.map(function(row,i){
+    const rec = d.service.otherParams['o'+i] || {};
+    return '<div class="group-block"><div class="group-title" style="text-transform:none;letter-spacing:0;font-size:13px;">'+escapeHTML(row)+'</div>'+
+      fieldMini('Remarks','o'+i+'_remarks', rec.remarks) + fieldMini('Recommendation','o'+i+'_recommendation', rec.recommendation) +
+    '</div>';
+  }).join('');
+  return html;
+}
+function wireServiceSeven11(container){
+  wireAccordion(container);
+  wirePestSeverityList(container, 'post', SEVEN11_POST_PESTS);
+}
+function readServiceSeven11(container, d){
+  SEVEN11_AREAS.forEach(function(a,i){
+    const key='a'+i;
+    d.service.scopeRows[key] = {
+      area: a,
+      pest: qs('#'+key+'_pest', container).value.trim(),
+      services: qs('#'+key+'_services', container).value.trim(),
+      chemicals: qs('#'+key+'_chemicals', container).value.trim(),
+      dilution: qs('#'+key+'_dilution', container).value.trim(),
+      brand: qs('#'+key+'_brand', container).value.trim(),
+      recommendation: qs('#'+key+'_recommendation', container).value.trim()
+    };
+  });
+  d.service.weather = qs('#f_weather', container).value.trim();
+  d.findings.postAction = readPestSeverityList(container, 'post', SEVEN11_POST_PESTS, true);
+  SEVEN11_OTHER_PARAMS.forEach(function(row,i){
+    d.service.otherParams['o'+i] = {
+      item: row,
+      remarks: qs('#o'+i+'_remarks', container).value.trim(),
+      recommendation: qs('#o'+i+'_recommendation', container).value.trim()
+    };
+  });
+}
+
+function serviceHTMLGovernment(d){
+  let html = '<div class="field"><label>Nature of work</label><div class="chip-group" id="nowChips">'+
+    GOV_NATURE_OF_WORK.map(function(s){ return chipHTML(s, d.service.natureOfWork.indexOf(s)!==-1); }).join('') + '</div></div>';
+  html += '<div class="field"><label>Pests noted (general pest control)</label><div class="chip-group" id="gpcChips">'+
+    GOV_GPC_PESTS.map(function(s){ return chipHTML(s, d.service.gpcPests.indexOf(s)!==-1); }).join('') + '</div></div>';
+  html += '<div class="field"><label>Action taken / treatment done</label><div class="chip-group" id="actChips">'+
+    GOV_ACTIONS.map(function(s){ return chipHTML(s, d.service.actionTaken.indexOf(s)!==-1); }).join('') + '</div></div>';
+
+  html += '<p class="eyebrow" style="margin:18px 0 10px;">Areas treated</p>';
+  html += GOV_AREA_GROUPS.map(function(g,gi){
+    return '<div class="group-block"><div class="group-title">'+escapeHTML(g.group)+'</div><div class="check-grid">'+
+      g.items.map(function(it,ii){
+        const cid = 'area_'+gi+'_'+ii;
+        const checked = d.service.areasTreated.indexOf(it) !== -1;
+        return '<label class="check-row'+(checked?' is-on':'')+'" for="'+cid+'"><input type="checkbox" id="'+cid+'" data-val="'+escapeHTML(it)+'"'+(checked?' checked':'')+'><span>'+escapeHTML(it)+'</span></label>';
+      }).join('') +
+    '</div></div>';
+  }).join('');
+
+  html += '<div class="row-2">'+ field('Rodent entry point', 'f_rodentEntry', 'text', d.service.rodentEntryPoint, {placeholder:'Specify area'}) + field('Barriers / sealing', 'f_sealing', 'text', d.service.sealing, {placeholder:'Specify'}) + '</div>';
+
+  html += '<div class="group-block"><div class="group-title">Customer\u2019s responsibilities (sanitation / GPC)</div>'+
+    textareaField('Sanitation \u2014 needs improvement', 'f_sanitation', d.service.sanitationNeeds, {rows:2, placeholder:'Specify area'}) +
+    textareaField('Repair and maintenance needed', 'f_repair', d.service.repairMaintenance, {rows:2, placeholder:'Specify area'}) +
+    textareaField('Renovation notes', 'f_renovation', d.service.renovation, {rows:2, placeholder:'Optional'}) +
+  '</div>';
+
+  html += field('Chemical used', 'f_chemical', 'text', d.service.chemicalUsed, {placeholder:'e.g. Deltamethrin, Bromadiolone'});
+
+  html += '<hr class="hairline">';
+  html += '<p class="eyebrow" style="margin-bottom:6px;">Findings \u2014 degree of infestation per pest</p>';
+  html += pestSeverityListHTML('find', GOV_FINDINGS_PESTS, d.findings.byPest, {labels:['Light','Medium','High'], withLocation:false});
+
+  return html;
+}
+function wireServiceGovernment(container){
+  qsa('#nowChips .chip, #gpcChips .chip, #actChips .chip', container).forEach(function(c){ c.addEventListener('click', function(){ c.classList.toggle('is-on'); }); });
+  qsa('.check-row input[type=checkbox]', container).forEach(function(cb){
+    cb.addEventListener('change', function(){ cb.closest('.check-row').classList.toggle('is-on', cb.checked); });
+  });
+  wirePestSeverityList(container, 'find', GOV_FINDINGS_PESTS);
+}
+function readServiceGovernment(container, d){
+  d.service.natureOfWork = qsa('#nowChips .chip.is-on', container).map(function(c){ return c.dataset.val; });
+  d.service.gpcPests = qsa('#gpcChips .chip.is-on', container).map(function(c){ return c.dataset.val; });
+  d.service.actionTaken = qsa('#actChips .chip.is-on', container).map(function(c){ return c.dataset.val; });
+  d.service.areasTreated = qsa('.check-row input[type=checkbox]:checked', container).map(function(cb){ return cb.dataset.val; });
+  d.service.rodentEntryPoint = qs('#f_rodentEntry', container).value.trim();
+  d.service.sealing = qs('#f_sealing', container).value.trim();
+  d.service.sanitationNeeds = qs('#f_sanitation', container).value.trim();
+  d.service.repairMaintenance = qs('#f_repair', container).value.trim();
+  d.service.renovation = qs('#f_renovation', container).value.trim();
+  d.service.chemicalUsed = qs('#f_chemical', container).value.trim();
+  d.findings.byPest = readPestSeverityList(container, 'find', GOV_FINDINGS_PESTS, false);
+}
+
+function buildStepService(container){
+  const d = state.draft; const type = state.reportType;
+  if(type==='seven11'){ container.innerHTML = serviceHTMLSeven11(d); wireServiceSeven11(container); }
+  else if(type==='government'){ container.innerHTML = serviceHTMLGovernment(d); wireServiceGovernment(container); }
+  else { container.innerHTML = serviceHTMLPrivate(d); wireServicePrivate(container); }
+}
+function saveServiceStep(){
+  const container = qs('#stepBody');
+  const d = state.draft; const type = state.reportType;
+  if(type==='seven11') readServiceSeven11(container, d);
+  else if(type==='government') readServiceGovernment(container, d);
+  else readServicePrivate(container, d);
+  return { valid:true };
+}
+
+/* ============================================================
+   WIZARD STEP 3 — PHOTOS
+   ============================================================ */
+function buildStepPhotos(container){ renderPhotoStepBody(container, state.draft); }
+function renderPhotoStepBody(container, d){
+  let html = '<div class="helper-banner">'+icon('camera')+'<span>Attach photos of the treated area, pest activity, or damage. These are embedded in the PDF report sent to the client.</span></div>';
+  html += '<div class="photo-grid" id="photoGrid">';
+  d.photos.forEach(function(p,i){
+    html += '<div class="photo-tile"><img src="'+p.dataUrl+'" alt="Evidence photo '+(i+1)+'"><button type="button" class="photo-remove" data-idx="'+i+'">'+icon('x')+'</button></div>';
+  });
+  if(d.photos.length < 6){
+    html += '<label class="photo-add" id="photoAddBtn"><input type="file" accept="image/*" id="photoInput" style="display:none;" multiple>'+icon('camera')+'<span>Add photo</span></label>';
+  }
+  html += '</div>';
+  html += '<p class="small-muted" style="margin-top:12px;">'+d.photos.length+' of 6 photos added \u2014 resized automatically to keep the report light.</p>';
+  container.innerHTML = html;
+
+  const input = qs('#photoInput', container);
+  if(input){
+    input.addEventListener('change', async function(e){
+      const files = Array.from(e.target.files || []);
+      for(let i=0;i<files.length;i++){
+        if(d.photos.length >= 6){ toast('Maximum of 6 photos per report.', 'error'); break; }
+        try{
+          const dataUrl = await readAndResizeImage(files[i]);
+          d.photos.push({ id: uid(), dataUrl: dataUrl, caption:'' });
+        } catch(err){ toast(err.message || 'Could not add that photo.', 'error'); }
+      }
+      renderPhotoStepBody(container, d);
+    });
+  }
+  qsa('.photo-remove', container).forEach(function(btn){
+    btn.addEventListener('click', function(){
+      const idx = parseInt(btn.dataset.idx,10);
+      d.photos.splice(idx,1);
+      renderPhotoStepBody(container, d);
+    });
+  });
+}
+function savePhotosStep(){ return { valid:true }; }
+
+/* ============================================================
+   WIZARD STEP 4 — CONCERN, RECOMMENDATION & REMARKS
+   ============================================================ */
+function buildStepConcern(container){
+  const d = state.draft;
+  let html = '';
+  html += textareaField('Concern / finding', 'f_finding', d.concern.finding, {rows:3, placeholder:'What did you find on site?'});
+  html += textareaField('Recommendation', 'f_recommendation', d.concern.recommendation, {rows:3, placeholder:'What do you recommend to the client?'});
+  html += textareaField('Remarks', 'f_remarks', d.concern.remarks, {rows:3, placeholder:'Additional notes, location detail, follow-up needed'});
+
+  if(state.reportType === 'private'){
+    html += '<div class="group-block"><div class="group-title">Concern classification</div>'+
+      '<div class="field" style="margin-bottom:12px;"><label>Category</label><div class="chip-group" id="catChips">'+
+        ['Civil','Housekeeping'].map(function(c){ return chipHTML(c, d.concern.category===c); }).join('') +
+      '</div></div>'+
+      '<div class="field" style="margin-bottom:0;"><label>Location / tower</label><div class="chip-group" id="locChips">'+
+        LOCATIONS_5.map(function(l){ return chipHTML(l, d.concern.location===l); }).join('') +
+      '</div></div>'+
+    '</div>';
+  }
+  container.innerHTML = html;
+
+  if(state.reportType==='private'){
+    qsa('#catChips .chip', container).forEach(function(c){
+      c.addEventListener('click', function(){
+        const already = c.classList.contains('is-on');
+        qsa('#catChips .chip', container).forEach(function(x){ x.classList.remove('is-on'); });
+        if(!already) c.classList.add('is-on');
+      });
+    });
+    qsa('#locChips .chip', container).forEach(function(c){
+      c.addEventListener('click', function(){
+        const already = c.classList.contains('is-on');
+        qsa('#locChips .chip', container).forEach(function(x){ x.classList.remove('is-on'); });
+        if(!already) c.classList.add('is-on');
+      });
+    });
+  }
+}
+function saveConcernStep(){
+  const container = qs('#stepBody');
+  const d = state.draft;
+  d.concern.finding = qs('#f_finding', container).value.trim();
+  d.concern.recommendation = qs('#f_recommendation', container).value.trim();
+  d.concern.remarks = qs('#f_remarks', container).value.trim();
+  if(state.reportType==='private'){
+    const catOn = qs('#catChips .chip.is-on', container);
+    const locOn = qs('#locChips .chip.is-on', container);
+    d.concern.category = catOn ? catOn.dataset.val : '';
+    d.concern.location = locOn ? locOn.dataset.val : '';
+  }
+  if(!d.concern.finding && !d.concern.recommendation && !d.concern.remarks){
+    return { valid:false, message:'Add at least a finding, recommendation, or remark before continuing.' };
+  }
+  return { valid:true };
+}
+
+/* ============================================================
+   WIZARD STEP 5 — SIGN-OFF & CLIENT FEEDBACK
+   ============================================================ */
+function rateBtnHTML(val, emoji, label, current){
+  return '<button type="button" class="rate-btn'+(current===val?' is-picked':'')+'" data-val="'+val+'"><span class="rate-emoji">'+emoji+'</span><span>'+label+'</span></button>';
+}
+function buildStepSignoff(container){
+  const d = state.draft;
+  let html = '';
+  html += field('Technician name', 'f_techName', 'text', d.signOff.technicianName, {required:true, placeholder:'Name of service technician'});
+  html += '<div class="field"><label>Technician signature <span class="req">*</span></label>'+
+    '<div class="sig-wrap"><canvas id="sigTech"></canvas>'+
+    '<div class="sig-toolbar"><span>Sign with finger, stylus, or mouse</span><button type="button" class="btn btn-ghost btn-sm" id="clearTech">'+icon('trash')+' Clear</button></div></div></div>';
+
+  html += '<hr class="hairline">';
+  html += field('Client representative name', 'f_clientRepName', 'text', d.signOff.clientRepName, {placeholder:'Optional if client isn\u2019t on-site'});
+  html += '<div class="field"><label>Client representative signature</label>'+
+    '<div class="sig-wrap"><canvas id="sigClient"></canvas>'+
+    '<div class="sig-toolbar"><span>Optional</span><button type="button" class="btn btn-ghost btn-sm" id="clearClient">'+icon('trash')+' Clear</button></div></div></div>';
+
+  html += '<hr class="hairline">';
+  html += '<div class="field"><label>How happy is the client with the service?</label>'+
+    '<div class="rate-row" id="rateRow">'+
+      rateBtnHTML('very_happy','\uD83D\uDE37','Very Happy', d.signOff.satisfaction) +
+      rateBtnHTML('happy','\uD83D\uDE42','Happy', d.signOff.satisfaction) +
+      rateBtnHTML('not_happy','\uD83D\uDE10','Not So Happy', d.signOff.satisfaction) +
+    '</div></div>';
+  html += textareaField('Client remarks (optional)', 'f_clientRemarks', d.signOff.clientRemarks, {rows:2, placeholder:'Any comments from the client'});
+
+  container.innerHTML = html;
+
+  const techCanvas = qs('#sigTech', container);
+  const clientCanvas = qs('#sigClient', container);
+  container.__sigTech = setupSignatureCanvas(techCanvas);
+  container.__sigClient = setupSignatureCanvas(clientCanvas);
+  if(d.signOff.technicianSig) drawExistingSignature(techCanvas, container.__sigTech, d.signOff.technicianSig);
+  if(d.signOff.clientSig) drawExistingSignature(clientCanvas, container.__sigClient, d.signOff.clientSig);
+
+  qs('#clearTech', container).addEventListener('click', function(){ container.__sigTech.clear(); });
+  qs('#clearClient', container).addEventListener('click', function(){ container.__sigClient.clear(); });
+
+  qsa('.rate-btn', container).forEach(function(b){
+    b.addEventListener('click', function(){
+      qsa('.rate-btn', container).forEach(function(x){ x.classList.remove('is-picked'); });
+      b.classList.add('is-picked');
+    });
+  });
+}
+function saveSignoffStep(){
+  const container = qs('#stepBody');
+  const d = state.draft;
+  d.signOff.technicianName = qs('#f_techName', container).value.trim();
+  d.signOff.clientRepName = qs('#f_clientRepName', container).value.trim();
+  d.signOff.clientRemarks = qs('#f_clientRemarks', container).value.trim();
+  const pickedRate = qs('.rate-btn.is-picked', container);
+  d.signOff.satisfaction = pickedRate ? pickedRate.dataset.val : '';
+
+  if(container.__sigTech && !container.__sigTech.isEmpty()){ d.signOff.technicianSig = container.__sigTech.dataURL(); }
+  if(container.__sigClient && !container.__sigClient.isEmpty()){ d.signOff.clientSig = container.__sigClient.dataURL(); }
+
+  if(!d.signOff.technicianName){ markFieldError('f_techName','This is required.'); return {valid:false, message:'Enter the technician\u2019s name to continue.'}; }
+  if(!d.signOff.technicianSig){ return {valid:false, message:'Technician signature is required before sending.'}; }
+  return { valid:true };
+}
+
+function stepHintText(stepKey, type){
+  const map = {
+    client: 'Who this report is for, and when the service happened.',
+    service: type==='seven11' ? 'Log what was found and treated in each store area.' : type==='government' ? 'Nature of work, areas treated, and pest presence.' : 'Services performed and the pest situation found.',
+    photos: 'Attach evidence photos \u2014 optional but recommended.',
+    concern: 'What you found, what you recommend, and any remarks.',
+    signoff: 'Sign off on the visit and capture client feedback.'
+  };
+  return map[stepKey] || '';
+}
+function saveCurrentStepIntoDraft(stepKey){
+  const savers = { client: saveClientStep, service: saveServiceStep, photos: savePhotosStep, concern: saveConcernStep, signoff: saveSignoffStep };
+  return savers[stepKey] ? savers[stepKey]() : { valid:true };
+}
+
+/* ============================================================
+   WIZARD SHELL + NAVIGATION
+   ============================================================ */
+function renderWizard(){
+  const wrap = document.createElement('div');
+  const stepKey = WIZARD_STEPS[state.step];
+  const meta = TYPE_META[state.reportType];
+  let top = '<div class="wizard-top">'+
+    '<button class="back-link" id="wizBack">'+icon('chevronLeft')+' '+(state.step===0?'Cancel':'Back')+'</button>'+
+    '<span class="step-tag">'+meta.short+' \u00B7 STEP '+(state.step+1)+' / '+WIZARD_STEPS.length+'</span>'+
+  '</div>';
+  let rail = '<div class="step-rail">' + WIZARD_STEPS.map(function(s,i){
+    const cls = i < state.step ? 'is-done' : i === state.step ? 'is-current' : '';
+    return '<i class="'+cls+'"></i>';
+  }).join('') + '</div>';
+
+  let card = '<div class="card"><h2 class="section-title">'+STEP_LABELS[stepKey]+'</h2>'+
+    '<p class="section-hint">'+stepHintText(stepKey, state.reportType)+'</p>'+
+    '<div id="stepBody"></div></div>';
+
+  wrap.innerHTML = top + rail + card;
+  qs('#wizBack', wrap).addEventListener('click', onWizardBack);
+
+  const body = qs('#stepBody', wrap);
+  const builders = { client: buildStepClient, service: buildStepService, photos: buildStepPhotos, concern: buildStepConcern, signoff: buildStepSignoff };
+  builders[stepKey](body);
+
+  setFooterBar(
+    (state.step>0 ? '<button class="btn btn-secondary btn-lg" id="wizPrev">Back</button>' : '') +
+    '<button class="btn btn-primary btn-lg btn-block" id="wizNext">'+(state.step===WIZARD_STEPS.length-1 ? 'Review report' : 'Continue')+' '+icon('chevronRight')+'</button>'
+  );
+  qs('#wizNext').addEventListener('click', onWizardNext);
+  if(state.step>0) qs('#wizPrev').addEventListener('click', onWizardPrev);
+
+  return wrap;
+}
+function onWizardNext(){
+  const stepKey = WIZARD_STEPS[state.step];
+  const result = saveCurrentStepIntoDraft(stepKey);
+  if(result && result.valid === false){
+    if(result.message) toast(result.message, 'error');
+    return;
+  }
+  persistDraft();
+  if(state.step < WIZARD_STEPS.length-1){
+    state.step++;
+    render(); window.scrollTo(0,0);
+  } else {
+    navigate('review');
+  }
+}
+function onWizardPrev(){
+  const stepKey = WIZARD_STEPS[state.step];
+  saveCurrentStepIntoDraft(stepKey);
+  persistDraft();
+  state.step--;
+  render(); window.scrollTo(0,0);
+}
+function onWizardBack(){
+  if(state.step===0){
+    const body = openModal(
+      '<p style="font-size:14px;color:var(--ink-soft);margin-bottom:18px;line-height:1.5;">This report hasn\u2019t been sent yet. Leaving now discards everything you\u2019ve entered.</p>'+
+      '<div style="display:flex;gap:10px;">'+
+        '<button class="btn btn-secondary btn-block" id="cancelDiscard">Keep editing</button>'+
+        '<button class="btn btn-danger btn-block" id="confirmDiscard">Discard</button>'+
+      '</div>', { title:'Discard this report?' }
+    );
+    qs('#cancelDiscard').addEventListener('click', closeModal);
+    qs('#confirmDiscard').addEventListener('click', function(){
+      closeModal();
+      clearDraftStorage();
+      state.draft=null; state.reportType=null; state.step=0;
+      navigate('home');
+    });
+  } else {
+    onWizardPrev();
+  }
+}
+function startNewReport(type){
+  state.reportType = type;
+  state.draft = emptyDraft(type);
+  state.step = 0;
+  navigate('wizard');
+}
+
+/* ---------------- DRAFT PERSISTENCE (personal, lightweight) ---------------- */
+function persistDraft(){
+  if(!state.draft) return;
+  sset('draft_active', { reportType: state.reportType, step: state.step, draft: state.draft }, false);
+}
+function clearDraftStorage(){ sdel('draft_active', false); }
+async function checkForSavedDraft(){
+  const saved = await sget('draft_active', false);
+  if(!saved || !saved.draft) return;
+  const body = openModal(
+    '<p style="font-size:14px;color:var(--ink-soft);margin-bottom:18px;line-height:1.5;">You have an unfinished '+escapeHTML((TYPE_META[saved.reportType]||{}).label||'')+' report from a previous session. Resume it or start fresh.</p>'+
+    '<div style="display:flex;gap:10px;">'+
+      '<button class="btn btn-secondary btn-block" id="discardSaved">Discard</button>'+
+      '<button class="btn btn-primary btn-block" id="resumeSaved">Resume</button>'+
+    '</div>', { title:'Resume draft report?' }
+  );
+  qs('#discardSaved').addEventListener('click', function(){ closeModal(); clearDraftStorage(); });
+  qs('#resumeSaved').addEventListener('click', function(){
+    closeModal();
+    state.reportType = saved.reportType;
+    state.draft = saved.draft;
+    state.step = saved.step || 0;
+    navigate('wizard');
+  });
+}
+
+/* ============================================================
+   HOME SCREEN
+   ============================================================ */
+function historyItemHTML(r){
+  const meta = TYPE_META[r.type] || {};
+  const statusClass = r.emailStatus==='sent' ? 'st-sent' : r.emailStatus==='manual' ? 'st-manual' : 'st-draft';
+  const statusLabel = r.emailStatus==='sent' ? 'Emailed' : r.emailStatus==='manual' ? 'Sent manually' : 'Draft';
+  return '<button class="hist-item" data-id="'+escapeHTML(r.id)+'">'+
+    '<span class="hi-icon">'+icon(meta.icon||'house')+'</span>'+
+    '<span class="hi-main">'+
+      '<span class="hi-title">'+escapeHTML(r.clientName||'Untitled')+'</span>'+
+      '<span class="hi-sub">'+escapeHTML(r.controlDisplay||'')+' \u00B7 '+formatDateDisplay(r.serviceDate)+'</span>'+
+    '</span>'+
+    '<span class="hi-status '+statusClass+'">'+statusLabel+'</span>'+
+  '</button>';
+}
+function renderHome(){
+  const wrap = document.createElement('div');
+  let html = '';
+  html += '<div class="stack-14" style="margin-bottom:24px;">';
+  html += '<p class="eyebrow">New job accomplishment report</p>';
+  html += '<h2 style="font-size:21px;">Select the account type to begin</h2>';
+  html += '</div>';
+  html += '<div class="type-grid">';
+  Object.keys(TYPE_META).forEach(function(key){
+    const m = TYPE_META[key];
+    html += '<button class="type-card" data-type="'+key+'">'+
+      '<span class="type-icon">'+icon(m.icon)+'</span>'+
+      '<h3>'+m.label+'</h3>'+
+      '<p>'+m.desc+'</p>'+
+      '<span class="type-go">Start report '+icon('chevronRight')+'</span>'+
+    '</button>';
+  });
+  html += '</div>';
+  html += '<div class="divider-label">Recent reports</div>';
+  html += '<div id="homeRecentWrap"><p class="small-muted center" style="padding:20px 0;">Loading\u2026</p></div>';
+  wrap.innerHTML = html;
+  qsa('.type-card', wrap).forEach(function(btn){ btn.addEventListener('click', function(){ startNewReport(btn.dataset.type); }); });
+  loadRecentForHome(wrap);
+  return wrap;
+}
+async function loadRecentForHome(wrap){
+  const idx = await sget('reports_index', true) || [];
+  const target = wrap.querySelector('#homeRecentWrap');
+  if(!target) return;
+  if(idx.length===0){
+    target.innerHTML = '<div class="empty-state" style="padding:18px 10px;">'+icon('inbox')+'<p style="font-size:13px;">Nothing submitted yet \u2014 your completed reports will show up here.</p></div>';
+    return;
+  }
+  const recent = idx.slice().sort(function(a,b){ return new Date(b.createdAt)-new Date(a.createdAt); }).slice(0,3);
+  target.innerHTML = recent.map(historyItemHTML).join('');
+  qsa('.hist-item', target).forEach(function(el){
+    el.addEventListener('click', function(){ navigate('reportDetail', { viewingReportId: el.dataset.id }); });
+  });
+}
+
+/* ============================================================
+   ROUTER
+   ============================================================ */
+function updateHeaderActiveStates(){
+  const h = qs('#navHistoryBtn'), s = qs('#navSettingsBtn');
+  if(h) h.classList.toggle('is-active', state.screen==='history');
+  if(s) s.classList.toggle('is-active', state.screen==='settings');
+}
+function navigate(screen, params){
+  params = params || {};
+  state.screen = screen;
+  if(params.reportType !== undefined) state.reportType = params.reportType;
+  if(params.step !== undefined) state.step = params.step;
+  if(params.viewingReportId !== undefined) state.viewingReportId = params.viewingReportId;
+  render();
+  window.scrollTo(0,0);
+}
+function render(){
+  const app = qs('#app');
+  app.innerHTML = '';
+  updateHeaderActiveStates();
+  if(state.screen === 'home'){ app.appendChild(renderHome()); removeFooterBar(); }
+  else if(state.screen === 'wizard'){ app.appendChild(renderWizard()); }
+  else if(state.screen === 'review'){ app.appendChild(renderReview()); }
+  else if(state.screen === 'success'){ app.appendChild(renderSuccess()); removeFooterBar(); }
+  else if(state.screen === 'history'){ app.appendChild(renderHistory()); removeFooterBar(); }
+  else if(state.screen === 'reportDetail'){ app.appendChild(renderReportDetail()); removeFooterBar(); }
+  else if(state.screen === 'settings'){ app.appendChild(renderSettings()); removeFooterBar(); }
+  else { app.appendChild(renderHome()); removeFooterBar(); }
+}
+
+/* ============================================================
+   REVIEW SCREEN
+   ============================================================ */
+function satisfactionLabel(v){
+  return v==='very_happy' ? 'Very Happy' : v==='happy' ? 'Happy' : v==='not_happy' ? 'Not So Happy' : '';
+}
+function clientKV(d, type){
+  const rows = [];
+  if(type==='seven11'){
+    rows.push(['Store', (d.client.storeNumber?('#'+d.client.storeNumber+' \u2014 '):'') + (d.client.storeName||'')]);
+    rows.push(['Cluster', d.client.storeCluster]);
+    rows.push(['Store manager', d.client.storeManager]);
+  } else {
+    rows.push(['Name', d.client.name]);
+    rows.push(['Contact person', d.client.contactPerson]);
+    if(type==='government'){ rows.push(['Structure type', d.client.structureType]); rows.push(['Tel.', d.client.phone]); }
+    else { rows.push(['Phone', d.client.phone]); }
+  }
+  rows.push(['Address', d.client.address]);
+  rows.push(['Client email', d.client.email]);
+  rows.push(['Service date', formatDateDisplay(d.schedule.serviceDate)]);
+  const timeStr = (d.schedule.timeStarted?formatTimeDisplay(d.schedule.timeStarted):'') + (d.schedule.timeFinished?(' \u2013 '+formatTimeDisplay(d.schedule.timeFinished)):'');
+  rows.push(['Time', timeStr]);
+  return rows;
+}
+function serviceKV(d, type){
+  const rows = [];
+  if(type==='private'){
+    rows.push(['Services', d.service.typesOfServices.join(', ')]);
+    rows.push(['Pests observed', d.service.activePests.join(', ') + (d.service.activePestOther?(', '+d.service.activePestOther):'')]);
+    rows.push(['Degree of infestation', d.service.degreeOfInfestation]);
+    rows.push(['Chemical used', d.service.chemicalUsed]);
+  } else if(type==='seven11'){
+    const loggedAreas = Object.keys(d.service.scopeRows).filter(function(k){ const r=d.service.scopeRows[k]; return r && (r.pest||r.services||r.chemicals); }).length;
+    rows.push(['Areas logged', loggedAreas + ' of ' + SEVEN11_AREAS.length]);
+    rows.push(['Weather', d.service.weather]);
+    const postSummary = Object.keys(d.findings.postAction||{}).map(function(k){ return d.findings.postAction[k]; }).filter(function(r){return r && r.severity;}).map(function(r){ return r.pest+': '+r.severity; }).join(', ');
+    rows.push(['Post action level', postSummary]);
+  } else if(type==='government'){
+    rows.push(['Nature of work', d.service.natureOfWork.join(', ')]);
+    rows.push(['Pests noted', d.service.gpcPests.join(', ')]);
+    rows.push(['Action taken', d.service.actionTaken.join(', ')]);
+    rows.push(['Areas treated', d.service.areasTreated.length + ' selected']);
+    const findSummary = Object.keys(d.findings.byPest||{}).map(function(k){ return d.findings.byPest[k]; }).filter(function(r){return r && r.severity;}).map(function(r){ return r.pest+': '+r.severity; }).join(', ');
+    rows.push(['Findings', findSummary]);
+  }
+  return rows;
+}
+function concernKV(d, type){
+  const rows = [ ['Concern / finding', d.concern.finding], ['Recommendation', d.concern.recommendation], ['Remarks', d.concern.remarks] ];
+  if(type==='private'){ rows.push(['Category', d.concern.category]); rows.push(['Location / tower', d.concern.location]); }
+  return rows;
+}
+function reviewBlock(title, stepIdx, kvPairs){
+  let rows = kvPairs.map(function(p){
+    const val = p[1];
+    const empty = !val;
+    return '<dt>'+escapeHTML(p[0])+'</dt><dd class="'+(empty?'empty':'')+'">'+(empty?'Not provided':escapeHTML(val))+'</dd>';
+  }).join('');
+  const editBtn = (stepIdx===null || stepIdx===undefined) ? '' : '<button class="rb-edit" data-step="'+stepIdx+'">'+icon('pencil')+' Edit</button>';
+  return '<div class="review-block"><div class="rb-title">'+escapeHTML(title)+editBtn+'</div><dl class="kv">'+rows+'</dl></div>';
+}
+function reviewPhotosBlock(d, stepIdx){
+  let inner;
+  if(d.photos.length===0){ inner = '<p class="small-muted">No photos attached.</p>'; }
+  else { inner = '<div class="photo-grid" style="grid-template-columns:repeat(4,1fr);">' + d.photos.map(function(p){ return '<div class="photo-tile"><img src="'+p.dataUrl+'"></div>'; }).join('') + '</div>'; }
+  const editBtn = (stepIdx===null || stepIdx===undefined) ? '' : '<button class="rb-edit" data-step="'+stepIdx+'">'+icon('pencil')+' Edit</button>';
+  return '<div class="review-block"><div class="rb-title">Photo evidence'+editBtn+'</div>'+inner+'</div>';
+}
+function reviewSignoffBlock(d, stepIdx){
+  const rows = [
+    ['Technician', d.signOff.technicianName],
+    ['Technician signed', d.signOff.technicianSig ? 'Yes' : 'No'],
+    ['Client rep.', d.signOff.clientRepName],
+    ['Client signed', d.signOff.clientSig ? 'Yes' : 'No'],
+    ['Satisfaction', d.signOff.satisfaction ? satisfactionLabel(d.signOff.satisfaction) : '']
+  ];
+  return reviewBlock('Sign-off & feedback', stepIdx===undefined?4:stepIdx, rows);
+}
+function renderReview(){
+  const wrap = document.createElement('div');
+  const d = state.draft;
+  if(!d){ navigate('home'); return wrap; }
+  const type = state.reportType;
+  const meta = TYPE_META[type];
+
+  let html = '<div class="wizard-top"><button class="back-link" id="reviewBack">'+icon('chevronLeft')+' Back to form</button><span class="step-tag">'+meta.short+' \u00B7 REVIEW</span></div>';
+  html += '<div class="card" style="margin-bottom:16px;">';
+  html += '<h2 class="section-title">Review before sending</h2>';
+  html += '<p class="section-hint">Check the details below \u2014 you can jump back to fix anything.</p>';
+  html += reviewBlock('Client & schedule', 0, clientKV(d, type));
+  html += reviewBlock('Service details', 1, serviceKV(d, type));
+  html += reviewPhotosBlock(d, 2);
+  html += reviewBlock('Findings & remarks', 3, concernKV(d, type));
+  html += reviewSignoffBlock(d, 4);
+  html += '</div>';
+  wrap.innerHTML = html;
+
+  qs('#reviewBack', wrap).addEventListener('click', function(){ navigate('wizard', { step: WIZARD_STEPS.length-1 }); });
+  qsa('.rb-edit', wrap).forEach(function(btn){
+    btn.addEventListener('click', function(){ navigate('wizard', { step: parseInt(btn.dataset.step,10) }); });
+  });
+
+  setFooterBar('<button class="btn btn-primary btn-lg btn-block" id="sendReportBtn">'+icon('send')+' Send report</button>');
+  qs('#sendReportBtn').addEventListener('click', submitReport);
+
+  return wrap;
+}
+
+/* ============================================================
+   PDF GENERATION (jsPDF + autoTable)
+   ============================================================ */
+function drawLetterhead(doc, d){
+  const pageWidth = doc.internal.pageSize.getWidth();
+  doc.setFillColor(31,92,70);
+  doc.rect(0,0,pageWidth,66,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFont('helvetica','bold'); doc.setFontSize(15);
+  doc.text(CONFIG.companyName.toUpperCase(), 40, 28);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8);
+  doc.text(CONFIG.companyAddress, 40, 41);
+  doc.text(CONFIG.companyPhone + '   \u2022   ' + CONFIG.companyEmail, 40, 53);
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
+  doc.text((TYPE_META[d.type].label).toUpperCase(), pageWidth-40, 24, { align:'right' });
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+  doc.text('JOB ACCOMPLISHMENT REPORT', pageWidth-40, 34, { align:'right' });
+  doc.setFont('courier','bold'); doc.setFontSize(14);
+  doc.text(d.controlDisplay || '', pageWidth-40, 53, { align:'right' });
+
+  doc.setTextColor(20,30,25);
+  return 90;
+}
+function sectionHeading(doc, text, y){
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  if(y > pageHeight - 100){ doc.addPage(); y = 50; }
+  doc.setFillColor(220,234,226);
+  doc.rect(40, y, pageWidth-80, 18, 'F');
+  doc.setTextColor(18,58,44);
+  doc.setFont('helvetica','bold'); doc.setFontSize(9);
+  doc.text(text.toUpperCase(), 46, y+12.5);
+  doc.setTextColor(20,30,25);
+  return y + 18 + 8;
+}
+function kvTable(doc, y, rows){
+  doc.autoTable({
+    startY: y,
+    body: rows.map(function(r){ return [r[0], r[1] || '\u2014']; }),
+    theme: 'plain',
+    margin: { top:50, left:40, right:40 },
+    styles: { font:'helvetica', fontSize:9, cellPadding:{top:3,bottom:3,left:0,right:6}, textColor:[20,30,25], overflow:'linebreak' },
+    columnStyles: { 0:{ fontStyle:'bold', textColor:[85,100,91], cellWidth:150 }, 1:{} }
+  });
+  return doc.lastAutoTable.finalY + 16;
+}
+function gridTable(doc, y, head, body, colStyles){
+  doc.autoTable({
+    startY: y,
+    head: [head],
+    body: body,
+    margin: { top:50, left:40, right:40 },
+    styles: { font:'helvetica', fontSize:7.6, cellPadding:4, textColor:[20,30,25], overflow:'linebreak', valign:'top' },
+    headStyles: { fillColor:[31,92,70], textColor:[255,255,255], fontStyle:'bold', fontSize:7.6 },
+    alternateRowStyles: { fillColor:[239,243,238] },
+    columnStyles: colStyles || {}
+  });
+  return doc.lastAutoTable.finalY + 16;
+}
+function pdfServicePrivate(doc, d, y){
+  return kvTable(doc, y, [
+    ['Services performed', d.service.typesOfServices.join(', ') || '\u2014'],
+    ['Active pest observed', (d.service.activePests.concat(d.service.activePestOther?[d.service.activePestOther]:[])).join(', ') || '\u2014'],
+    ['Degree of infestation', d.service.degreeOfInfestation || '\u2014'],
+    ['Chemical used', d.service.chemicalUsed || '\u2014']
+  ]);
+}
+function pdfServiceSeven11(doc, d, y){
+  const rows = SEVEN11_AREAS.map(function(a,i){
+    const r = d.service.scopeRows['a'+i] || {};
+    return [a, r.pest||'', r.services||'', r.chemicals||'', r.dilution||'', r.brand||'', r.recommendation||''];
+  });
+  y = gridTable(doc, y, ['Area','Pest','Services','Chemicals','Dilution','Brand','Recommendation'], rows, {0:{cellWidth:62}});
+  y = kvTable(doc, y, [['Weather condition', d.service.weather]]);
+  y = sectionHeading(doc, 'Post Action Level', y);
+  const postRows = SEVEN11_POST_PESTS.map(function(p,i){
+    const r = d.findings.postAction['p'+i] || {};
+    return [p, r.location||'\u2014', r.severity||'\u2014'];
+  });
+  y = gridTable(doc, y, ['Pest','Location','Severity'], postRows, {});
+  y = sectionHeading(doc, 'Other Parameters of Concern', y);
+  const otherRows = SEVEN11_OTHER_PARAMS.map(function(row,i){
+    const r = d.service.otherParams['o'+i] || {};
+    return [row, r.remarks||'', r.recommendation||''];
+  });
+  y = gridTable(doc, y, ['Item','Remarks','Recommendation'], otherRows, {0:{cellWidth:160}});
+  return y;
+}
+function pdfServiceGovernment(doc, d, y){
+  y = kvTable(doc, y, [
+    ['Nature of work', d.service.natureOfWork.join(', ')],
+    ['Pests noted', d.service.gpcPests.join(', ')],
+    ['Action taken', d.service.actionTaken.join(', ')],
+    ['Areas treated', d.service.areasTreated.join(', ')],
+    ['Rodent entry point', d.service.rodentEntryPoint],
+    ['Barriers / sealing', d.service.sealing],
+    ['Sanitation needs', d.service.sanitationNeeds],
+    ['Repair & maintenance', d.service.repairMaintenance],
+    ['Renovation notes', d.service.renovation],
+    ['Chemical used', d.service.chemicalUsed]
+  ]);
+  y = sectionHeading(doc, 'Findings \u2014 Degree of Infestation', y);
+  const findRows = GOV_FINDINGS_PESTS.map(function(p,i){
+    const r = d.findings.byPest['p'+i] || {};
+    return [p, r.severity || '\u2014'];
+  });
+  y = gridTable(doc, y, ['Pest','Severity (Light / Medium / High)'], findRows, {});
+  return y;
+}
+function pdfPhotos(doc, d, y){
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const cols = 3, gap = 10;
+  const imgW = (pageWidth - 80 - gap*(cols-1)) / cols;
+  const imgH = imgW * 0.75;
+  let rowStartY = y, col = 0, x;
+  d.photos.forEach(function(p){
+    if(col===0 && rowStartY + imgH > pageHeight - 70){ doc.addPage(); rowStartY = 50; }
+    x = 40 + col * (imgW+gap);
+    try{ doc.addImage(p.dataUrl, 'JPEG', x, rowStartY, imgW, imgH, undefined, 'FAST'); }catch(e){}
+    col++;
+    if(col>=cols){ col=0; rowStartY += imgH + gap; }
+  });
+  if(col!==0) rowStartY += imgH + gap;
+  return rowStartY + 8;
+}
+function pdfSignoff(doc, d, y){
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const colW = (pageWidth - 80 - 20) / 2;
+  const sigH = 60;
+  if(y + sigH + 70 > pageHeight - 70){ doc.addPage(); y = 50; }
+  const leftX = 40, rightX = 40 + colW + 20;
+  doc.setDrawColor(214,222,211);
+  doc.rect(leftX, y, colW, sigH);
+  doc.rect(rightX, y, colW, sigH);
+  if(d.signOff.technicianSig){ try{ doc.addImage(d.signOff.technicianSig,'PNG', leftX+6, y+6, colW-12, sigH-12, undefined,'FAST'); }catch(e){} }
+  if(d.signOff.clientSig){ try{ doc.addImage(d.signOff.clientSig,'PNG', rightX+6, y+6, colW-12, sigH-12, undefined,'FAST'); }catch(e){} }
+  const labelY = y + sigH + 14;
+  doc.setDrawColor(180,190,182);
+  doc.line(leftX, labelY-6, leftX+colW, labelY-6);
+  doc.line(rightX, labelY-6, rightX+colW, labelY-6);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(60,70,62);
+  doc.text((d.signOff.technicianName||'\u2014') + '  \u2014  Service Technician', leftX, labelY+4);
+  doc.text((d.signOff.clientRepName||'\u2014') + '  \u2014  Client Representative', rightX, labelY+4);
+
+  let yy = labelY + 26;
+  const satisfactionText = d.signOff.satisfaction ? satisfactionLabel(d.signOff.satisfaction) : 'Not rated';
+  doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(20,30,25);
+  doc.text('Client satisfaction: ' + satisfactionText, leftX, yy);
+  yy += 16;
+  if(d.signOff.clientRemarks){
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+    const lines = doc.splitTextToSize('Client remarks: ' + d.signOff.clientRemarks, pageWidth-80);
+    doc.text(lines, leftX, yy);
+    yy += lines.length*11;
+  }
+  return yy + 10;
+}
+function drawContinuationHeader(doc, d){
+  const pageWidth = doc.internal.pageSize.getWidth();
+  doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(31,92,70);
+  doc.text(CONFIG.companyName + '  \u2014  ' + (d.controlDisplay||''), 40, 28);
+  doc.setDrawColor(214,222,211); doc.line(40,36,pageWidth-40,36);
+  doc.setTextColor(20,30,25);
+}
+function drawFooter(doc, d, pageNum, total){
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  doc.setDrawColor(214,222,211); doc.line(40, pageHeight-34, pageWidth-40, pageHeight-34);
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(120,130,122);
+  doc.text('Generated ' + formatDateTimeStamp(d.submittedAt||new Date().toISOString()), 40, pageHeight-22);
+  doc.text('Page ' + pageNum + ' of ' + total, pageWidth-40, pageHeight-22, { align:'right' });
+}
+function finalizeAllPages(doc, d){
+  const total = doc.internal.getNumberOfPages();
+  for(let p=1; p<=total; p++){
+    doc.setPage(p);
+    if(p>1){ drawContinuationHeader(doc, d); }
+    drawFooter(doc, d, p, total);
+  }
+}
+function buildPDF(d){
+  const jsPDFCtor = window.jspdf.jsPDF;
+  const doc = new jsPDFCtor({ unit:'pt', format:'a4' });
+  let y = drawLetterhead(doc, d);
+
+  y = sectionHeading(doc, 'Client & Schedule', y);
+  y = kvTable(doc, y, clientKV(d, d.type));
+
+  y = sectionHeading(doc, 'Service Details', y);
+  if(d.type==='private') y = pdfServicePrivate(doc, d, y);
+  else if(d.type==='seven11') y = pdfServiceSeven11(doc, d, y);
+  else y = pdfServiceGovernment(doc, d, y);
+
+  y = sectionHeading(doc, 'Findings, Recommendation & Remarks', y);
+  y = kvTable(doc, y, concernKV(d, d.type));
+
+  if(d.photos && d.photos.length){
+    y = sectionHeading(doc, 'Photo Evidence', y);
+    y = pdfPhotos(doc, d, y);
+  }
+
+  y = sectionHeading(doc, 'Sign-off', y);
+  y = pdfSignoff(doc, d, y);
+
+  finalizeAllPages(doc, d);
+  return doc;
+}
+
+/* ============================================================
+   EMAIL DELIVERY — EmailJS (auto) with mailto fallback (guaranteed)
+   ============================================================ */
+let pendingMailto = null;
+
+function buildEmailSummary(d){
+  const meta = TYPE_META[d.type];
+  const clientDisplayName = d.client.name || d.client.storeName || 'Client';
+  const subject = 'Job Accomplishment Report ' + d.controlDisplay + ' \u2014 ' + clientDisplayName;
+  const lines = [];
+  lines.push('JOB ACCOMPLISHMENT REPORT \u2014 ' + d.controlDisplay);
+  lines.push(meta.label);
+  lines.push('');
+  lines.push('Client: ' + clientDisplayName);
+  lines.push('Address: ' + (d.client.address||''));
+  lines.push('Service date: ' + formatDateDisplay(d.schedule.serviceDate));
+  lines.push('Technician: ' + (d.signOff.technicianName||''));
+  lines.push('');
+  if(d.type==='private'){
+    lines.push('Services: ' + d.service.typesOfServices.join(', '));
+    lines.push('Pests observed: ' + d.service.activePests.join(', '));
+    lines.push('Degree of infestation: ' + (d.service.degreeOfInfestation||'\u2014'));
+  } else if(d.type==='seven11'){
+    lines.push('Weather during application: ' + (d.service.weather||'\u2014'));
+  } else {
+    lines.push('Nature of work: ' + d.service.natureOfWork.join(', '));
+    lines.push('Pests noted: ' + d.service.gpcPests.join(', '));
+  }
+  lines.push('');
+  if(d.concern.finding) lines.push('Finding: ' + d.concern.finding);
+  if(d.concern.recommendation) lines.push('Recommendation: ' + d.concern.recommendation);
+  if(d.concern.remarks) lines.push('Remarks: ' + d.concern.remarks);
+  lines.push('');
+  lines.push('\u2014 Sent via the ' + CONFIG.companyName + ' Job Accomplishment Report system.');
+  lines.push('The complete report with photos and signatures is available as a PDF \u2014 download it from the app to attach or forward.');
+  return { subject: subject, body: lines.join('\n') };
+}
+function preparePendingMailto(d, summary){
+  const bodyForMailto = summary.body.length > 1500 ? (summary.body.slice(0,1450) + '\n\n[Full details are in the PDF \u2014 download and attach it before sending.]') : summary.body;
+  const cc = d.client.ccEmail ? ('&cc=' + encodeURIComponent(d.client.ccEmail)) : '';
+  pendingMailto = 'mailto:' + encodeURIComponent(d.client.email) + '?subject=' + encodeURIComponent(summary.subject) + cc + '&body=' + encodeURIComponent(bodyForMailto);
+}
+async function attemptSend(d){
+  const summary = buildEmailSummary(d);
+  const emailJsReady = (typeof emailjs !== 'undefined') && state.settings.configured && state.settings.serviceId && state.settings.templateId && state.settings.publicKey;
+  if(emailJsReady){
+    try{
+      await emailjs.send(state.settings.serviceId, state.settings.templateId, {
+        to_email: d.client.email,
+        cc_email: d.client.ccEmail || '',
+        from_name: state.settings.fromName || CONFIG.companyName,
+        subject: summary.subject,
+        report_id: d.controlDisplay,
+        client_name: d.client.name || d.client.storeName || '',
+        technician_name: d.signOff.technicianName || '',
+        message: summary.body
+      }, { publicKey: state.settings.publicKey });
+      return { status:'sent' };
+    } catch(err){
+      console.error('EmailJS send failed', err);
+      preparePendingMailto(d, summary);
+      return { status:'manual' };
+    }
+  } else {
+    preparePendingMailto(d, summary);
+    return { status:'manual' };
+  }
+}
+
+/* ============================================================
+   SUBMIT REPORT
+   ============================================================ */
+let lastSubmittedPdfBlobUrl = null;
+let lastSubmittedReport = null;
+
+async function nextControlNumber(type){
+  const key = 'seq_' + type;
+  let n = await sget(key, true);
+  if(typeof n !== 'number' || isNaN(n)) n = 0;
+  n += 1;
+  await sset(key, n, true);
+  return CONTROL_BASE[type] + n;
+}
+async function saveReportToStorage(d){
+  const summary = {
+    id: d.id, type: d.type, controlDisplay: d.controlDisplay,
+    clientName: d.client.name || d.client.storeName, clientEmail: d.client.email,
+    serviceDate: d.schedule.serviceDate, createdAt: d.submittedAt,
+    emailStatus: d.emailStatus, technicianName: d.signOff.technicianName
+  };
+  const idx = await sget('reports_index', true) || [];
+  idx.unshift(summary);
+  await sset('reports_index', idx.slice(0,500), true);
+  await sset('report_detail_' + d.id, d, true);
+}
+async function submitReport(){
+  const btn = qs('#sendReportBtn');
+  if(btn){ btn.disabled = true; btn.innerHTML = 'Sending\u2026'; }
+  const d = state.draft;
+  const type = state.reportType;
+  try{
+    const seq = await nextControlNumber(type);
+    d.controlNo = seq;
+    d.controlDisplay = fmtControlNo(type, seq);
+    d.id = 'GEP-' + type.toUpperCase().slice(0,3) + '-' + d.controlNo;
+    d.submittedAt = new Date().toISOString();
+    d.status = 'submitted';
+
+    const pdfDoc = buildPDF(d);
+    const pdfBlob = pdfDoc.output('blob');
+    if(lastSubmittedPdfBlobUrl) URL.revokeObjectURL(lastSubmittedPdfBlobUrl);
+    lastSubmittedPdfBlobUrl = URL.createObjectURL(pdfBlob);
+
+    const sendResult = await attemptSend(d);
+    d.emailStatus = sendResult.status;
+
+    await saveReportToStorage(d);
+    clearDraftStorage();
+
+    lastSubmittedReport = d;
+    state.draft = null;
+    navigate('success');
+  } catch(err){
+    console.error(err);
+    toast('Something went wrong while sending. Nothing was lost \u2014 try again.', 'error');
+    if(btn){ btn.disabled = false; btn.innerHTML = icon('send') + ' Send report'; }
+  }
+}
+
+/* ============================================================
+   SUCCESS SCREEN
+   ============================================================ */
+function renderSuccess(){
+  const wrap = document.createElement('div');
+  const d = lastSubmittedReport;
+  if(!d){ navigate('home'); return wrap; }
+  const sentAutomatically = d.emailStatus === 'sent';
+
+  let html = '<div class="success-wrap">';
+  html += '<div class="stamp">'+icon('checkSeal')+'</div>';
+  html += '<h2>Report '+escapeHTML(d.controlDisplay)+' submitted</h2>';
+  html += '<p>'+(sentAutomatically ? ('Emailed automatically to '+escapeHTML(d.client.email)+'.') : ('Saved \u2014 finish sending it to '+escapeHTML(d.client.email)+' below.'))+'</p>';
+  html += '</div>';
+
+  if(!sentAutomatically){
+    html += '<div class="helper-banner amber">'+icon('info')+'<span>Automatic email isn\u2019t connected yet, so the message is already written and addressed \u2014 download the PDF, then hit send in your email app.</span></div>';
+  }
+
+  html += '<div class="card stack-14">';
+  html += '<button class="btn btn-secondary btn-block btn-lg" id="downloadPdfBtn">'+icon('download')+' Download PDF report</button>';
+  if(!sentAutomatically){
+    html += '<button class="btn btn-primary btn-block btn-lg" id="openMailBtn">'+icon('mail')+' Open email to send</button>';
+  }
+  html += '<button class="btn btn-ghost btn-block" id="newReportBtn">Start another report</button>';
+  html += '</div>';
+
+  wrap.innerHTML = html;
+
+  qs('#downloadPdfBtn', wrap).addEventListener('click', function(){
+    const a = document.createElement('a');
+    a.href = lastSubmittedPdfBlobUrl;
+    a.download = 'JAR-' + d.controlDisplay + '.pdf';
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+  const openMailBtn = qs('#openMailBtn', wrap);
+  if(openMailBtn){
+    openMailBtn.addEventListener('click', function(){ if(pendingMailto) window.location.href = pendingMailto; });
+  }
+  qs('#newReportBtn', wrap).addEventListener('click', function(){ navigate('home'); });
+
+  return wrap;
+}
+
+/* ============================================================
+   HISTORY SCREEN
+   ============================================================ */
+let __historyCache = null;
+function renderHistory(){
+  const wrap = document.createElement('div');
+  let html = '<div class="wizard-top"><span class="eyebrow">All reports</span></div>';
+  html += '<h2 style="font-size:21px;margin-bottom:4px;">Report history</h2>';
+  html += '<p class="section-hint" style="margin-bottom:18px;">Every report submitted with this app, shared with your team.</p>';
+  html += '<div class="row-2" style="margin-bottom:16px;">'+
+    '<input class="input" id="histSearch" placeholder="Search client or control no.">'+
+    '<select class="input" id="histFilter"><option value="">All types</option><option value="private">Private</option><option value="government">Government</option><option value="seven11">7-Eleven</option></select>'+
+  '</div>';
+  html += '<div id="histListWrap"><p class="small-muted center" style="padding:30px 0;">Loading\u2026</p></div>';
+  wrap.innerHTML = html;
+  qs('#histSearch', wrap).addEventListener('input', debounce(function(){ renderHistList(wrap); }, 200));
+  qs('#histFilter', wrap).addEventListener('change', function(){ renderHistList(wrap); });
+  loadHistoryAndRender(wrap);
+  return wrap;
+}
+async function loadHistoryAndRender(wrap){
+  __historyCache = await sget('reports_index', true) || [];
+  renderHistList(wrap);
+}
+function renderHistList(wrap){
+  const target = wrap.querySelector('#histListWrap');
+  if(!target || !__historyCache) return;
+  const q = (wrap.querySelector('#histSearch').value || '').toLowerCase().trim();
+  const typeFilter = wrap.querySelector('#histFilter').value;
+  let list = __historyCache.slice().sort(function(a,b){ return new Date(b.createdAt)-new Date(a.createdAt); });
+  if(typeFilter) list = list.filter(function(r){ return r.type===typeFilter; });
+  if(q) list = list.filter(function(r){ return (r.clientName||'').toLowerCase().indexOf(q)!==-1 || (r.controlDisplay||'').toLowerCase().indexOf(q)!==-1; });
+  if(list.length===0){
+    target.innerHTML = '<div class="empty-state">'+icon('inbox')+'<h3>No reports found</h3><p>Try a different search, or submit your first report from the home screen.</p></div>';
+    return;
+  }
+  target.innerHTML = '<div class="card" style="padding:2px 14px;">' + list.map(historyItemHTML).join('') + '</div>';
+  qsa('.hist-item', target).forEach(function(el){
+    el.addEventListener('click', function(){ navigate('reportDetail', { viewingReportId: el.dataset.id }); });
+  });
+}
+
+/* ============================================================
+   REPORT DETAIL SCREEN
+   ============================================================ */
+function renderReportDetail(){
+  const wrap = document.createElement('div');
+  wrap.innerHTML = '<div class="wizard-top"><button class="back-link" id="detailBack">'+icon('chevronLeft')+' History</button></div><p class="small-muted center" style="padding:40px 0;">Loading report\u2026</p>';
+  qs('#detailBack', wrap).addEventListener('click', function(){ navigate('history'); });
+  loadAndRenderDetail(wrap, state.viewingReportId);
+  return wrap;
+}
+async function loadAndRenderDetail(wrap, id){
+  const d = await sget('report_detail_' + id, true);
+  if(!d){ wrap.innerHTML = '<div class="wizard-top"><button class="back-link" id="detailBackErr">'+icon('chevronLeft')+' History</button></div><div class="empty-state">'+icon('alert')+'<h3>Report not found</h3><p>It may have been removed.</p></div>'; qs('#detailBackErr', wrap).addEventListener('click', function(){ navigate('history'); }); return; }
+
+  let html = '<div class="wizard-top"><button class="back-link" id="detailBack2">'+icon('chevronLeft')+' History</button><span class="step-tag">'+TYPE_META[d.type].short+'</span></div>';
+  html += '<div class="card" style="margin-bottom:16px;">';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">';
+  html += '<div><h2 class="section-title">'+escapeHTML(d.client.name||d.client.storeName||'Report')+'</h2><p class="small-muted">'+formatDateDisplay(d.schedule.serviceDate)+'</p></div>';
+  html += '<span class="ticket"><span class="t-label">Control No.</span><span class="t-num">'+escapeHTML(d.controlDisplay)+'</span></span>';
+  html += '</div>';
+  html += reviewBlock('Client & schedule', null, clientKV(d, d.type));
+  html += reviewBlock('Service details', null, serviceKV(d, d.type));
+  html += reviewPhotosBlock(d, null);
+  html += reviewBlock('Findings & remarks', null, concernKV(d, d.type));
+  html += reviewSignoffBlock(d, null);
+  html += '</div>';
+
+  html += '<div class="card stack-14">';
+  html += '<button class="btn btn-secondary btn-block btn-lg" id="detailDownload">'+icon('download')+' Download PDF</button>';
+  html += '<button class="btn btn-primary btn-block btn-lg" id="detailResend">'+icon('mail')+' Resend email</button>';
+  html += '</div>';
+
+  wrap.innerHTML = html;
+  qs('#detailBack2', wrap).addEventListener('click', function(){ navigate('history'); });
+  qs('#detailDownload', wrap).addEventListener('click', function(){
+    const doc = buildPDF(d);
+    doc.save('JAR-' + d.controlDisplay + '.pdf');
+  });
+  qs('#detailResend', wrap).addEventListener('click', async function(){
+    const btn = qs('#detailResend', wrap);
+    btn.disabled = true; btn.innerHTML = 'Sending\u2026';
+    const result = await attemptSend(d);
+    btn.disabled = false; btn.innerHTML = icon('mail') + ' Resend email';
+    if(result.status==='sent'){ toast('Report emailed to ' + d.client.email, 'success'); }
+    else { toast('Automatic email isn\u2019t connected \u2014 opening your email app instead.', 'error'); if(pendingMailto) window.location.href = pendingMailto; }
+  });
+}
+
+/* ============================================================
+   SETTINGS SCREEN — EmailJS configuration
+   ============================================================ */
+function renderSettings(){
+  const wrap = document.createElement('div');
+  const s = state.settings;
+  const emailJsLoaded = (typeof emailjs !== 'undefined');
+
+  let html = '<div class="wizard-top"><span class="eyebrow">Settings</span></div>';
+  html += '<h2 style="font-size:21px;margin-bottom:16px;">Email automation</h2>';
+
+  html += '<div class="card" style="margin-bottom:16px;">';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">';
+  html += '<h3 class="section-title" style="font-size:15px;">Status</h3>';
+  html += s.configured ? '<span class="status-pill ok">'+icon('check')+' Connected</span>' : '<span class="status-pill off">'+icon('info')+' Not connected</span>';
+  html += '</div>';
+  if(!emailJsLoaded){
+    html += '<div class="helper-banner amber">'+icon('alert')+'<span>The EmailJS library didn\u2019t load in this preview environment, so automatic sending will fall back to the pre-filled email option no matter what you enter below. It will work once this file is hosted on a normal website \u2014 see the note at the bottom.</span></div>';
+  }
+  html += '<p class="section-hint" style="margin-bottom:16px;">Connect a free <strong>EmailJS</strong> account so \u201CSend report\u201D emails the client automatically, with zero clicks after submit. This is optional \u2014 the app works without it using a pre-filled email draft instead.</p>';
+
+  html += field('EmailJS Service ID', 'set_serviceId', 'text', s.serviceId, {placeholder:'service_xxxxxxx'});
+  html += field('EmailJS Template ID', 'set_templateId', 'text', s.templateId, {placeholder:'template_xxxxxxx'});
+  html += field('EmailJS Public Key', 'set_publicKey', 'text', s.publicKey, {placeholder:'Your public key'});
+  html += field('"From" name shown to clients', 'set_fromName', 'text', s.fromName, {placeholder:'Gepestcon Co.'});
+
+  html += '<button class="btn btn-primary btn-block btn-lg" id="saveSettingsBtn" style="margin-top:6px;">Save settings</button>';
+  html += '</div>';
+
+  html += '<div class="card">';
+  html += '<h3 class="section-title" style="font-size:15px;margin-bottom:10px;">How to connect EmailJS (about 5 minutes)</h3>';
+  html += '<ol style="margin:0;padding-left:18px;font-size:13.5px;color:var(--ink-soft);line-height:1.8;">'+
+    '<li>Create a free account at <span class="pill-mono">emailjs.com</span>.</li>'+
+    '<li>Add an Email Service (e.g. connect your Gmail or Outlook) \u2014 copy its <strong>Service ID</strong>.</li>'+
+    '<li>Create an Email Template with these merge tags in the body: <span class="pill-mono">{{to_email}}</span>, <span class="pill-mono">{{subject}}</span>, <span class="pill-mono">{{message}}</span>, <span class="pill-mono">{{client_name}}</span>, <span class="pill-mono">{{report_id}}</span>, <span class="pill-mono">{{technician_name}}</span>, <span class="pill-mono">{{cc_email}}</span> \u2014 copy the <strong>Template ID</strong>.</li>'+
+    '<li>Under Account &rarr; General, copy your <strong>Public Key</strong>.</li>'+
+    '<li>Paste all three above and save. Submit a test report to confirm.</li>'+
+  '</ol>';
+  html += '<p class="small-muted" style="margin-top:14px;">Note: these values sit in the page\u2019s own code, the same as on any website using EmailJS \u2014 that\u2019s how the service is designed to work, so this is normal and expected, not a security gap specific to this app.</p>';
+  html += '</div>';
+
+  wrap.innerHTML = html;
+
+  qs('#saveSettingsBtn', wrap).addEventListener('click', async function(){
+    s.serviceId = qs('#set_serviceId', wrap).value.trim();
+    s.templateId = qs('#set_templateId', wrap).value.trim();
+    s.publicKey = qs('#set_publicKey', wrap).value.trim();
+    s.fromName = qs('#set_fromName', wrap).value.trim() || CONFIG.companyName;
+    s.configured = !!(s.serviceId && s.templateId && s.publicKey);
+    await sset('emailjs_settings', s, true);
+    toast(s.configured ? 'Email settings saved.' : 'Settings saved (incomplete \u2014 automatic send stays off until all three fields are filled).', s.configured ? 'success' : 'info');
+    render();
+  });
+
+  return wrap;
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+async function loadSettings(){
+  const s = await sget('emailjs_settings', true);
+  if(s) state.settings = Object.assign(state.settings, s);
+}
+function wireHeaderChrome(){
+  qs('#brandMark').innerHTML = icon('shield');
+  qs('#navHistoryBtn').innerHTML = icon('history');
+  qs('#navSettingsBtn').innerHTML = icon('gear');
+  qs('#navHomeBtn').addEventListener('click', function(){ navigate('home'); });
+  qs('#navHistoryBtn').addEventListener('click', function(){ navigate('history'); });
+  qs('#navSettingsBtn').addEventListener('click', function(){ navigate('settings'); });
+}
+async function init(){
+  wireHeaderChrome();
+  render();
+  await loadSettings();
+  await checkForSavedDraft();
+}
+init();
+</script>
+</body>
+</html>
