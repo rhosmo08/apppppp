@@ -836,7 +836,16 @@ const CONFIG = {
   companyAddress: '23-M Sct. Ybardolaza, Brgy. Sacred Heart, Quezon City',
   companyPhone: '02-79068414 / 0905-3017710',
   companyEmail: 'gepestcon_co@yahoo.com',
-  companyWeb: 'gepestcon.co'
+  companyWeb: 'gepestcon.co',
+  // fix: P3.5-1, see build prompt — optional PH FDA pest-control compliance
+  // fields. Deliberately blank by default: the exact wording/requirement
+  // needs confirming with the owner or a compliance contact before this is
+  // relied on (see build prompt Section 9), so no placeholder value is
+  // guessed here. Only rendered on the report letterhead when populated.
+  ltoNumber: '',
+  ltoExpiry: '',
+  supervisingHandlerName: '',
+  supervisingHandlerCertNo: ''
 };
 
 const TYPE_META = {
@@ -846,7 +855,7 @@ const TYPE_META = {
 };
 
 const WIZARD_STEPS = ['client','service','photos','concern','signoff'];
-const STEP_LABELS = { client:'Client & Schedule', service:'Service Details', photos:'Photo Evidence', concern:'Findings & Remarks', signoff:'Sign-off & Feedback' };
+const STEP_LABELS = { client:'Client & Schedule', service:'Service Details', photos:'Photo Evidence', concern:'Findings & Recommendation', signoff:'Sign-off & Feedback' };
 
 const LOCATIONS_5 = ['L1','L2','L4','L5','VRBU'];
 
@@ -857,6 +866,8 @@ const SEVEN11_AREAS = ['Counter Area','Selling Area','Dining Area','Backlot Room
 const SEVEN11_OTHER_PARAMS = ['Check area for possible pest entry point','Check area/s for possible nesting of pest','Outside factors concerning pest'];
 const SEVEN11_POST_PESTS = ['Rat / Mice','Cockroach','Flies','Mosquitoes'];
 const SEVEN11_AREA_PESTS = SEVEN11_POST_PESTS.concat(['Others']);
+const SEVEN11_SERVICES_RENDERED = ['Pest Control','Termite','Inspection','Others'];
+const SEVEN11_WEATHER_OPTIONS = ['Sunny','Cloudy','Light Rain','Heavy Rain','Thunderstorm'];
 
 const GOV_NATURE_OF_WORK = ['General Pest Control','Rodent Control','Fumigation','Fogging / Misting'];
 const GOV_GPC_PESTS = ['Flying & Crawling Insects','Roaches','Mosquitoes','Flies','Other Pests'];
@@ -891,19 +902,10 @@ const TAB_BAR_NAV = [
   { key:'clients', label:'Clients', icon:'users' },
   { key:'profile', label:'Profile', icon:'user' }
 ];
-/* Screens with a real module built route normally in app.js's render();
-   everything else in SIDEBAR_NAV/TAB_BAR_NAV falls through to
-   COMING_SOON_KEYS there instead of a dead click. See js/comingSoon.js. */
-const COMING_SOON_MODULES = {
-  clients: { label:'Clients', icon:'users', blurb:'Manage the companies you service, with every linked account and its report history in one place.' },
-  accounts: { label:'Accounts', icon:'briefcase', blurb:'Every serviced site under a client, tagged by type \u2014 the thing you\u2019ll actually pick when starting a report, once this exists.' },
-  technicians: { label:'Technicians', icon:'user', blurb:'Team roster and performance, built from data already sitting in every submitted report.' },
-  schedule: { label:'Schedule', icon:'calendar', blurb:'Upcoming visits per account \u2014 a scheduled visit will convert into a report in one tap.' },
-  services: { label:'Services', icon:'wrench', blurb:'Recurring service agreements or a treatment catalog \u2014 worth confirming which one fits before building it.' },
-  inventory: { label:'Inventory', icon:'box', blurb:'Chemical stock levels, with low-stock alerts feeding Notifications and the wizard\u2019s chemical picker.' },
-  analytics: { label:'Analytics', icon:'barChart', blurb:'Volume, satisfaction, and pest trends, computed from reports that already exist \u2014 once this is built.' },
-  notifications: { label:'Notifications', icon:'bell', blurb:'A real feed from real events: submissions, manual-send fallbacks, low stock, upcoming visits.' }
-};
+// fix: P2-3, see build prompt — removed the dead COMING_SOON_MODULES table
+// and its renderComingSoon()/COMING_SOON_KEYS machinery in js/app.js. All
+// eleven modules are built and routed normally below; nothing was ever
+// added to COMING_SOON_KEYS, so that fallback path never ran.
 ;
 /* ============================================================
    FILE: js/utils.js
@@ -1015,6 +1017,16 @@ function field(label, id, type, value, opts){
     '<input class="input" type="'+type+'" id="'+id+'" value="'+escapeHTML(value||'')+'"'+ph+'>'+
     '<span class="err"></span></div>';
 }
+function selectField(label, id, value, options, opts){
+  opts = opts || {};
+  const req = opts.required ? '<span class="req">*</span>' : '';
+  const optsHTML = '<option value="">Select\u2026</option>'+ options.map(function(o){
+    return '<option value="'+escapeHTML(o)+'"'+(value===o?' selected':'')+'>'+escapeHTML(o)+'</option>';
+  }).join('');
+  return '<div class="field"><label for="'+id+'">'+escapeHTML(label)+req+'</label>'+
+    '<select class="input" id="'+id+'">'+optsHTML+'</select>'+
+    '<span class="err"></span></div>';
+}
 function fieldMini(label, id, value){
   return '<div class="field" style="margin-bottom:10px;"><label>'+escapeHTML(label)+'</label>'+
     '<input class="input" id="'+id+'" value="'+escapeHTML(value||'')+'"></div>';
@@ -1036,8 +1048,8 @@ function textareaField(label, id, value, opts){
     '<textarea class="input" id="'+id+'" rows="'+rows+'"'+ph+'>'+escapeHTML(value||'')+'</textarea>'+
     '<span class="err"></span></div>';
 }
-function chipHTML(label, isOn){
-  return '<button type="button" class="chip'+(isOn?' is-on':'')+'" data-val="'+escapeHTML(label)+'">'+icon('check')+'<span>'+escapeHTML(label)+'</span></button>';
+function chipHTML(label, isOn, dataKey){
+  return '<button type="button" class="chip'+(isOn?' is-on':'')+'" data-val="'+escapeHTML(label)+'"'+(dataKey!==undefined?' data-type-key="'+escapeHTML(dataKey)+'"':'')+'>'+icon('check')+'<span>'+escapeHTML(label)+'</span></button>';
 }
 function markFieldError(id, message){
   const input = qs('#'+id);
@@ -1222,14 +1234,32 @@ function drawExistingSignature(canvas, sigApi, dataUrl){
 function readAndResizeImage(file, maxDim, quality){
   maxDim = maxDim || 1280; quality = quality || 0.82;
   return new Promise(function(resolve, reject){
-    if(!file || !file.type || file.type.indexOf('image/') !== 0){
+    /* fix: P2-5, see build prompt — confirmed some browsers (Chromium on
+       Windows, at least) leave file.type as an empty string for HEIC/HEIF
+       photos since they have no MIME mapping for the format, even though
+       the file is a perfectly normal photo. Don't reject on an empty type
+       alone; fall back to the extension so those files still reach the
+       decode attempt below instead of being turned away before it. */
+    const looksLikeImage = file && (
+      (file.type && file.type.indexOf('image/') === 0) ||
+      (!file.type && /\.(heic|heif|jpe?g|png|gif|webp|bmp)$/i.test(file.name || ''))
+    );
+    if(!looksLikeImage){
       reject(new Error('That file isn\u2019t an image.')); return;
     }
+    const isHeic = /\.(heic|heif)$/i.test(file.name || '') || file.type === 'image/heic' || file.type === 'image/heif';
     const reader = new FileReader();
     reader.onerror = function(){ reject(new Error('Could not read that photo. Try again.')); };
     reader.onload = function(){
       const img = new Image();
-      img.onerror = function(){ reject(new Error('That photo could not be opened.')); };
+      img.onerror = function(){
+        // fix: P2-5 — confirmed Safari 17+ decodes HEIC natively (desktop
+        // and iOS); Chrome, Firefox and Edge do not, on any OS, and can't
+        // via <img>/canvas at all. Say so plainly instead of a generic
+        // failure when that's almost certainly what just happened.
+        if(isHeic) reject(new Error('This browser can\u2019t open iPhone HEIC photos. On the iPhone: Settings > Camera > Formats > "Most Compatible," or share the photo as JPEG first.'));
+        else reject(new Error('That photo could not be opened.'));
+      };
       img.onload = function(){
         let width = img.width, height = img.height;
         if(width > maxDim || height > maxDim){
@@ -1254,13 +1284,15 @@ function readAndResizeImage(file, maxDim, quality){
 "use strict";
 /* ============================================================
    AUTH
-   Decision #1: real multi-user login with roles. New signups land
-   as role='technician' (the handle_new_user trigger in schema.sql
-   creates the profile row automatically); an admin promotes people
-   from there. There's no invite-by-email flow yet — creating another
-   person's login needs a service-role key, which a pure static-app-
-   plus-Supabase setup doesn't have. Noted in the schema README, not
-   blocking for a first team of a handful of technicians.
+   Decision #1: real multi-user login with roles. Self-registration is
+   intentionally not offered on this screen (fix: P3-2, see build
+   prompt) — an admin creates each technician's login from the Supabase
+   dashboard (Authentication > Users > Invite user), then sets their
+   role from the Technicians screen in-app. The handle_new_user trigger
+   in schema.sql still creates the profile row automatically for any
+   user created that way. See the build prompt for the one piece of
+   this that has to be done in the Supabase dashboard, not in code:
+   disabling public sign-ups at the project level.
    ============================================================ */
 
 async function fetchProfile(userId){
@@ -1269,29 +1301,25 @@ async function fetchProfile(userId){
   return data;
 }
 
-async function signUp(email, password, fullName){
-  return sb.auth.signUp({
-    email: email, password: password,
-    options: {
-      data: { full_name: fullName },
-      emailRedirectTo: window.location.origin + window.location.pathname
-    }
-  });
-}
 async function signIn(email, password){
   return sb.auth.signInWithPassword({ email, password });
 }
 async function signOutUser(){
   return sb.auth.signOut();
 }
+async function requestPasswordReset(email){ // fix: P1-3, see build prompt
+  return sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname });
+}
+async function updatePassword(newPassword){ // fix: P1-3, see build prompt
+  return sb.auth.updateUser({ password: newPassword });
+}
 
 /* ---------------- AUTH SCREEN ---------------- */
-let authMode = 'signin'; // 'signin' | 'signup'
+let authMode = 'signin'; // fix: P1-3/P3-2, see build prompt \u2014 'signin' | 'forgot' | 'reset' ('signup' removed)
 
 function renderAuthScreen(){
   const wrap = document.createElement('div');
   wrap.className = 'auth-shell';
-  const isSignup = authMode === 'signup';
 
   let html = '<div class="auth-card">';
   html += '<div class="auth-brand">';
@@ -1300,57 +1328,107 @@ function renderAuthScreen(){
   html += '<p>Job Reports</p>';
   html += '</div>';
   html += '<div class="card">';
-  html += '<h2 class="section-title">'+(isSignup ? 'Create your account' : 'Sign in')+'</h2>';
-  html += '<p class="section-hint">'+(isSignup ? 'New accounts start as Technician \u2014 an admin can promote you afterward.' : 'Use the email and password your admin set up.')+'</p>';
-  html += '<div id="authAlert"></div>';
-  html += '<form id="authForm">';
-  if(isSignup){ html += field('Full name', 'authName', 'text', '', {required:true, placeholder:'Juan Dela Cruz'}); }
-  html += field('Email', 'authEmail', 'email', '', {required:true, placeholder:'you@gepestcon.co'});
-  html += field('Password', 'authPassword', 'password', '', {required:true, placeholder: isSignup ? 'At least 6 characters' : ''});
-  html += '<button type="submit" class="btn btn-primary btn-block btn-lg" id="authSubmitBtn">'+(isSignup?'Create account':'Sign in')+'</button>';
-  html += '</form>';
-  html += '<p class="auth-switch">'+(isSignup ? 'Already have an account?' : 'New here?')+' <button type="button" id="authToggle">'+(isSignup ? 'Sign in' : 'Create one')+'</button></p>';
-  html += '</div></div>';
 
+  if(authMode === 'forgot'){
+    html += '<h2 class="section-title">Reset your password</h2>';
+    html += '<p class="section-hint">Enter your email and we\u2019ll send you a link to set a new password.</p>';
+    html += '<div id="authAlert"></div>';
+    html += '<form id="authForm">';
+    html += field('Email', 'authEmail', 'email', '', {required:true, placeholder:'you@gepestcon.co'});
+    html += '<button type="submit" class="btn btn-primary btn-block btn-lg" id="authSubmitBtn">Send reset link</button>';
+    html += '</form>';
+    html += '<p class="auth-switch"><button type="button" id="authToggle">Back to sign in</button></p>';
+  } else if(authMode === 'reset'){
+    html += '<h2 class="section-title">Set a new password</h2>';
+    html += '<p class="section-hint">Choose a new password for your account.</p>';
+    html += '<div id="authAlert"></div>';
+    html += '<form id="authForm">';
+    html += field('New password', 'authPassword', 'password', '', {required:true, placeholder:'At least 6 characters'});
+    html += field('Confirm new password', 'authPassword2', 'password', '', {required:true});
+    html += '<button type="submit" class="btn btn-primary btn-block btn-lg" id="authSubmitBtn">Update password</button>';
+    html += '</form>';
+  } else {
+    html += '<h2 class="section-title">Sign in</h2>';
+    html += '<p class="section-hint">Use the email and password your admin set up.</p>';
+    html += '<div id="authAlert"></div>';
+    html += '<form id="authForm">';
+    html += field('Email', 'authEmail', 'email', '', {required:true, placeholder:'you@gepestcon.co'});
+    html += field('Password', 'authPassword', 'password', '', {required:true, placeholder:''});
+    html += '<button type="submit" class="btn btn-primary btn-block btn-lg" id="authSubmitBtn">Sign in</button>';
+    html += '</form>';
+    html += '<p class="auth-switch"><button type="button" id="authForgotBtn">Forgot password?</button></p>';
+    html += '<p class="small-muted" style="text-align:center;margin-top:14px;">Need an account? Contact your admin for access.</p>'; // fix: P3-2, see build prompt
+  }
+
+  html += '</div></div>';
   wrap.innerHTML = html;
 
-  qs('#authToggle', wrap).addEventListener('click', function(){
-    authMode = isSignup ? 'signin' : 'signup';
-    showAuthScreen();
-  });
+  if(authMode === 'signin'){
+    qs('#authForgotBtn', wrap).addEventListener('click', function(){ authMode = 'forgot'; showAuthScreen(); });
+  }
+  if(authMode === 'forgot'){
+    qs('#authToggle', wrap).addEventListener('click', function(){ authMode = 'signin'; showAuthScreen(); });
+  }
 
   qs('#authForm', wrap).addEventListener('submit', async function(e){
     e.preventDefault();
     const alertBox = qs('#authAlert', wrap);
     alertBox.innerHTML = '';
+    const btn = qs('#authSubmitBtn', wrap);
+
+    if(authMode === 'forgot'){
+      const email = qs('#authEmail', wrap).value.trim();
+      btn.disabled = true; btn.textContent = 'Sending\u2026';
+      try{
+        const { error } = await requestPasswordReset(email);
+        if(error) throw error;
+        alertBox.innerHTML = '<div class="auth-notice">Check '+escapeHTML(email)+' for a link to reset your password.</div>';
+        btn.disabled = false; btn.textContent = 'Send reset link';
+      } catch(err){
+        alertBox.innerHTML = '<div class="auth-error">'+escapeHTML(err.message || 'Something went wrong.')+'</div>';
+        btn.disabled = false; btn.textContent = 'Send reset link';
+      }
+      return;
+    }
+
+    if(authMode === 'reset'){
+      const pw1 = qs('#authPassword', wrap).value;
+      const pw2 = qs('#authPassword2', wrap).value;
+      btn.disabled = true; btn.textContent = 'Updating\u2026';
+      try{
+        if(pw1.length < 6){ throw new Error('Password must be at least 6 characters.'); }
+        if(pw1 !== pw2){ throw new Error('Passwords don\u2019t match.'); }
+        const { error } = await updatePassword(pw1);
+        if(error) throw error;
+        toast('Password updated.', 'success');
+        authMode = 'signin';
+        // A recovery session already exists at this point (that's what let
+        // updateUser succeed) but the app never ran the normal sign-in
+        // setup for it, since it was intercepted into this screen instead
+        // \u2014 do that now.
+        state.profile = state.session ? await fetchProfile(state.session.user.id) : null;
+        if(!state.profile){ showProfileErrorScreen(); return; }
+        showApp();
+        await loadSettings();
+        checkForSavedDraft();
+      } catch(err){
+        alertBox.innerHTML = '<div class="auth-error">'+escapeHTML(err.message || 'Something went wrong.')+'</div>';
+        btn.disabled = false; btn.textContent = 'Update password';
+      }
+      return;
+    }
+
+    // signin
     const email = qs('#authEmail', wrap).value.trim();
     const password = qs('#authPassword', wrap).value;
-    const btn = qs('#authSubmitBtn', wrap);
-    btn.disabled = true; btn.textContent = isSignup ? 'Creating account\u2026' : 'Signing in\u2026';
-
+    btn.disabled = true; btn.textContent = 'Signing in\u2026';
     try{
-      if(isSignup){
-        const name = qs('#authName', wrap).value.trim();
-        if(!name){ throw new Error('Enter your name.'); }
-        const { data, error } = await signUp(email, password, name);
-        if(error) throw error;
-        if(!data.session){
-          // Email confirmation is on for this project \u2014 no session yet.
-          alertBox.innerHTML = '<div class="auth-notice">Account created. Check '+escapeHTML(email)+' for a confirmation link before signing in.</div>';
-          authMode = 'signin';
-          btn.disabled = false; btn.textContent = 'Create account';
-        }
-        // If a session WAS returned (email confirmation off), the
-        // onAuthStateChange listener in app.js fires on its own and
-        // swaps the auth screen for the app \u2014 nothing else to do here.
-      } else {
-        const { error } = await signIn(email, password);
-        if(error) throw error;
-        // Same as above: onAuthStateChange handles the transition.
-      }
+      const { error } = await signIn(email, password);
+      if(error) throw error;
+      // onAuthStateChange handles the transition.
     } catch(err){
       alertBox.innerHTML = '<div class="auth-error">'+escapeHTML(err.message || 'Something went wrong.')+'</div>';
-      btn.disabled = false; btn.textContent = isSignup ? 'Create account' : 'Sign in';
+      btn.disabled = false; btn.textContent = 'Sign in';
     }
   });
 
@@ -1410,7 +1488,6 @@ async function listReportsPage({ page, search, type }){
 }
 
 async function listRecentReports(limit){
-  if(typeof DEV_SKIP_AUTH !== 'undefined' && DEV_SKIP_AUTH) return [];
   const { data, error } = await sb.from('reports').select('*').order('created_at', { ascending:false }).limit(limit || 3);
   if(error){ console.error('listRecentReports failed', error); throw error; }
   return data;
@@ -1525,9 +1602,10 @@ async function updateService(id, patch){
 }
 
 /* ---------------- SCHEDULE (visits) ---------------- */
-async function listVisits(status){
+async function listVisits(status, accountId){ // fix: P1-8, see build prompt — accountId is optional, existing callers are unaffected
   let q = sb.from('visits').select('*, accounts(id,name,type), profiles(id,full_name)').order('scheduled_date');
   if(status){ q = q.eq('status', status); }
+  if(accountId){ q = q.eq('account_id', accountId); }
   const { data, error } = await q;
   if(error){ console.error('listVisits failed', error); throw error; }
   return data;
@@ -1566,7 +1644,6 @@ async function createNotification(payload){
   if(error){ console.error('createNotification failed', error); } // never block the user-facing action (report submit, etc.) on this
 }
 async function listNotificationsWithReadState(userId, prefs){
-  if(typeof DEV_SKIP_AUTH !== 'undefined' && DEV_SKIP_AUTH) return [];
   const [{ data: notifs, error: e1 }, { data: reads, error: e2 }] = await Promise.all([
     sb.from('notifications').select('*').order('created_at', { ascending:false }).limit(50),
     sb.from('notification_reads').select('notification_id').eq('user_id', userId)
@@ -1644,6 +1721,21 @@ function drawLetterhead(doc, d){
   doc.text(d.controlDisplay || '', pageWidth-40, 53, { align:'right' });
 
   doc.setTextColor(20,30,25);
+
+  /* fix: P3.5-1, see build prompt — optional PH pest-control compliance
+     line. Only drawn when the owner has filled in at least one field in
+     Settings; sits in the existing gap between the letterhead band (ends
+     at y=66) and the first section (starts at y=90), so nothing above
+     moves and the returned offset is unchanged either way. */
+  const complianceBits = [];
+  if(CONFIG.ltoNumber) complianceBits.push('LTO No. ' + CONFIG.ltoNumber + (CONFIG.ltoExpiry ? (' (exp. ' + formatDateDisplay(CONFIG.ltoExpiry) + ')') : ''));
+  if(CONFIG.supervisingHandlerName) complianceBits.push('Supervising Pesticide Handler: ' + CONFIG.supervisingHandlerName + (CONFIG.supervisingHandlerCertNo ? (' (Cert. No. ' + CONFIG.supervisingHandlerCertNo + ')') : ''));
+  if(complianceBits.length){
+    doc.setFont('helvetica','normal'); doc.setFontSize(7);
+    doc.setTextColor(100,100,105);
+    doc.text(complianceBits.join('    \u2022    '), 40, 78);
+    doc.setTextColor(20,30,25);
+  }
   return 90;
 }
 function sectionHeading(doc, text, y){
@@ -1820,7 +1912,7 @@ function buildPDF(d){
   else if(d.type==='seven11') y = pdfServiceSeven11(doc, d, y);
   else y = pdfServiceGovernment(doc, d, y);
 
-  y = sectionHeading(doc, 'Findings, Recommendation & Remarks', y);
+  y = sectionHeading(doc, 'Findings & Recommendation', y);
   y = kvTable(doc, y, concernKV(d, d.type));
 
   if(d.photos && d.photos.length){
@@ -1876,7 +1968,6 @@ function buildEmailSummary(d){
   lines.push('');
   if(d.concern.finding) lines.push('Finding: ' + d.concern.finding);
   if(d.concern.recommendation) lines.push('Recommendation: ' + d.concern.recommendation);
-  if(d.concern.remarks) lines.push('Remarks: ' + d.concern.remarks);
   lines.push('');
   lines.push('\u2014 Sent via the ' + CONFIG.companyName + ' Job Accomplishment Report system.');
   lines.push('The complete report with photos and signatures is available as a PDF \u2014 download it from the app to attach or forward.');
@@ -1933,7 +2024,7 @@ function emptyDraft(type){
     schedule: { serviceDate: todayISO(), actualDate: todayISO(), timeStarted:'', timeFinished:'' },
     service: {
       typesOfServices: [], activePests: [], activePestOther:'', degreeOfInfestation:'',
-      chemicalUsed:'', dilution:'', brand:'', servicesRendered:'', scopeRows:{}, otherParams:{}, weather:'',
+      chemicalUsed:'', dilution:'', brand:'', servicesRendered:'', servicesRenderedList:[], servicesRenderedOther:'', scopeRows:{}, otherParams:{}, weather:'',
       natureOfWork: [], gpcPests: [], actionTaken: [], areasTreated: [], rodentEntryPoint:'', barriers:'', sealing:'',
       sanitationNeeds:'', repairMaintenance:'', renovation:''
     },
@@ -2128,13 +2219,19 @@ function serviceHTMLSeven11(d){
   let html = '<p class="eyebrow" style="margin-bottom:10px;">Scope of work \u2014 tap an area to log it</p>';
   html += scopeAccordionHTML(SEVEN11_AREAS, d.service.scopeRows);
   html += '<hr class="hairline">';
-  html += fieldMini('Services rendered (for this visit)', 'f_svcServices', d.service.servicesRendered);
+  const svcList = d.service.servicesRenderedList || (d.service.servicesRendered ? d.service.servicesRendered.split(',').map(function(s){return s.trim();}).filter(Boolean) : []);
+  const svcHasOthers = svcList.indexOf('Others')!==-1;
+  html += '<div class="field"><label>Services rendered (for this visit)</label><div class="chip-group" id="svcRenderedChips">'+
+    SEVEN11_SERVICES_RENDERED.map(function(s){ return chipHTML(s, svcList.indexOf(s)!==-1); }).join('') +
+  '</div></div>';
+  html += '<div class="field" id="svcRenderedOtherWrap" style="margin-bottom:'+(svcHasOthers?'16px':'0')+';display:'+(svcHasOthers?'block':'none')+';">'+
+    '<label>If Others, specify</label><input class="input" id="f_svcServicesOther" value="'+escapeHTML(d.service.servicesRenderedOther||'')+'"></div>';
   html += '<hr class="hairline">';
   html += '<p class="eyebrow" style="margin-bottom:10px;">Chemicals used for this service</p>';
   html += fieldMini('Chemicals applied', 'f_svcChemicals', d.service.chemicalUsed);
   html += '<div class="row-2">'+ fieldMini('Dilution (mL/L)', 'f_svcDilution', d.service.dilution) + fieldMini('Brand', 'f_svcBrand', d.service.brand) + '</div>';
   html += '<hr class="hairline">';
-  html += field('Weather condition during application', 'f_weather', 'text', d.service.weather, {placeholder:'e.g. Fair, humid, rainy'});
+  html += selectField('Weather condition during application', 'f_weather', d.service.weather, SEVEN11_WEATHER_OPTIONS);
   html += '<hr class="hairline">';
   html += '<p class="eyebrow" style="margin-bottom:10px;">Other parameters of concern</p>';
   html += SEVEN11_OTHER_PARAMS.map(function(row,i){
@@ -2147,6 +2244,20 @@ function serviceHTMLSeven11(d){
 }
 function wireServiceSeven11(container){
   wireAccordion(container, SEVEN11_AREAS);
+  const chipWrap = qs('#svcRenderedChips', container);
+  const otherWrap = qs('#svcRenderedOtherWrap', container);
+  if(chipWrap){
+    const syncOthers = function(){
+      if(!otherWrap) return;
+      const isOthers = !!qs('.chip[data-val="Others"].is-on', chipWrap);
+      otherWrap.style.display = isOthers ? 'block' : 'none';
+      otherWrap.style.marginBottom = isOthers ? '16px' : '0';
+      if(!isOthers){ const inp = qs('#f_svcServicesOther', container); if(inp) inp.value=''; }
+    };
+    qsa('.chip', chipWrap).forEach(function(c){
+      c.addEventListener('click', function(){ c.classList.toggle('is-on'); syncOthers(); });
+    });
+  }
 }
 function readServiceSeven11(container, d){
   SEVEN11_AREAS.forEach(function(a,i){
@@ -2159,7 +2270,11 @@ function readServiceSeven11(container, d){
       severity: getGaugeValue(container, key+'_sev')
     };
   });
-  d.service.servicesRendered = qs('#f_svcServices', container).value.trim();
+  const svcSelected = qsa('#svcRenderedChips .chip.is-on', container).map(function(c){ return c.dataset.val; });
+  const svcOtherEl = qs('#f_svcServicesOther', container);
+  d.service.servicesRenderedList = svcSelected;
+  d.service.servicesRenderedOther = svcOtherEl ? svcOtherEl.value.trim() : '';
+  d.service.servicesRendered = svcSelected.map(function(s){ return (s==='Others' && d.service.servicesRenderedOther) ? d.service.servicesRenderedOther : s; }).join(', ');
   d.service.chemicalUsed = qs('#f_svcChemicals', container).value.trim();
   d.service.dilution = qs('#f_svcDilution', container).value.trim();
   d.service.brand = qs('#f_svcBrand', container).value.trim();
@@ -2295,7 +2410,6 @@ function buildStepConcern(container){
   let html = '';
   html += textareaField('Concern / finding', 'f_finding', d.concern.finding, {rows:3, placeholder:'What did you find on site?'});
   html += textareaField('Recommendation', 'f_recommendation', d.concern.recommendation, {rows:3, placeholder:'What do you recommend to the client?'});
-  html += textareaField('Remarks', 'f_remarks', d.concern.remarks, {rows:3, placeholder:'Additional notes, location detail, follow-up needed'});
 
   if(state.reportType === 'private'){
     html += '<div class="group-block"><div class="group-title">Concern classification</div>'+
@@ -2331,15 +2445,14 @@ function saveConcernStep(){
   const d = state.draft;
   d.concern.finding = qs('#f_finding', container).value.trim();
   d.concern.recommendation = qs('#f_recommendation', container).value.trim();
-  d.concern.remarks = qs('#f_remarks', container).value.trim();
   if(state.reportType==='private'){
     const catOn = qs('#catChips .chip.is-on', container);
     const locOn = qs('#locChips .chip.is-on', container);
     d.concern.category = catOn ? catOn.dataset.val : '';
     d.concern.location = locOn ? locOn.dataset.val : '';
   }
-  if(!d.concern.finding && !d.concern.recommendation && !d.concern.remarks){
-    return { valid:false, message:'Add at least a finding, recommendation, or remark before continuing.' };
+  if(!d.concern.finding && !d.concern.recommendation){
+    return { valid:false, message:'Add at least a finding or recommendation before continuing.' };
   }
   return { valid:true };
 }
@@ -2414,7 +2527,7 @@ function stepHintText(stepKey, type){
     client: 'Who this report is for, and when the service happened.',
     service: type==='seven11' ? 'Log what was found and treated in each store area.' : type==='government' ? 'Nature of work, areas treated, and pest presence.' : 'Services performed and the pest situation found.',
     photos: 'Attach evidence photos \u2014 optional but recommended.',
-    concern: 'What you found, what you recommend, and any remarks.',
+    concern: 'What you found on site and what you recommend.',
     signoff: 'Sign off on the visit and capture client feedback.'
   };
   return map[stepKey] || '';
@@ -2630,7 +2743,7 @@ function serviceKV(d, type){
   return rows;
 }
 function concernKV(d, type){
-  const rows = [ ['Concern / finding', d.concern.finding], ['Recommendation', d.concern.recommendation], ['Remarks', d.concern.remarks] ];
+  const rows = [ ['Concern / finding', d.concern.finding], ['Recommendation', d.concern.recommendation] ];
   if(type==='private'){ rows.push(['Category', d.concern.category]); rows.push(['Location / tower', d.concern.location]); }
   return rows;
 }
@@ -2718,63 +2831,45 @@ async function submitReport(){
   const d = state.draft;
   const type = state.reportType;
 
-  if(typeof DEV_SKIP_AUTH !== 'undefined' && DEV_SKIP_AUTH){
-    // Preview mode (no real signed-in user): nextControlNumber/insertReport/
-    // uploadFile/attemptSend all need a real Supabase session and would just
-    // be rejected by the database's row-level security \u2014 so skip them
-    // entirely here rather than let that show up as a confusing error.
-    // Building the PDF is pure client-side (jsPDF), so that part is real.
-    try{
-      d.controlNo = 0;
-      d.controlDisplay = 'PREVIEW-' + new Date().toISOString().slice(0,10).replace(/-/g,'');
-      d.submittedAt = new Date().toISOString();
-      const pdfDoc = buildPDF(d);
-      const pdfBlob = pdfDoc.output('blob');
-      if(lastSubmittedPdfBlobUrl) URL.revokeObjectURL(lastSubmittedPdfBlobUrl);
-      lastSubmittedPdfBlobUrl = URL.createObjectURL(pdfBlob);
-      lastSubmittedReport = d;
-      state.draft = null;
-      clearDraftStorage();
-      toast('Preview only \u2014 nothing was saved or emailed while sign-in is off.', 'info');
-      navigate('success');
-    } catch(err){
-      console.error(err);
-      toast('Could not build the preview PDF: ' + (err.message||'unknown error'), 'error');
-      if(btn){ btn.disabled = false; btn.innerHTML = icon('send') + ' Send report'; }
-    }
-    return;
-  }
-
   try{
-    const controlNo = await nextControlNumber(type);
-    d.controlNo = controlNo;
-    d.controlDisplay = fmtControlNo(type, controlNo);
-    d.submittedAt = new Date().toISOString();
-    d.status = 'submitted';
+    /* fix: P1-1, see build prompt — idempotent/resumable submission.
+       If d.id is already set, a prior attempt already minted a control
+       number and inserted the row (persisted immediately below, so this
+       is known even after a reload, not just a same-session retry) —
+       skip straight to resuming the upload/PDF/email/update steps below
+       instead of burning another control number on a duplicate row. */
+    if(!d.id){
+      const controlNo = await nextControlNumber(type);
+      d.controlNo = controlNo;
+      d.controlDisplay = fmtControlNo(type, controlNo);
+      d.submittedAt = new Date().toISOString();
+      d.status = 'submitted';
 
-    const { data: row, error: insertErr } = await insertReport({
-      control_no: controlNo,
-      control_display: d.controlDisplay,
-      type: type,
-      status: 'submitted',
-      account_id: d.accountId || null,
-      technician_id: state.profile.id,
-      service_date: d.schedule.serviceDate || null,
-      actual_date: d.schedule.actualDate || null,
-      time_started: d.schedule.timeStarted || null,
-      time_finished: d.schedule.timeFinished || null,
-      client: d.client,
-      service: d.service,
-      findings: d.findings,
-      concern: d.concern,
-      sign_off: { technicianName: d.signOff.technicianName, clientRepName: d.signOff.clientRepName, satisfaction: d.signOff.satisfaction, clientRemarks: d.signOff.clientRemarks },
-      photos: [],
-      satisfaction: d.signOff.satisfaction || null,
-      email_status: 'draft',
-      submitted_at: d.submittedAt
-    });
-    if(insertErr) throw insertErr;
-    d.id = row.id;
+      const { data: row, error: insertErr } = await insertReport({
+        control_no: controlNo,
+        control_display: d.controlDisplay,
+        type: type,
+        status: 'submitted',
+        account_id: d.accountId || null,
+        technician_id: state.profile.id,
+        service_date: d.schedule.serviceDate || null,
+        actual_date: d.schedule.actualDate || null,
+        time_started: d.schedule.timeStarted || null,
+        time_finished: d.schedule.timeFinished || null,
+        client: d.client,
+        service: d.service,
+        findings: d.findings,
+        concern: d.concern,
+        sign_off: { technicianName: d.signOff.technicianName, clientRepName: d.signOff.clientRepName, satisfaction: d.signOff.satisfaction, clientRemarks: d.signOff.clientRemarks },
+        photos: [],
+        satisfaction: d.signOff.satisfaction || null,
+        email_status: 'draft',
+        submitted_at: d.submittedAt
+      });
+      if(insertErr) throw insertErr;
+      d.id = row.id;
+      persistDraft(); // fix: P1-1 — save id/controlNo the moment they exist, not just at wizard-step boundaries
+    }
 
     const photoRecords = [];
     for(let i=0;i<d.photos.length;i++){
@@ -2792,25 +2887,38 @@ async function submitReport(){
       await uploadFile(clientSigPath, dataURLToBlob(d.signOff.clientSig), 'image/png');
     }
 
-    const pdfDoc = buildPDF(d);
-    const pdfBlob = pdfDoc.output('blob');
-    const pdfPath = 'reports/'+d.id+'/report.pdf';
-    await uploadFile(pdfPath, pdfBlob, 'application/pdf');
-    if(lastSubmittedPdfBlobUrl) URL.revokeObjectURL(lastSubmittedPdfBlobUrl);
-    lastSubmittedPdfBlobUrl = URL.createObjectURL(pdfBlob);
+    // fix: P1-1 — PDF path is deterministic and uploadFile upserts, so this
+    // is always safe to redo; only skip it if a prior attempt already got
+    // far enough to record the path on the draft.
+    let pdfPath = d.pdfPath || null;
+    if(!pdfPath){
+      const pdfDoc = buildPDF(d);
+      const pdfBlob = pdfDoc.output('blob');
+      pdfPath = 'reports/'+d.id+'/report.pdf';
+      await uploadFile(pdfPath, pdfBlob, 'application/pdf');
+      d.pdfPath = pdfPath;
+      if(lastSubmittedPdfBlobUrl) URL.revokeObjectURL(lastSubmittedPdfBlobUrl);
+      lastSubmittedPdfBlobUrl = URL.createObjectURL(pdfBlob);
+    }
 
-    const sendResult = await attemptSend(d);
-    d.emailStatus = sendResult.status;
+    // fix: P1-1 — don't re-send an email a prior attempt already got out the
+    // door; only (re)try the send if we don't already know it went out.
+    let emailStatus = d.emailStatus;
+    if(!emailStatus){
+      const sendResult = await attemptSend(d);
+      emailStatus = sendResult.status;
+      d.emailStatus = emailStatus;
+    }
 
     await updateReport(d.id, {
       photos: photoRecords,
       sign_off: { technicianName: d.signOff.technicianName, technicianSigPath: techSigPath, clientRepName: d.signOff.clientRepName, clientSigPath: clientSigPath, satisfaction: d.signOff.satisfaction, clientRemarks: d.signOff.clientRemarks },
       pdf_path: pdfPath,
-      email_status: sendResult.status
+      email_status: emailStatus
     });
 
     createNotification({ type:'report_submitted', title:'Report ' + d.controlDisplay + ' submitted', body:(d.client.name||d.client.storeName||'Client') + ' \u2014 ' + TYPE_META[type].label, report_id: d.id });
-    if(sendResult.status === 'manual'){
+    if(emailStatus === 'manual'){
       createNotification({ type:'email_manual_fallback', title:'Email needs manual send \u2014 ' + d.controlDisplay, body:'Automatic email wasn\u2019t available for this report. Download the PDF from Report Detail and forward it.', report_id: d.id });
     }
 
@@ -2922,6 +3030,7 @@ function historyItemHTML(r){
 const QUICK_ACCESS_TILES = [
   { key:'history', label:'Job Reports', sub:'Create & view reports', icon:'history' },
   { key:'clients', label:'Clients', sub:'Manage clients', icon:'users' },
+  { key:'accounts', label:'Accounts', sub:'Manage accounts', icon:'briefcase' }, // fix: P1-6, see build prompt
   { key:'schedule', label:'Schedule', sub:'View appointments', icon:'calendar' },
   { key:'services', label:'Services', sub:'Manage services', icon:'wrench' },
   { key:'inventory', label:'Inventory', sub:'Check inventory', icon:'box' },
@@ -3239,6 +3348,17 @@ function renderSettings(){
   if(isAdmin){ html += '<button class="btn btn-secondary btn-block" id="saveCompanyBtn">Save company info</button>'; }
   html += '</div>';
 
+  html += '<div class="card" style="margin-bottom:16px;">'; // fix: P3.5-1, see build prompt
+  html += '<h3 class="section-title" style="font-size:15px;margin-bottom:2px;">Pest control compliance</h3>';
+  html += '<p class="section-hint">Optional \u2014 printed on the report letterhead only when filled in. Confirm the exact wording your license requires with your compliance contact before relying on this.</p>';
+  if(!isAdmin){ html += '<div class="helper-banner">'+icon('info')+'<span>Only an admin can change these.</span></div>'; }
+  html += field('License to Operate (LTO) number', 'set_ltoNumber', 'text', CONFIG.ltoNumber, {placeholder:'Optional'});
+  html += field('LTO expiry date', 'set_ltoExpiry', 'date', CONFIG.ltoExpiry, {});
+  html += field('Supervising Pesticide Handler name', 'set_handlerName', 'text', CONFIG.supervisingHandlerName, {placeholder:'Optional'});
+  html += field('Handler certificate number', 'set_handlerCertNo', 'text', CONFIG.supervisingHandlerCertNo, {placeholder:'Optional'});
+  if(isAdmin){ html += '<button class="btn btn-secondary btn-block" id="saveComplianceBtn">Save compliance info</button>'; }
+  html += '</div>';
+
   html += '<div class="card" style="margin-bottom:16px;">';
   html += '<h3 class="section-title" style="font-size:15px;margin-bottom:2px;">Notification preferences</h3>';
   html += '<p class="section-hint">Just for your own feed and bell badge \u2014 doesn\u2019t affect what your team sees.</p>';
@@ -3313,6 +3433,28 @@ function renderSettings(){
         toast('Could not save: ' + (err.message||'unknown error'), 'error');
       }
       btn.disabled = false; btn.textContent = 'Save company info';
+    });
+
+    qs('#saveComplianceBtn', wrap).addEventListener('click', async function(){ // fix: P3.5-1, see build prompt
+      const btn = qs('#saveComplianceBtn', wrap);
+      btn.disabled = true; btn.textContent = 'Saving\u2026';
+      const patch = {
+        lto_number: qs('#set_ltoNumber', wrap).value.trim(),
+        lto_expiry: qs('#set_ltoExpiry', wrap).value || null,
+        supervising_handler_name: qs('#set_handlerName', wrap).value.trim(),
+        supervising_handler_cert_no: qs('#set_handlerCertNo', wrap).value.trim()
+      };
+      try{
+        await saveAppSettings(patch);
+        CONFIG.ltoNumber = patch.lto_number;
+        CONFIG.ltoExpiry = patch.lto_expiry || '';
+        CONFIG.supervisingHandlerName = patch.supervising_handler_name;
+        CONFIG.supervisingHandlerCertNo = patch.supervising_handler_cert_no;
+        toast('Compliance info saved.', 'success');
+      } catch(err){
+        toast('Could not save: ' + (err.message||'unknown error'), 'error');
+      }
+      btn.disabled = false; btn.textContent = 'Save compliance info';
     });
   }
 
@@ -3550,7 +3692,12 @@ async function loadClientDetail(wrap){
   html += '<div class="card" style="margin-bottom:16px;">';
   html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">';
   html += '<div><h2 class="section-title">'+escapeHTML(client.name)+'</h2><p class="section-hint">'+escapeHTML(client.contact_person||'No contact set')+'</p></div>';
-  if(isAdmin){ html += '<button class="btn btn-secondary btn-sm" id="editClientBtn">'+icon('pencil')+' Edit</button>'; }
+  if(isAdmin){
+    html += '<div style="display:flex;gap:8px;flex-shrink:0;">'+
+      '<button class="btn btn-secondary btn-sm" id="editClientBtn">'+icon('pencil')+' Edit</button>'+
+      '<button class="btn btn-secondary btn-sm" id="archiveClientBtn">'+icon('box')+' Archive</button>'+
+    '</div>';
+  }
   html += '</div>';
   html += '<dl class="kv" style="margin-top:14px;">'+
     '<dt>Phone</dt><dd class="'+(client.phone?'':'empty')+'">'+(escapeHTML(client.phone)||'Not provided')+'</dd>'+
@@ -3586,6 +3733,29 @@ async function loadClientDetail(wrap){
   if(isAdmin){
     qs('#editClientBtn', wrap).addEventListener('click', function(){ openClientForm(client, function(){ loadClientDetail(wrap); }); });
     qs('#addAccountBtn', wrap).addEventListener('click', function(){ openAccountForm(null, client, function(){ loadClientDetail(wrap); }); });
+    qs('#archiveClientBtn', wrap).addEventListener('click', function(){ // fix: P1-2, see build prompt
+      openModal(
+        '<p style="font-size:14px;color:var(--ink-soft);margin-bottom:18px;line-height:1.5;">Archiving hides '+escapeHTML(client.name)+' from the active Clients list. Its accounts and report history are kept and can still be reached from existing links.</p>'+
+        '<div style="display:flex;gap:10px;">'+
+          '<button class="btn btn-secondary btn-block" id="cancelArchiveClient">Cancel</button>'+
+          '<button class="btn btn-danger btn-block" id="confirmArchiveClient">Archive</button>'+
+        '</div>', { title:'Archive ' + client.name + '?' }
+      );
+      qs('#cancelArchiveClient').addEventListener('click', closeModal);
+      qs('#confirmArchiveClient').addEventListener('click', async function(){
+        const abtn = qs('#confirmArchiveClient');
+        abtn.disabled = true; abtn.textContent = 'Archiving\u2026';
+        try{
+          await updateClient(client.id, { archived: true });
+          closeModal();
+          toast('Client archived.', 'success');
+          navigate('clients');
+        } catch(err){
+          toast('Could not archive: ' + (err.message||'unknown error'), 'error');
+          abtn.disabled = false; abtn.textContent = 'Archive';
+        }
+      });
+    });
   }
   qsa('.hist-item[data-id]', wrap).forEach(function(el){
     el.addEventListener('click', function(){
@@ -3681,7 +3851,7 @@ function openAccountForm(existing, presetClient, onSaved, clientChoices){
     '</select></div>';
   }
   html += '<div class="field"><label>Account type<span class="req">*</span></label><div class="chip-group" id="af_typeChips">'+
-    Object.keys(TYPE_META).map(function(k){ return chipHTML(TYPE_META[k].label, type===k); }).join('') +
+    Object.keys(TYPE_META).map(function(k){ return chipHTML(TYPE_META[k].label, type===k, k); }).join('') + // fix: P2-2, see build prompt
   '</div></div>';
   html += field('Account / site name', 'af_name', 'text', existing?existing.name:'', {required:true, placeholder:'e.g. Sea Residences, or leave as store name'});
   html += field('Address', 'af_address', 'text', existing?existing.address:'', {});
@@ -3701,12 +3871,11 @@ function openAccountForm(existing, presetClient, onSaved, clientChoices){
     } else { tf.innerHTML = ''; }
   }
   renderTypeFields(type);
-  qsa('#af_typeChips .chip', body).forEach(function(c, i){
-    const key = Object.keys(TYPE_META)[i];
+  qsa('#af_typeChips .chip', body).forEach(function(c){
     c.addEventListener('click', function(){
       qsa('#af_typeChips .chip', body).forEach(function(x){ x.classList.remove('is-on'); });
       c.classList.add('is-on');
-      renderTypeFields(key);
+      renderTypeFields(c.dataset.typeKey);
     });
   });
 
@@ -3714,7 +3883,7 @@ function openAccountForm(existing, presetClient, onSaved, clientChoices){
     const name = qs('#af_name', body).value.trim();
     if(!name){ markFieldError('af_name','This is required.'); return; }
     const chosenChip = qs('#af_typeChips .chip.is-on', body);
-    const chosenType = Object.keys(TYPE_META)[qsa('#af_typeChips .chip', body).indexOf(chosenChip)];
+    const chosenType = chosenChip.dataset.typeKey; // fix: P2-2, see build prompt
     const clientId = presetClient ? presetClient.id : (isEdit ? existing.client_id : qs('#af_client', body).value);
     if(!clientId){ toast('Pick a client for this account.', 'error'); return; }
     const payload = {
@@ -3757,25 +3926,29 @@ async function loadAccountDetail(wrap){
     wrap.innerHTML = '<div class="empty-state">'+icon('alert')+'<h3>Account not found</h3></div>';
     return;
   }
-  let reports, allUpcomingVisits;
+  let reports, upcomingVisits;
   try{
-    [reports, allUpcomingVisits] = await Promise.all([
+    [reports, upcomingVisits] = await Promise.all([
       listReportsForAccount(account.id),
-      listVisits('upcoming')
+      listVisits('upcoming', account.id) // fix: P1-8, see build prompt — filtered server-side now, not fetch-all-then-filter
     ]);
   } catch(err){
     wrap.innerHTML = errorStateHTML(err.message);
     qs('#retryLoadBtn', wrap).addEventListener('click', function(){ loadAccountDetail(wrap); });
     return;
   }
-  const upcomingVisits = allUpcomingVisits.filter(function(v){ return v.account_id === account.id; });
   const meta = TYPE_META[account.type];
 
   let html = '<div class="wizard-top"><button class="back-link" id="adBack2">'+icon('chevronLeft')+' Accounts</button><span class="step-tag">'+meta.short+'</span></div>';
   html += '<div class="card" style="margin-bottom:16px;">';
   html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">';
   html += '<div><h2 class="section-title">'+escapeHTML(account.name||meta.label)+'</h2><p class="section-hint">'+(account.clients?escapeHTML(account.clients.name):'No client linked')+'</p></div>';
-  if(isAdmin){ html += '<button class="btn btn-secondary btn-sm" id="editAccountBtn">'+icon('pencil')+' Edit</button>'; }
+  if(isAdmin){
+    html += '<div style="display:flex;gap:8px;flex-shrink:0;">'+
+      '<button class="btn btn-secondary btn-sm" id="editAccountBtn">'+icon('pencil')+' Edit</button>'+
+      '<button class="btn btn-secondary btn-sm" id="archiveAccountBtn">'+icon('box')+' Archive</button>'+
+    '</div>';
+  }
   html += '</div>';
   const kvRows = [['Address', account.address], ['Phone', account.phone], ['Email', account.email]];
   if(account.type==='seven11'){ kvRows.push(['Store number', account.store_number], ['Store cluster', account.store_cluster], ['Store manager', account.store_manager]); }
@@ -3807,6 +3980,29 @@ async function loadAccountDetail(wrap){
   qs('#adBack2', wrap).addEventListener('click', function(){ navigate('accounts'); });
   if(isAdmin){
     qs('#editAccountBtn', wrap).addEventListener('click', function(){ openAccountForm(account, account.clients, function(){ loadAccountDetail(wrap); }); });
+    qs('#archiveAccountBtn', wrap).addEventListener('click', function(){ // fix: P1-2, see build prompt
+      openModal(
+        '<p style="font-size:14px;color:var(--ink-soft);margin-bottom:18px;line-height:1.5;">Archiving hides '+escapeHTML(account.name||meta.label)+' from the active Accounts list. Its report history is kept and can still be reached from existing links.</p>'+
+        '<div style="display:flex;gap:10px;">'+
+          '<button class="btn btn-secondary btn-block" id="cancelArchiveAccount">Cancel</button>'+
+          '<button class="btn btn-danger btn-block" id="confirmArchiveAccount">Archive</button>'+
+        '</div>', { title:'Archive ' + (account.name||meta.label) + '?' }
+      );
+      qs('#cancelArchiveAccount').addEventListener('click', closeModal);
+      qs('#confirmArchiveAccount').addEventListener('click', async function(){
+        const abtn = qs('#confirmArchiveAccount');
+        abtn.disabled = true; abtn.textContent = 'Archiving\u2026';
+        try{
+          await updateAccount(account.id, { archived: true });
+          closeModal();
+          toast('Account archived.', 'success');
+          navigate('accounts');
+        } catch(err){
+          toast('Could not archive: ' + (err.message||'unknown error'), 'error');
+          abtn.disabled = false; abtn.textContent = 'Archive';
+        }
+      });
+    });
   }
   qs('#startReportFromAccountBtn', wrap).addEventListener('click', function(){ startReportFromAccount(account); });
   qsa('#acctReportHistory .hist-item', wrap).forEach(function(el){
@@ -3846,8 +4042,10 @@ function techRowHTML(p){
 }
 function renderTechniciansList(){
   const wrap = document.createElement('div');
+  const isAdmin = state.profile && state.profile.role === 'admin';
   let html = '<div class="wizard-top"><span class="eyebrow">Technicians</span></div>';
   html += '<h2 style="font-size:21px;margin-bottom:16px;">Technicians</h2>';
+  if(isAdmin){ html += '<div class="helper-banner">'+icon('info')+'<span>New logins are created from the Supabase dashboard (Authentication \u2192 Users \u2192 Invite user) \u2014 they\u2019ll show up here afterward to assign a role.</span></div>'; } // fix: P3-2, see build prompt
   html += '<input class="input" id="techSearch" placeholder="Search technicians" style="margin-bottom:16px;">';
   html += '<div id="techListWrap"><p class="small-muted center" style="padding:30px 0;">Loading\u2026</p></div>';
   wrap.innerHTML = html;
@@ -3963,11 +4161,12 @@ async function loadTechnicianDetail(wrap){
 "use strict";
 /* ============================================================
    SERVICES (Phase 4) — recurring contracts per account
-   Built to the brief's own "best-supported default" after being
-   flagged as needing confirmation twice with no answer back. If
-   Gepestcon actually sells one-off treatments rather than recurring
-   contracts, this whole module (not just a field or two) is the
-   wrong shape — see supabase/schema.sql's comment on this table.
+   Decision (fix: P3-1, see build prompt): Services represents
+   recurring service contracts; Schedule is the separate place for
+   one-off/ad-hoc visits, independent of any Service contract. This
+   was flagged twice earlier as needing confirmation with no answer
+   back — it's now resolved, and this module's shape (recurring plan,
+   cadence, next-due-date) matches the resolved model as-is.
 
    "Schedule next visit" is the connective tissue to Schedule that
    Section 9 describes ("this is what makes Schedule generate real
@@ -3982,7 +4181,7 @@ function addDaysISO(iso, days){
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 function frequencyLabel(f){
-  return { weekly:'Weekly', biweekly:'Every 2 weeks', monthly:'Monthly', quarterly:'Quarterly', annual:'Annually' }[f] || f;
+  return { weekly:'Weekly', biweekly:'Every 2 weeks', monthly:'Monthly', quarterly:'Quarterly', annual:'Annually' }[f] || escapeHTML(f); // fix: P2-1, see build prompt
 }
 function serviceRowHTML(s){
   const acctName = s.accounts ? (s.accounts.name || TYPE_META[s.accounts.type].label) : 'Unknown account';
@@ -3992,7 +4191,7 @@ function serviceRowHTML(s){
     '<span class="hi-main">'+
       '<span class="hi-title">'+escapeHTML(s.plan_name)+' \u2014 '+escapeHTML(acctName)+'</span>'+
       '<span class="hi-sub">'+frequencyLabel(s.frequency)+' \u00B7 next due '+formatDateDisplay(s.next_due_date)+'</span>'+
-    '</span>'+'<span class="hi-status '+statusCls+'">'+s.status+'</span>'+
+    '</span>'+'<span class="hi-status '+statusCls+'">'+escapeHTML(s.status)+'</span>'+ // fix: P2-1, see build prompt
   '</div>';
 }
 function renderServicesList(){
@@ -4091,7 +4290,7 @@ function openServiceForm(existing, accountChoices, onSaved){
       notes: qs('#sf_notes', body).value.trim()
     };
     if(isEdit){ payload.status = qs('#sf_status', body).value; }
-    else { payload.account_id = qs('#sf_account', body).value; payload.created_by = state.profile.id; }
+    else { payload.account_id = qs('#sf_account', body).value; payload.created_by = state.profile.id; payload.status = 'active'; } // fix: P1-7, see build prompt
     const btn = qs('#sfSaveBtn', body);
     btn.disabled = true; btn.textContent = 'Saving\u2026';
     try{
@@ -4113,11 +4312,14 @@ function openServiceForm(existing, accountChoices, onSaved){
 "use strict";
 /* ============================================================
    SCHEDULE (Phase 4)
-   Deliberately the simple version: ad-hoc visits, not generated from
-   a recurring contract cadence — that needs Services resolved first
-   (Section 9), which it isn't yet. "Convert to report" reuses the
-   same applyAccountToDraft() prefill path as Accounts, so there's
-   still one prefill mechanism, not two.
+   Deliberately the simple version: ad-hoc visits, independent of any
+   Service contract's recurring cadence. This was pending confirmation
+   of the Services model (Section 9); that's now resolved (fix: P3-1,
+   see build prompt) and Schedule staying this way \u2014 not generated
+   from a recurring cadence \u2014 is the confirmed, correct shape, not a
+   placeholder. "Convert to report" reuses the same applyAccountToDraft()
+   prefill path as Accounts, so there's still one prefill mechanism, not
+   two.
    ============================================================ */
 function statusBadgeHTML(status){
   const cls = status==='completed' ? 'st-sent' : status==='cancelled' ? 'st-draft' : 'st-manual';
@@ -4229,7 +4431,8 @@ async function openVisitForm(onSaved, presets){
         scheduled_date: qs('#vf_date', body).value,
         scheduled_time: qs('#vf_time', body).value || null,
         notes: qs('#vf_notes', body).value.trim(),
-        created_by: state.profile.id
+        created_by: state.profile.id,
+        status: 'upcoming' // fix: P1-7, see build prompt
       });
       closeModal();
       toast('Visit scheduled.', 'success');
@@ -4247,14 +4450,14 @@ async function openVisitForm(onSaved, presets){
 "use strict";
 /* ============================================================
    INVENTORY (Phase 4)
-   Stock list with low-stock badges. Two things Section 9 describes
-   that are deliberately NOT in this pass, because they depend on
-   modules that don't exist yet:
-   - "low-stock alerts feeding Notifications" — there's no
-     Notifications feed to feed yet.
-   - "the wizard's chemical fields... offer a picker sourced from
-     Inventory" — real follow-up work once this exists, not bundled
-     into the table's first build.
+   Stock list with low-stock badges, wired into Notifications: crossing
+   the reorder threshold calls createNotification (fix: P2-4, see build
+   prompt — this comment previously said there was no Notifications
+   feed yet to wire into; there is, and the save handler below already
+   does it). One thing genuinely still not built, because it depends on
+   this table existing first and is real follow-up work of its own:
+   - the wizard's chemical fields could offer a picker sourced from
+     Inventory instead of free text — not bundled into this pass.
    ============================================================ */
 function inventoryRowHTML(item){
   const low = Number(item.quantity_on_hand) <= Number(item.reorder_threshold);
@@ -4350,14 +4553,17 @@ function openInventoryForm(existing, onSaved){
 "use strict";
 /* ============================================================
    NOTIFICATIONS (Phase 4)
-   Real feed from real events — wired into submitReport and the
-   resend-email path this pass. NOT wired yet, noted honestly: low
-   stock crossing threshold (Inventory doesn't call createNotification
-   anywhere), and upcoming-visit reminders (would need a scheduled
-   job, which nothing in this stack runs). The mobile bell and this
-   screen read the exact same listNotificationsWithReadState() call,
-   so they can't drift apart the way two separate implementations
-   could.
+   Real feed from real events — wired into submitReport, the
+   resend-email path, and Inventory's low-stock threshold check (fix:
+   P2-4, see build prompt — this comment previously claimed low stock
+   wasn't wired; openInventoryForm's save handler does call
+   createNotification when stock crosses the reorder threshold). NOT
+   wired yet, still accurate: upcoming-visit reminders (would need a
+   scheduled job, which nothing in this stack runs) and the wizard's
+   chemical-picker sourced from Inventory (separate follow-up work).
+   The mobile bell and this screen read the exact same
+   listNotificationsWithReadState() call, so they can't drift apart the
+   way two separate implementations could.
    ============================================================ */
 function notifIconFor(type){
   if(type==='report_submitted') return 'send';
@@ -4505,34 +4711,6 @@ async function loadAnalytics(wrap){
 }
 ;
 /* ============================================================
-   FILE: js/comingSoon.js
-   ============================================================ */
-"use strict";
-/* ============================================================
-   COMING SOON
-   Nine of the eleven sidebar items (and two of five tab-bar items)
-   point at modules that don't exist yet \u2014 Clients, Accounts,
-   Technicians, Schedule, Services, Inventory, Analytics,
-   Notifications. Rather than hide those nav items (which would
-   diverge from the reference images' IA) or leave them clicking to
-   nothing, each one navigates here: a real screen that says plainly
-   what's coming and why it isn't yet, which is what "no dead
-   buttons" actually requires \u2014 a click that does something honest,
-   not necessarily a click that does everything.
-   ============================================================ */
-function renderComingSoon(moduleKey){
-  const wrap = document.createElement('div');
-  const meta = COMING_SOON_MODULES[moduleKey] || { label: moduleKey, icon:'info', blurb:'' };
-  wrap.innerHTML =
-    '<div class="coming-soon">'+
-      '<div class="cs-icon">'+icon(meta.icon)+'</div>'+
-      '<h2>'+escapeHTML(meta.label)+' isn\u2019t built yet</h2>'+
-      '<p>'+escapeHTML(meta.blurb)+'</p>'+
-    '</div>';
-  return wrap;
-}
-;
-/* ============================================================
    FILE: js/app.js
    ============================================================ */
 "use strict";
@@ -4633,7 +4811,6 @@ function showApp(){
 /* ============================================================
    ROUTER
    ============================================================ */
-const COMING_SOON_KEYS = [];
 function navKeyForScreen(screen){
   if(screen==='home') return 'dashboard';
   if(screen==='clientDetail') return 'clients';
@@ -4684,7 +4861,6 @@ function render(){
   else if(state.screen === 'inventory'){ app.appendChild(renderInventoryList()); removeFooterBar(); }
   else if(state.screen === 'notifications'){ app.appendChild(renderNotificationsList()); removeFooterBar(); refreshNotificationBadge(); }
   else if(state.screen === 'analytics'){ app.appendChild(renderAnalytics()); removeFooterBar(); }
-  else if(COMING_SOON_KEYS.indexOf(state.screen) !== -1){ app.appendChild(renderComingSoon(state.screen)); removeFooterBar(); }
   else { app.appendChild(renderHome()); removeFooterBar(); }
 }
 
@@ -4703,6 +4879,11 @@ async function loadSettings(){
     if(s.company_address) CONFIG.companyAddress = s.company_address;
     if(s.company_phone) CONFIG.companyPhone = s.company_phone;
     if(s.company_email) CONFIG.companyEmail = s.company_email;
+    // fix: P3.5-1, see build prompt
+    if(s.lto_number) CONFIG.ltoNumber = s.lto_number;
+    if(s.lto_expiry) CONFIG.ltoExpiry = s.lto_expiry;
+    if(s.supervising_handler_name) CONFIG.supervisingHandlerName = s.supervising_handler_name;
+    if(s.supervising_handler_cert_no) CONFIG.supervisingHandlerCertNo = s.supervising_handler_cert_no;
   }
 }
 
@@ -4750,42 +4931,73 @@ function wireHeaderChrome(){
   buildShellNav();
 }
 
-/* ---------------------------------------------------------------
-   TEMPORARY (per your request): sign-in gate disabled for review.
-   Flip this back to false — or just delete this whole block — to
-   restore the normal sign-in screen exactly as it was; nothing
-   below it was touched.
+// fix: P0-1, see build prompt — removed a DEV_SKIP_AUTH flag that was
+// hardcoded to true here, bypassing sign-in entirely and logging every
+// action in the app as a fake local profile with no real Supabase user
+// behind it. Do not reintroduce a similar bypass, even temporarily.
+function showProfileErrorScreen(){ // fix: P1-5, see build prompt — dedicated recovery state instead of a shell built on a null profile
+  initThemeBeforeAuth();
+  removeFooterBar();
+  qs('#appRoot').style.display = 'none';
+  const authRoot = qs('#authRoot');
+  authRoot.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'auth-shell';
+  wrap.innerHTML = '<div class="auth-card">'+
+    '<div class="auth-brand">'+
+      '<span class="brand-mark">'+brandMarkHTML()+'</span>'+
+      '<h1><b>GEPESTCON <span class="brand-co">CO</span></b></h1>'+
+      '<p>Job Reports</p>'+
+    '</div>'+
+    '<div class="card">'+
+      '<h2 class="section-title">Couldn\u2019t load your profile</h2>'+
+      '<p class="section-hint">You\u2019re signed in, but your account details didn\u2019t come back from the server. This is usually temporary — try again, or sign out and back in.</p>'+
+      '<div id="profileErrAlert"></div>'+
+      '<button type="button" class="btn btn-primary btn-block btn-lg" id="profileErrRetryBtn">'+icon('refresh')+' Try again</button>'+
+      '<button type="button" class="btn btn-secondary btn-block btn-lg" id="profileErrSignOutBtn" style="margin-top:10px;">'+icon('logout')+' Sign out</button>'+
+    '</div></div>';
+  authRoot.appendChild(wrap);
+  authRoot.style.display = '';
 
-   While this is on: the app opens straight to the dashboard with a
-   local, made-up "Guest" profile. Nothing is actually signed in to
-   Supabase, so anything that writes to the database under a real
-   person's name — submitting a report, saving settings, clearing a
-   notification — will likely fail quietly or do nothing, since
-   there's no real logged-in user for it to attach to. Browsing and
-   looking at every screen will work fine.
-   --------------------------------------------------------------- */
-const DEV_SKIP_AUTH = true;
-const DEV_FAKE_PROFILE = {
-  id: null,
-  full_name: 'Guest (preview)',
-  role: 'admin',
-  notification_prefs: { report_submitted:true, email_manual_fallback:true, low_stock:true },
-  theme_preference: null
-};
+  qs('#profileErrRetryBtn', wrap).addEventListener('click', async function(){
+    const btn = qs('#profileErrRetryBtn', wrap);
+    btn.disabled = true; btn.innerHTML = 'Checking\u2026';
+    const profile = state.session ? await fetchProfile(state.session.user.id) : null;
+    if(profile){
+      state.profile = profile;
+      showApp();
+      await loadSettings();
+      checkForSavedDraft();
+    } else {
+      btn.disabled = false; btn.innerHTML = icon('refresh') + ' Try again';
+      qs('#profileErrAlert', wrap).innerHTML = '<div class="auth-error">Still couldn\u2019t load your profile.</div>';
+    }
+  });
+  qs('#profileErrSignOutBtn', wrap).addEventListener('click', async function(){ await signOutUser(); });
+}
 
 function init(){
   initThemeBeforeAuth();
   wireHeaderChrome();
-  if(DEV_SKIP_AUTH){
-    state.profile = DEV_FAKE_PROFILE;
-    showApp();
-    return;
-  }
   sb.auth.onAuthStateChange(async function(event, session){
     state.session = session;
+    if(event === 'PASSWORD_RECOVERY'){ // fix: P1-3, see build prompt
+      authMode = 'reset';
+      showAuthScreen();
+      return;
+    }
     if(session){
       if(!state.profile || state.profile.id !== session.user.id){
         state.profile = await fetchProfile(session.user.id);
+      }
+      if(!state.profile){ // fix: P1-5, see build prompt
+        showProfileErrorScreen();
+        return;
+      }
+      if(state.profile.active === false){ // fix: P3-2, see build prompt — the active flag existed but was never checked anywhere
+        toast('This account has been deactivated. Contact your admin.', 'error');
+        await signOutUser();
+        return;
       }
       showApp();
       if(event === 'SIGNED_IN' || event === 'INITIAL_SESSION'){
@@ -4793,7 +5005,22 @@ function init(){
         checkForSavedDraft();
       }
     } else {
+      /* fix: P1-4, see build prompt — a shared/kiosk device signing in as a
+         different person must never inherit the previous person's in-
+         progress draft or navigation position. Reset everything back to
+         first-load defaults, not just the profile. */
       state.profile = null;
+      state.screen = 'home';
+      state.reportType = null;
+      state.step = 0;
+      state.draft = null;
+      state.viewingReportId = null;
+      state.viewingClientId = null;
+      state.viewingAccountId = null;
+      state.viewingTechnicianId = null;
+      pendingVisitId = null;
+      clearDraftStorage();
+      authMode = 'signin';
       showAuthScreen();
     }
   });
