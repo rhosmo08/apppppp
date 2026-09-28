@@ -918,6 +918,10 @@ function escapeHTML(str){
   if(str===undefined||str===null) return '';
   return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+/* feat: ROLES-1 — staff role hierarchy. Mirrored EXACTLY in role_rank() (profiles_role_hierarchy_migration.sql)
+   and ROLE_RANK (supabase/functions/manage-staff/index.ts). Touch all three together if this ever changes. */
+const ROLE_RANK = { technician: 1, supervisor: 2, manager: 3, admin: 4 };
+function roleRank(role){ return ROLE_RANK[role] || 0; }
 function uid(){ return Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4); }
 function pad2(n){ return String(n).padStart(2,'0'); }
 function todayISO(){ const d=new Date(); return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
@@ -1570,9 +1574,13 @@ async function listProfiles(search){
   if(error){ console.error('listProfiles failed', error); throw error; }
   return data;
 }
-async function updateProfileAdmin(id, patch){ // role and/or active — admin-only per RLS + the role-escalation trigger
-  const { error } = await sb.from('profiles').update(patch).eq('id', id);
-  if(error) throw error;
+async function updateProfileAdmin(id, patch){ // feat: ROLES-5 — role and/or active, now via the manage-staff Edge Function (was a direct table write); kept as throw-on-error/resolve-on-success so every existing caller (role chips, active chips) keeps working unchanged, see changelog
+  const { data, error } = await sb.functions.invoke('manage-staff', {
+    body: Object.assign({ action: 'updateProfile', target_id: id }, patch)
+  });
+  if(error || (data && data.error)){
+    throw new Error((data && data.error) || (error && error.message) || 'Could not update.');
+  }
 }
 async function getReportStatsForTechnician(technicianId){
   const { data, error } = await sb.from('reports').select('satisfaction, created_at').eq('technician_id', technicianId);
@@ -4042,10 +4050,12 @@ function techRowHTML(p){
 }
 function renderTechniciansList(){
   const wrap = document.createElement('div');
-  const isAdmin = state.profile && state.profile.role === 'admin';
+  const viewerRank = state.profile ? roleRank(state.profile.role) : 0; // feat: ROLES-2
   let html = '<div class="wizard-top"><span class="eyebrow">Technicians</span></div>';
-  html += '<h2 style="font-size:21px;margin-bottom:16px;">Technicians</h2>';
-  if(isAdmin){ html += '<div class="helper-banner">'+icon('info')+'<span>New logins are created from the Supabase dashboard (Authentication \u2192 Users \u2192 Invite user) \u2014 they\u2019ll show up here afterward to assign a role.</span></div>'; } // fix: P3-2, see build prompt
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;">'; // feat: ROLES-2
+  html += '<h2 style="font-size:21px;">Technicians</h2>';
+  if(viewerRank >= ROLE_RANK.supervisor){ html += '<button class="btn btn-primary btn-sm" id="addStaffBtn">'+icon('plus')+' Add staff</button>'; } // feat: ROLES-2 — replaces the old Supabase-dashboard-only banner; hidden entirely for Technician
+  html += '</div>';
   html += '<input class="input" id="techSearch" placeholder="Search technicians" style="margin-bottom:16px;">';
   html += '<div id="techListWrap"><p class="small-muted center" style="padding:30px 0;">Loading\u2026</p></div>';
   wrap.innerHTML = html;
@@ -4069,8 +4079,66 @@ function renderTechniciansList(){
     });
   }
   qs('#techSearch', wrap).addEventListener('input', debounce(load, 250));
+  if(viewerRank >= ROLE_RANK.supervisor){ // feat: ROLES-2
+    qs('#addStaffBtn', wrap).addEventListener('click', function(){ openAddStaffForm(load); });
+  }
   load();
   return wrap;
+}
+
+/* feat: ROLES-3 — new "Add staff" flow (\u00a73.3). Role select is populated dynamically: only roles
+   ranked below the viewer are offered, so 'admin' can never appear here for any viewer \u2014 there is no
+   case where roleRank('admin') < roleRank(viewer's own role), including for an Admin viewer themself. */
+function openAddStaffForm(onSaved){
+  const viewerRank = state.profile ? roleRank(state.profile.role) : 0;
+  const roleOptions = ['Technician','Supervisor','Manager'].filter(function(label){
+    return roleRank(label.toLowerCase()) < viewerRank;
+  });
+  const body = openModal(
+    field('Full name', 'sf_name', 'text', '', {required:true}) +
+    field('Email', 'sf_email', 'email', '', {required:true}) +
+    selectField('Role', 'sf_role', '', roleOptions, {required:true}) +
+    '<button class="btn btn-primary btn-block btn-lg" id="sfSaveBtn">Send invite</button>',
+    { title: 'Add staff' }
+  );
+  qs('#sfSaveBtn', body).addEventListener('click', async function(){
+    const fullName = qs('#sf_name', body).value.trim();
+    const email = qs('#sf_email', body).value.trim();
+    const roleDisplay = qs('#sf_role', body).value;
+    if(!fullName){ markFieldError('sf_name','This is required.'); return; }
+    if(!email || !validateEmail(email)){ markFieldError('sf_email','Enter a valid email address.'); return; }
+    if(!roleDisplay){ markFieldError('sf_role','Select a role.'); return; }
+    const role = roleDisplay.toLowerCase();
+
+    const btn = qs('#sfSaveBtn', body);
+    btn.disabled = true; btn.textContent = 'Sending\u2026';
+    let data, error;
+    try{
+      const res = await sb.functions.invoke('manage-staff', { body: { action:'invite', full_name: fullName, email: email, role: role } });
+      data = res.data; error = res.error;
+    } catch(err){
+      toast('Could not send invite: ' + (err.message||'unknown error'), 'error');
+      btn.disabled = false; btn.textContent = 'Send invite';
+      return;
+    }
+    // Response handling matches \u00a73.3 exactly: error/data.error keeps the form open so it can be
+    // fixed; data.warning is a partial failure (login created, name/role not set) so it still closes
+    // and refreshes, but toasts as 'error' since it deserves attention, not a quiet success.
+    if(error || (data && data.error)){
+      toast((data && data.error) || (error && error.message) || 'Could not send invite.', 'error');
+      btn.disabled = false; btn.textContent = 'Send invite';
+      return;
+    }
+    if(data && data.warning){
+      toast(data.warning, 'error');
+      closeModal();
+      if(onSaved) onSaved();
+      return;
+    }
+    toast('Invite sent.', 'success');
+    closeModal();
+    if(onSaved) onSaved();
+  });
 }
 
 function renderTechnicianDetail(){
@@ -4081,7 +4149,6 @@ function renderTechnicianDetail(){
   return wrap;
 }
 async function loadTechnicianDetail(wrap){
-  const isAdmin = state.profile && state.profile.role === 'admin';
   const isSelf = state.profile && state.profile.id === state.viewingTechnicianId;
   let rows, person, stats;
   try{
@@ -4097,6 +4164,9 @@ async function loadTechnicianDetail(wrap){
     wrap.innerHTML = '<div class="empty-state">'+icon('alert')+'<h3>Not found</h3></div>';
     return;
   }
+  const viewerRank = roleRank(state.profile.role); // feat: ROLES-4
+  const targetRank = roleRank(person.role); // feat: ROLES-4
+  const canManage = !isSelf && viewerRank > targetRank; // feat: ROLES-4
   let html = '<div class="wizard-top"><button class="back-link" id="tdBack2">'+icon('chevronLeft')+' Technicians</button></div>';
   html += '<div class="profile-hero" style="padding-top:10px;">';
   html += '<div class="ph-avatar">'+escapeHTML(initials(person.full_name))+'</div>';
@@ -4115,25 +4185,26 @@ async function loadTechnicianDetail(wrap){
   });
   html += '</dl></div>';
 
-  if(isAdmin && !isSelf){
+  if(canManage){ // feat: ROLES-4
+    const roleOptions = ['technician','supervisor','manager'].filter(function(r){ return roleRank(r) < viewerRank; }); // feat: ROLES-4 — same rule as the Add staff form: never offer a rank at or above your own, so 'admin' is never offered by any viewer
     html += '<div class="card" style="margin-top:14px;">';
     html += '<h3 class="section-title" style="font-size:14px;margin-bottom:2px;">Admin controls</h3>';
     html += '<p class="section-hint">Changes apply immediately.</p>';
     html += '<div class="field"><label>Role</label><div class="chip-group" id="roleChips">'+
-      ['technician','admin'].map(function(r){ return '<button type="button" class="chip'+(person.role===r?' is-on':'')+'" data-role="'+r+'">'+icon('check')+'<span>'+(r==='admin'?'Admin':'Technician')+'</span></button>'; }).join('') +
+      roleOptions.map(function(r){ return '<button type="button" class="chip'+(person.role===r?' is-on':'')+'" data-role="'+r+'">'+icon('check')+'<span>'+(r.charAt(0).toUpperCase()+r.slice(1))+'</span></button>'; }).join('') +
     '</div></div>';
     html += '<div class="field" style="margin-bottom:0;"><label>Status</label><div class="chip-group" id="activeChips">'+
       [true,false].map(function(v){ return '<button type="button" class="chip'+(person.active===v?' is-on':'')+'" data-active="'+v+'">'+icon('check')+'<span>'+(v?'Active':'Inactive')+'</span></button>'; }).join('') +
     '</div></div>';
     html += '</div>';
-  } else if(isSelf){
-    html += '<p class="small-muted center" style="margin-top:14px;">You can\u2019t change your own role or status \u2014 ask another admin.</p>';
+  } else { // feat: ROLES-4 — generalized: viewing yourself, a peer, or someone above you all land here now (peer/above previously showed nothing at all)
+    html += '<p class="small-muted center" style="margin-top:14px;">You can\u2019t change your own role or status \u2014 ask someone above you.</p>';
   }
 
   wrap.innerHTML = html;
   qs('#tdBack2', wrap).addEventListener('click', function(){ navigate('technicians'); });
 
-  if(isAdmin && !isSelf){
+  if(canManage){ // feat: ROLES-4
     qsa('#roleChips .chip', wrap).forEach(function(c){
       c.addEventListener('click', async function(){
         try{
