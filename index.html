@@ -597,6 +597,28 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .photo-add svg{ width:20px; height:20px; }
 .photo-add:hover{ border-color: var(--brand); color: var(--brand-dark); }
 
+/* ---------- Per-area photo evidence (7-Eleven Service Details) + grouped photo lists ---------- */
+.area-photos{ margin-top:16px; padding-top:14px; border-top:1px solid var(--line); }
+.area-photos-title{ display:flex; align-items:center; justify-content:space-between; font-size:12.5px; font-weight:700; color: var(--ink-soft); margin-bottom:8px; letter-spacing:.01em; }
+.area-photos-title [data-photo-count]{ font-weight:600; color: var(--ink-faint); }
+.photo-insert{
+  position:relative; display:flex; align-items:center; justify-content:center; gap:8px; width:100%; min-height: var(--tap); padding:10px 14px;
+  border:1.5px dashed var(--line-strong); border-radius: var(--radius-md); background: var(--surface); color: var(--ink-soft);
+  font-size:13.5px; font-weight:700; cursor:pointer; transition: border-color .15s ease, color .15s ease;
+}
+.photo-insert svg{ width:18px; height:18px; flex:0 0 auto; }
+.photo-insert:hover{ border-color: var(--brand); color: var(--brand-dark); }
+.photo-insert:focus-within{ outline:3px solid var(--focus); outline-offset:2px; }
+.photo-insert.is-disabled{ cursor:not-allowed; opacity:.65; border-style:solid; }
+.photo-insert.is-disabled:hover{ border-color: var(--line-strong); color: var(--ink-soft); }
+.photos-busy .photo-insert{ opacity:.55; pointer-events:none; }
+[data-photo-status]:empty{ display:none; }
+.acc-photo-badge{ display:inline-flex; align-items:center; gap:3px; margin-left:8px; font-size:11px; font-weight:700; color: var(--ink-soft); vertical-align:middle; }
+.acc-photo-badge svg{ width:13px; height:13px; }
+.photo-group + .photo-group{ margin-top:14px; }
+.photo-group-title{ display:flex; align-items:center; justify-content:space-between; font-size:12.5px; font-weight:700; color: var(--ink-soft); margin-bottom:8px; }
+.photo-group-title span{ font-family: var(--font-mono); font-size:11.5px; font-weight:600; color: var(--ink-faint); }
+
 /* ---------- Signature pad ---------- */
 .sig-wrap{ border:1.5px solid var(--control-border); border-radius: var(--radius-md); overflow:hidden; background: var(--surface); }
 .sig-wrap canvas{
@@ -1556,6 +1578,13 @@ const TYPE_META = {
 const WIZARD_STEPS = ['client','service','photos','concern','signoff'];
 const STEP_LABELS = { client:'Client & Schedule', service:'Service Details', photos:'Photo Evidence', concern:'Findings & Recommendation', signoff:'Sign-off & Feedback' };
 
+/* 7-Eleven has no separate Photo Evidence step: its evidence photos are attached to the store area they were found in, inside
+   Service Details (see PER-AREA PHOTO EVIDENCE below). Private and Government keep the five-step flow. Always use
+   wizardSteps() / wizardStepIndex() instead of indexing WIZARD_STEPS directly, so the step list is right for each account type. */
+const WIZARD_STEPS_SEVEN11 = ['client','service','concern','signoff'];
+function wizardSteps(type){ return (type || state.reportType) === 'seven11' ? WIZARD_STEPS_SEVEN11 : WIZARD_STEPS; }
+function wizardStepIndex(key, type){ return wizardSteps(type).indexOf(key); }
+
 const LOCATIONS_5 = ['L1','L2','L4','L5','VRBU'];
 
 const PRIVATE_SERVICES = ['Wet Spraying','Mist Blowing','Air Misting','Gel Application','Rat Adhesive','Larvaciding','Powder Application'];
@@ -1568,6 +1597,12 @@ const SEVEN11_POST_PESTS = ['Rat / Mice','Cockroach','Flies','Mosquitoes'];
 const SEVEN11_AREA_PESTS = SEVEN11_POST_PESTS.concat(['Others']);
 const SEVEN11_SERVICES_RENDERED = ['Pest Control','Termite','Inspection','Others'];
 const SEVEN11_WEATHER_OPTIONS = ['Sunny','Cloudy','Light Rain','Heavy Rain','Thunderstorm'];
+const SEVEN11_BUSINESS_UNITS = ['L1','L2','L4','L5','VRBU']; // "Business Unit" dropdown choices (still saved in storeCluster / store_cluster)
+// Keeps an older free-text value (e.g. a previously typed "Cluster 4") visible and selected, so saving the form never silently blanks it.
+function businessUnitOptions(current){
+  return (current && SEVEN11_BUSINESS_UNITS.indexOf(current) < 0) ? SEVEN11_BUSINESS_UNITS.concat([current]) : SEVEN11_BUSINESS_UNITS;
+}
+const SEVEN11_MAX_PHOTOS = 50; // one shared limit across every store area in a 7-Eleven report
 
 const GOV_NATURE_OF_WORK = ['General Pest Control','Rodent Control','Fumigation','Fogging / Misting'];
 const GOV_GPC_PESTS = ['Flying & Crawling Insects','Roaches','Mosquitoes','Flies','Other Pests'];
@@ -1836,7 +1871,7 @@ function scopeAccordionHTML(areas, dataObj){
     const hasOthers = pests.indexOf('Others')!==-1;
     return '<div class="group-block acc-item" data-key="'+key+'" style="padding:0;overflow:hidden;">'+
       '<button type="button" class="acc-head" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:13px 14px;background:none;border:none;text-align:left;">'+
-        '<span style="font-weight:700;font-size:13.5px;">'+escapeHTML(area)+(filled?' <span style="color:var(--forest-dark);font-size:11px;">\u25CF logged</span>':'')+'</span>'+
+        '<span style="font-weight:700;font-size:13.5px;">'+escapeHTML(area)+(filled?' <span style="color:var(--forest-dark);font-size:11px;">\u25CF logged</span>':'')+'<span class="acc-photo-badge" data-photo-badge="'+key+'" style="display:none;" title="Photos attached to this area">'+icon('camera')+'<span class="n">0</span></span></span>'+
         '<span class="acc-chevron" style="display:flex;color:var(--ink-faint);transition:transform .15s ease;">'+icon('chevronRight')+'</span>'+
       '</button>'+
       '<div class="acc-body" style="display:none;padding:2px 14px 14px;">'+
@@ -1846,6 +1881,7 @@ function scopeAccordionHTML(areas, dataObj){
         '<div class="field" id="'+key+'_pestOtherWrap" style="margin-bottom:'+(hasOthers?'10px':'0')+';display:'+(hasOthers?'block':'none')+';">'+
           '<label>If Others, specify</label><input class="input" id="'+key+'_pestOther" value="'+escapeHTML(rec.pestOther||'')+'"></div>'+
         '<div class="field" style="margin-bottom:0;"><label>Severity</label>'+ gaugeHTML(key+'_sev', rec.severity||'', ['Light','Moderate','Heavy']) + '</div>'+
+        '<div class="area-photos"><div class="area-photos-title"><span>Photo evidence</span><span data-photo-count="'+key+'"></span></div><div data-photo-body="'+key+'"></div></div>'+
       '</div>'+
     '</div>';
   }).join('');
@@ -2543,22 +2579,48 @@ function pdfServiceGovernment(doc, d, y){
   y = gridTable(doc, y, ['Pest','Severity (Light / Medium / High)'], findRows, {});
   return y;
 }
+function pdfPhotoCell(doc){
+  const cols = 3, gap = 10, imgW = (doc.internal.pageSize.getWidth() - 80 - gap*(cols-1)) / cols;
+  return { cols: cols, gap: gap, imgW: imgW, imgH: imgW * 0.75 };
+}
+/* Fits a photo inside its cell without stretching it (portrait and square photos used to be squashed into a 4:3 box). */
+function pdfPhotoFit(doc, dataUrl, cellW, cellH){
+  try{
+    const ip = doc.getImageProperties(dataUrl);
+    if(ip && ip.width > 0 && ip.height > 0){
+      const s = Math.min(cellW/ip.width, cellH/ip.height), w = ip.width*s, h = ip.height*s;
+      return { w:w, h:h, dx:(cellW-w)/2, dy:(cellH-h)/2 };
+    }
+  }catch(e){}
+  return { w:cellW, h:cellH, dx:0, dy:0 };
+}
 function pdfPhotos(doc, d, y){
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const cols = 3, gap = 10;
-  const imgW = (pageWidth - 80 - gap*(cols-1)) / cols;
-  const imgH = imgW * 0.75;
-  let rowStartY = y, col = 0, x;
-  d.photos.forEach(function(p){
-    if(col===0 && rowStartY + imgH > pageHeight - 70){ doc.addPage(); rowStartY = 50; }
-    x = 40 + col * (imgW+gap);
-    try{ doc.addImage(p.dataUrl, 'JPEG', x, rowStartY, imgW, imgH, undefined, 'FAST'); }catch(e){}
-    col++;
-    if(col>=cols){ col=0; rowStartY += imgH + gap; }
+  const cell = pdfPhotoCell(doc), cols = cell.cols, gap = cell.gap, imgW = cell.imgW, imgH = cell.imgH;
+  photoGroups(d.photos).forEach(function(g){
+    if(g.label){ // store-area heading: travels with the first row of its photos, never left alone at the foot of a page
+      if(y + 22 + imgH > pageHeight - 70){ doc.addPage(); y = 50; }
+      doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(31,92,70);
+      doc.text(g.label + '  \u2014  ' + g.photos.length + (g.photos.length===1 ? ' photo' : ' photos'), 40, y+9);
+      doc.setDrawColor(214,222,211); doc.line(40, y+14, pageWidth-40, y+14);
+      doc.setTextColor(20,30,25);
+      y += 22;
+    }
+    let rowStartY = y, col = 0, x;
+    g.photos.forEach(function(p){
+      if(col===0 && rowStartY + imgH > pageHeight - 70){ doc.addPage(); rowStartY = 50; }
+      x = 40 + col * (imgW+gap);
+      const f = pdfPhotoFit(doc, p.dataUrl, imgW, imgH);
+      if(f.dx > 0.5 || f.dy > 0.5){ doc.setFillColor(239,243,238); doc.rect(x, rowStartY, imgW, imgH, 'F'); }
+      try{ doc.addImage(p.dataUrl, 'JPEG', x + f.dx, rowStartY + f.dy, f.w, f.h, undefined, 'FAST'); }catch(e){}
+      col++;
+      if(col>=cols){ col=0; rowStartY += imgH + gap; }
+    });
+    if(col!==0) rowStartY += imgH + gap;
+    y = rowStartY + 4;
   });
-  if(col!==0) rowStartY += imgH + gap;
-  return rowStartY + 8;
+  return y + 4;
 }
 function pdfSignoff(doc, d, y){
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -2633,10 +2695,14 @@ function buildPDF(d){
   y = kvTable(doc, y, concernKV(d, d.type));
 
   if(d.photos && d.photos.length){
+    const first = photoGroups(d.photos)[0];
+    // keep the section heading together with the first area heading and the first row of photos
+    if(y + 26 + (first && first.label ? 22 : 0) + pdfPhotoCell(doc).imgH > doc.internal.pageSize.getHeight() - 70){ doc.addPage(); y = 50; }
     y = sectionHeading(doc, 'Photo Evidence', y);
     y = pdfPhotos(doc, d, y);
   }
 
+  if(y + 26 + 60 + 70 > doc.internal.pageSize.getHeight() - 70){ doc.addPage(); y = 50; } // keep the Sign-off heading together with its signature boxes
   y = sectionHeading(doc, 'Sign-off', y);
   y = pdfSignoff(doc, d, y);
 
@@ -2783,7 +2849,7 @@ function buildStepClient(container){
       field('Store name', 'f_storeName', 'text', d.client.storeName, {required:true, placeholder:'e.g. 7-Eleven Katipunan'}) +
     '</div>';
     html += '<div class="row-2">'+
-      field('Store cluster', 'f_storeCluster', 'text', d.client.storeCluster, {placeholder:'e.g. Cluster 4'}) +
+      selectField('Business Unit', 'f_storeCluster', d.client.storeCluster, businessUnitOptions(d.client.storeCluster)) +
       field('Name of store manager', 'f_storeManager', 'text', d.client.storeManager, {placeholder:'e.g. Juan Dela Cruz'}) +
     '</div>';
     html += field('Store address', 'f_address', 'text', d.client.address, {required:true, placeholder:'Complete store address'});
@@ -2955,6 +3021,7 @@ function readServicePrivate(container, d){
 
 function serviceHTMLSeven11(d){
   let html = '<p class="eyebrow" style="margin-bottom:10px;">Scope of work \u2014 tap an area to log it</p>';
+  html += '<p class="small-muted" id="photoQuota" aria-live="polite" style="margin:-2px 0 12px;"></p>';
   html += scopeAccordionHTML(SEVEN11_AREAS, d.service.scopeRows);
   html += '<hr class="hairline">';
   const svcList = d.service.servicesRenderedList || (d.service.servicesRendered ? d.service.servicesRendered.split(',').map(function(s){return s.trim();}).filter(Boolean) : []);
@@ -2982,6 +3049,7 @@ function serviceHTMLSeven11(d){
 }
 function wireServiceSeven11(container){
   wireAccordion(container, SEVEN11_AREAS);
+  wireAreaPhotos(container);
   const chipWrap = qs('#svcRenderedChips', container);
   const otherWrap = qs('#svcRenderedOtherWrap', container);
   if(chipWrap){
@@ -3143,6 +3211,160 @@ function renderPhotoStepBody(container, d){
 function savePhotosStep(){ return { valid:true }; }
 
 /* ============================================================
+   PER-AREA PHOTO EVIDENCE (7-Eleven only)
+   A photo is attached to the store area where the pest was found. It lives in d.photos (the same array the other report
+   types use) and carries areaKey ('a0'..'a7', the same keys as scopeRows) and area (the name). SEVEN11_MAX_PHOTOS is one
+   limit shared by all areas together.
+   ============================================================ */
+let areaPhotoBusy = false;
+
+function photoAreaLabel(p){
+  if(p.area) return p.area;
+  if(p.areaKey){ const n = SEVEN11_AREAS[parseInt(String(p.areaKey).slice(1), 10)]; if(n) return n; }
+  return '';
+}
+/* Groups photos by store area (store-area order), for the review screen, the saved report and the PDF.
+   Photos with no area (Private/Government reports, older reports) come back as one unlabelled group, so those render as before. */
+function photoGroups(list){
+  list = list || [];
+  const labels = list.map(photoAreaLabel);
+  if(!labels.some(Boolean)) return [{ label:'', photos:list }];
+  const order = SEVEN11_AREAS.slice();
+  labels.forEach(function(l){ if(l && order.indexOf(l) === -1) order.push(l); });
+  const groups = order.map(function(l){ return { label:l, photos:[] }; });
+  const other = { label:'Other photos', photos:[] };
+  list.forEach(function(p,i){ (labels[i] ? groups[order.indexOf(labels[i])] : other).photos.push(p); });
+  const out = groups.filter(function(g){ return g.photos.length; });
+  if(other.photos.length) out.push(other);
+  return out;
+}
+
+/* Small preview of an already-resized photo. The grids show these, not the 1280 px originals, so 50 photos on screen stay
+   light on a phone's memory. The full image is what gets uploaded and put in the PDF. */
+function makeThumbDataUrl(dataUrl, maxDim){
+  maxDim = maxDim || 320;
+  return new Promise(function(resolve){
+    const img = new Image();
+    img.onload = function(){
+      try{
+        let w = img.width, h = img.height;
+        if(w <= maxDim && h <= maxDim){ resolve(dataUrl); return; }
+        if(w >= h){ h = Math.max(1, Math.round(h * (maxDim/w))); w = maxDim; }
+        else { w = Math.max(1, Math.round(w * (maxDim/h))); h = maxDim; }
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(c.toDataURL('image/jpeg', 0.72));
+      }catch(e){ resolve(dataUrl); }
+    };
+    img.onerror = function(){ resolve(dataUrl); };
+    img.src = dataUrl;
+  });
+}
+
+function areaPhotoQuotaText(n){
+  return n >= SEVEN11_MAX_PHOTOS ? 'Photo limit reached \u2014 '+n+' of '+SEVEN11_MAX_PHOTOS+' photos used' : 'Photo evidence: '+n+' of '+SEVEN11_MAX_PHOTOS+' photos used';
+}
+function areaPhotoBodyHTML(key, areaName, all){
+  const mine = all.filter(function(p){ return p.areaKey === key; });
+  const nm = escapeHTML(areaName);
+  let html = '';
+  if(mine.length){
+    html += '<div class="photo-grid" style="margin-bottom:10px;">' + mine.map(function(p,i){
+      return '<div class="photo-tile"><img src="'+(p.thumb||p.dataUrl)+'" alt="'+nm+' photo '+(i+1)+'" decoding="async">'+
+        '<button type="button" class="photo-remove" data-photo-remove="'+escapeHTML(p.id)+'" aria-label="Remove '+nm+' photo '+(i+1)+'">'+icon('x')+'</button></div>';
+    }).join('') + '</div>';
+  }
+  if(all.length >= SEVEN11_MAX_PHOTOS){
+    html += '<div class="photo-insert is-disabled" role="note">'+icon('camera')+'<span>Photo limit reached ('+SEVEN11_MAX_PHOTOS+' of '+SEVEN11_MAX_PHOTOS+')</span></div>';
+  } else {
+    html += '<label class="photo-insert">'+icon('camera')+'<span>Insert photo evidence</span><input type="file" accept="image/*" multiple class="sr-only" data-photo-input="'+key+'"></label>';
+  }
+  return html + '<div class="small-muted" data-photo-status="'+key+'" aria-live="polite" style="margin-top:6px;"></div>';
+}
+/* Repaints only the photo parts (each area's tiles + button, the header badges, the counter). Never rebuilds the step, so
+   pests/severity/other values that are typed or picked but not yet saved into the draft are left alone. */
+function refreshAreaPhotoUI(container){
+  const d = state.draft;
+  if(!d || !container) return;
+  const all = d.photos || [];
+  SEVEN11_AREAS.forEach(function(a,i){
+    const key = 'a'+i;
+    const body = qs('[data-photo-body="'+key+'"]', container);
+    if(body) body.innerHTML = areaPhotoBodyHTML(key, a, all);
+    const n = all.filter(function(p){ return p.areaKey === key; }).length;
+    const badge = qs('[data-photo-badge="'+key+'"]', container);
+    if(badge){ badge.style.display = n ? 'inline-flex' : 'none'; const num = qs('.n', badge); if(num) num.textContent = String(n); }
+    const cnt = qs('[data-photo-count="'+key+'"]', container);
+    if(cnt) cnt.textContent = n ? n+(n===1?' photo':' photos') : '';
+  });
+  const quota = qs('#photoQuota', container);
+  if(quota) quota.textContent = areaPhotoQuotaText(all.length);
+}
+function setAreaPhotoStatus(container, key, text){
+  const el = qs('[data-photo-status="'+key+'"]', container);
+  if(el) el.textContent = text || '';
+}
+/* Saves the current step's on-screen values AND the photo list together, so a tab that gets killed while the camera is open loses nothing. */
+function persistDraftAfterPhotoChange(){
+  if(state.screen === 'wizard') flushDraftToStorage(); else persistDraft();
+}
+function removeDraftPhoto(id){
+  const d = state.draft;
+  if(!d) return;
+  const i = d.photos.findIndex(function(p){ return p.id === id; });
+  if(i < 0) return;
+  d.photos.splice(i, 1);
+  photoDbDelete(id);
+  persistDraftAfterPhotoChange();
+}
+async function addAreaPhotos(container, key, files){
+  const d = state.draft, areaName = SEVEN11_AREAS[parseInt(String(key).slice(1), 10)];
+  if(!d || !areaName || !files.length) return;
+  if(areaPhotoBusy){ toast('Still adding the last photos \u2014 one moment.', 'error'); return; }
+  if(d.photos.length >= SEVEN11_MAX_PHOTOS){ toast('Photo limit reached \u2014 a report holds up to '+SEVEN11_MAX_PHOTOS+' photos.', 'error'); return; }
+  areaPhotoBusy = true; container.classList.add('photos-busy');
+  let failed = 0, skipped = 0, firstErr = '';
+  try{
+    for(let i=0;i<files.length;i++){
+      if(state.draft !== d) break; // the report was discarded or sent while photos were being processed
+      if(d.photos.length >= SEVEN11_MAX_PHOTOS){ skipped = files.length - i; break; }
+      setAreaPhotoStatus(container, key, 'Adding photo '+(i+1)+' of '+files.length+'\u2026');
+      try{
+        const dataUrl = await readAndResizeImage(files[i]);
+        const thumb = await makeThumbDataUrl(dataUrl);
+        if(state.draft !== d) break;
+        if(d.photos.length >= SEVEN11_MAX_PHOTOS){ skipped = files.length - i; break; } // re-checked right before adding: the limit can never be passed
+        const rec = { id: uid(), dataUrl: dataUrl, thumb: thumb, caption:'', areaKey: key, area: areaName };
+        d.photos.push(rec);
+        photoDbPut(rec);
+        persistDraftAfterPhotoChange();
+        refreshAreaPhotoUI(container);
+      } catch(err){ failed++; if(!firstErr) firstErr = (err && err.message) || 'Could not add that photo.'; }
+    }
+  } finally { areaPhotoBusy = false; container.classList.remove('photos-busy'); }
+  if(state.draft === d) refreshAreaPhotoUI(container);
+  if(failed) toast(failed > 1 ? failed+' photos couldn\u2019t be added. '+firstErr : firstErr, 'error');
+  if(skipped) toast('Photo limit reached \u2014 '+skipped+(skipped===1?' photo was':' photos were')+' not added (max '+SEVEN11_MAX_PHOTOS+').', 'error');
+}
+function wireAreaPhotos(container){
+  container.addEventListener('change', function(e){
+    const inp = e.target;
+    if(!inp || !inp.matches || !inp.matches('input[data-photo-input]')) return;
+    const key = inp.getAttribute('data-photo-input'), files = Array.from(inp.files || []);
+    inp.value = '';
+    addAreaPhotos(container, key, files);
+  });
+  container.addEventListener('click', function(e){
+    const btn = e.target && e.target.closest ? e.target.closest('[data-photo-remove]') : null;
+    if(!btn) return;
+    if(areaPhotoBusy){ toast('Still adding photos \u2014 one moment.', 'error'); return; }
+    removeDraftPhoto(btn.getAttribute('data-photo-remove'));
+    refreshAreaPhotoUI(container);
+  });
+  refreshAreaPhotoUI(container);
+}
+
+/* ============================================================
    WIZARD STEP 4 — CONCERN, RECOMMENDATION & REMARKS — ported unchanged
    ============================================================ */
 function buildStepConcern(container){
@@ -3265,7 +3487,7 @@ function saveSignoffStep(){
 function stepHintText(stepKey, type){
   const map = {
     client: 'Who this report is for, and when the service happened.',
-    service: type==='seven11' ? 'Log what was found and treated in each store area.' : type==='government' ? 'Nature of work, areas treated, and pest presence.' : 'Services performed and the pest situation found.',
+    service: type==='seven11' ? 'Log what was found and treated in each store area. Attach photo evidence inside the area where you found a pest.' : type==='government' ? 'Nature of work, areas treated, and pest presence.' : 'Services performed and the pest situation found.',
     photos: 'Attach evidence photos \u2014 optional but recommended.',
     concern: 'What you found on site and what you recommend.',
     signoff: 'Sign off on the visit and capture client feedback.'
@@ -3282,13 +3504,15 @@ function saveCurrentStepIntoDraft(stepKey){
    ============================================================ */
 function renderWizard(){
   const wrap = document.createElement('div');
-  const stepKey = WIZARD_STEPS[state.step];
+  const steps = wizardSteps();
+  if(state.step < 0 || state.step >= steps.length) state.step = 0; // safety net: never render a step that does not exist for this account type
+  const stepKey = steps[state.step];
   const meta = TYPE_META[state.reportType];
   let top = '<div class="wizard-top">'+
     '<button class="back-link" id="wizBack">'+icon('chevronLeft')+' '+(state.step===0?'Cancel':'Back')+'</button>'+
-    '<span class="step-tag">'+meta.short+' \u00B7 STEP '+(state.step+1)+' / '+WIZARD_STEPS.length+'</span>'+
+    '<span class="step-tag">'+meta.short+' \u00B7 STEP '+(state.step+1)+' / '+steps.length+'</span>'+
   '</div>';
-  let rail = '<div class="step-rail">' + WIZARD_STEPS.map(function(s,i){
+  let rail = '<div class="step-rail">' + steps.map(function(s,i){
     const cls = i < state.step ? 'is-done' : i === state.step ? 'is-current' : '';
     return '<i class="'+cls+'"></i>';
   }).join('') + '</div>';
@@ -3306,7 +3530,7 @@ function renderWizard(){
 
   setFooterBar(
     (state.step>0 ? '<button class="btn btn-secondary btn-lg" id="wizPrev">Back</button>' : '') +
-    '<button class="btn btn-primary btn-lg btn-block" id="wizNext">'+(state.step===WIZARD_STEPS.length-1 ? 'Review report' : 'Continue')+' '+icon('chevronRight')+'</button>'
+    '<button class="btn btn-primary btn-lg btn-block" id="wizNext">'+(state.step===steps.length-1 ? 'Review report' : 'Continue')+' '+icon('chevronRight')+'</button>'
   );
   qs('#wizNext').addEventListener('click', onWizardNext);
   if(state.step>0) qs('#wizPrev').addEventListener('click', onWizardPrev);
@@ -3320,7 +3544,8 @@ let lastStepChangeAt = -1e9;
 function stepTapTooSoon(){ return performance.now() - lastStepChangeAt < 350; }
 function onWizardNext(){
   if(stepTapTooSoon()) return;
-  const stepKey = WIZARD_STEPS[state.step];
+  if(areaPhotoBusy){ toast('Still adding photos \u2014 one moment.', 'error'); return; }
+  const stepKey = wizardSteps()[state.step];
   const result = saveCurrentStepIntoDraft(stepKey);
   if(result && result.valid === false){
     if(result.message) toast(result.message, 'error');
@@ -3328,7 +3553,7 @@ function onWizardNext(){
   }
   persistDraft();
   lastStepChangeAt = performance.now();
-  if(state.step < WIZARD_STEPS.length-1){
+  if(state.step < wizardSteps().length-1){
     state.step++;
     render(); window.scrollTo(0,0);
   } else {
@@ -3337,7 +3562,8 @@ function onWizardNext(){
 }
 function onWizardPrev(){
   if(stepTapTooSoon()) return;
-  const stepKey = WIZARD_STEPS[state.step];
+  if(areaPhotoBusy){ toast('Still adding photos \u2014 one moment.', 'error'); return; }
+  const stepKey = wizardSteps()[state.step];
   saveCurrentStepIntoDraft(stepKey);
   persistDraft();
   lastStepChangeAt = performance.now();
@@ -3414,19 +3640,82 @@ function startNewReport(type){
    is available and does the same "per device" job without a network round
    trip on every step. */
 const DRAFT_STORAGE_KEY = 'gepestcon_draft_active';
+/* A 7-Eleven report can hold 50 photos (about 150-250 KB each), far more than localStorage's ~5 MB. So for 7-Eleven the draft record keeps
+   only each photo's id / area / caption, and the image data is kept in IndexedDB under the same id. Every helper below resolves (never
+   rejects), so a storage problem can never break the form. Private and Government drafts are saved exactly as before. */
+const PHOTO_DB_NAME = 'gepestcon_draft_photos', PHOTO_DB_STORE = 'photos';
+let photoDbPromise = null;
+function photoDbOpen(){
+  if(!photoDbPromise) photoDbPromise = new Promise(function(resolve){
+    try{
+      if(!window.indexedDB){ resolve(null); return; }
+      const req = indexedDB.open(PHOTO_DB_NAME, 1);
+      req.onupgradeneeded = function(){ try{ req.result.createObjectStore(PHOTO_DB_STORE, { keyPath:'id' }); }catch(e){} };
+      req.onsuccess = function(){ resolve(req.result); };
+      req.onerror = req.onblocked = function(){ resolve(null); };
+    }catch(e){ resolve(null); }
+  });
+  return photoDbPromise;
+}
+function photoDbRun(mode, work){
+  return photoDbOpen().then(function(db){
+    if(!db) return null;
+    return new Promise(function(resolve){
+      try{
+        const tx = db.transaction(PHOTO_DB_STORE, mode), out = { v:null };
+        work(tx.objectStore(PHOTO_DB_STORE), out);
+        tx.oncomplete = function(){ resolve(out.v); };
+        tx.onerror = tx.onabort = function(){ resolve(null); };
+      }catch(e){ resolve(null); }
+    });
+  });
+}
+function photoDbPut(p){ return photoDbRun('readwrite', function(s,o){ s.put({ id:p.id, dataUrl:p.dataUrl, thumb:p.thumb||'' }); o.v = true; }); }
+function photoDbDelete(id){ return photoDbRun('readwrite', function(s){ s.delete(id); }); }
+function photoDbClear(){ return photoDbRun('readwrite', function(s){ s.clear(); }); }
+function photoDbGetMany(ids){
+  return photoDbRun('readonly', function(s,o){
+    o.v = {};
+    ids.forEach(function(id){ const r = s.get(id); r.onsuccess = function(){ if(r.result) o.v[id] = r.result; }; });
+  });
+}
+/* Puts the image data back into a saved 7-Eleven draft. Returns how many photos could not be restored (they are dropped from the draft). */
+async function hydrateDraftPhotos(draft){
+  const list = Array.isArray(draft.photos) ? draft.photos.filter(Boolean) : [];
+  const stored = (await photoDbGetMany(list.filter(function(p){ return !p.dataUrl; }).map(function(p){ return p.id; }))) || {};
+  const kept = [];
+  list.forEach(function(p){
+    if(p.dataUrl){ photoDbPut(p); } // saved inline by an earlier version: move it into the device store too
+    else if(stored[p.id]){ p.dataUrl = stored[p.id].dataUrl; p.thumb = stored[p.id].thumb || ''; }
+    if(p.dataUrl) kept.push(p);
+  });
+  draft.photos = kept;
+  return list.length - kept.length;
+}
+function draftForStorage(d){
+  if(state.reportType !== 'seven11' || !Array.isArray(d.photos)) return d;
+  return Object.assign({}, d, { photos: d.photos.map(function(p){ return { id:p.id, caption:p.caption||'', areaKey:p.areaKey||'', area:p.area||'' }; }) });
+}
 function persistDraft(){
   if(!state.draft) return;
-  try{ localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({ reportType: state.reportType, step: state.step, draft: state.draft })); }
+  try{ localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({ reportType: state.reportType, step: state.step, stepKey: wizardSteps()[state.step] || '', draft: draftForStorage(state.draft) })); }
   catch(e){ console.error('persistDraft failed', e); }
 }
-function clearDraftStorage(){ try{ localStorage.removeItem(DRAFT_STORAGE_KEY); }catch(e){} }
+function clearDraftStorage(){ try{ localStorage.removeItem(DRAFT_STORAGE_KEY); }catch(e){} photoDbClear(); }
+/* Which step to reopen a saved draft on. Drafts saved by the previous version have no stepKey: their step was an index into the five-step list. */
+function savedDraftStepIndex(saved){
+  const steps = wizardSteps(saved.reportType);
+  let i = saved.stepKey ? steps.indexOf(saved.stepKey) : -1;
+  if(i < 0){ const old = WIZARD_STEPS[saved.step || 0]; i = steps.indexOf(old); if(i < 0 && old === 'photos') i = steps.indexOf('service'); }
+  return i < 0 ? 0 : i;
+}
 /* Phase 0.5 (U-03): when the page goes to the background (camera, another app, a call) Android may close it to free
    memory. Save what is on screen first, silently: no validation messages, no focus changes. Only while a report is
    being filled in (never on the review/success screens, so a sent report can't come back as a "draft"). */
 function flushDraftToStorage(){
   if(state.screen !== 'wizard' || !state.draft) return;
   suppressFieldErrors = true;
-  try{ saveCurrentStepIntoDraft(WIZARD_STEPS[state.step]); }
+  try{ saveCurrentStepIntoDraft(wizardSteps()[state.step]); }
   catch(e){ /* the step may be half-rendered; a background save must never break the page */ }
   finally{ suppressFieldErrors = false; }
   persistDraft();
@@ -3446,12 +3735,18 @@ function checkForSavedDraft(){
     '</div>', { title:'Resume draft report?' }
   );
   qs('#discardSaved').addEventListener('click', function(){ closeModal(); clearDraftStorage(); });
-  qs('#resumeSaved').addEventListener('click', function(){
+  qs('#resumeSaved').addEventListener('click', async function(){
     closeModal();
+    let lost = 0;
+    if(saved.reportType === 'seven11'){
+      try{ lost = await hydrateDraftPhotos(saved.draft); }
+      catch(e){ console.error('hydrateDraftPhotos failed', e); saved.draft.photos = (saved.draft.photos || []).filter(function(p){ return p && p.dataUrl; }); }
+    }
     state.reportType = saved.reportType;
     state.draft = saved.draft;
-    state.step = saved.step || 0;
+    state.step = savedDraftStepIndex(saved);
     navigate('wizard');
+    if(lost) toast(lost+(lost===1?' photo':' photos')+' couldn\u2019t be restored \u2014 please add '+(lost===1?'it':'them')+' again.', 'error');
   });
 }
 
@@ -3465,7 +3760,7 @@ function clientKV(d, type){
   const rows = [];
   if(type==='seven11'){
     rows.push(['Store', (d.client.storeNumber?('#'+d.client.storeNumber+' \u2014 '):'') + (d.client.storeName||'')]);
-    rows.push(['Cluster', d.client.storeCluster]);
+    rows.push(['Business Unit', d.client.storeCluster]);
     rows.push(['Store manager', d.client.storeManager]);
   } else {
     rows.push(['Name', d.client.name]);
@@ -3526,7 +3821,13 @@ function reviewBlock(title, stepIdx, kvPairs){
 function reviewPhotosBlock(d, stepIdx){
   let inner;
   if(d.photos.length===0){ inner = '<p class="small-muted">No photos attached.</p>'; }
-  else { inner = '<div class="photo-grid" style="grid-template-columns:repeat(4,1fr);">' + d.photos.map(function(p){ return '<div class="photo-tile"><img src="'+p.dataUrl+'"></div>'; }).join('') + '</div>'; }
+  else {
+    inner = photoGroups(d.photos).map(function(g){
+      const head = g.label ? '<div class="photo-group-title">'+escapeHTML(g.label)+'<span>'+g.photos.length+'</span></div>' : '';
+      return '<div class="photo-group">'+head+'<div class="photo-grid" style="grid-template-columns:repeat(4,1fr);">' +
+        g.photos.map(function(p){ return '<div class="photo-tile"><img src="'+(p.thumb||p.dataUrl)+'" alt=""></div>'; }).join('') + '</div></div>';
+    }).join('');
+  }
   const editBtn = (stepIdx===null || stepIdx===undefined) ? '' : '<button class="rb-edit" data-step="'+stepIdx+'">'+icon('pencil')+' Edit</button>';
   return '<div class="review-block"><div class="rb-title">Photo evidence'+editBtn+'</div>'+inner+'</div>';
 }
@@ -3538,7 +3839,7 @@ function reviewSignoffBlock(d, stepIdx){
     ['Client signed', d.signOff.clientSig ? 'Yes' : 'No'],
     ['Satisfaction', d.signOff.satisfaction ? satisfactionLabel(d.signOff.satisfaction) : '']
   ];
-  return reviewBlock('Sign-off & feedback', stepIdx===undefined?4:stepIdx, rows);
+  return reviewBlock('Sign-off & feedback', stepIdx===undefined?wizardStepIndex('signoff'):stepIdx, rows);
 }
 function renderReview(){
   const wrap = document.createElement('div');
@@ -3551,15 +3852,16 @@ function renderReview(){
   html += '<div class="card" style="margin-bottom:16px;">';
   html += '<h2 class="section-title">Review before sending</h2>';
   html += '<p class="section-hint">Check the details below \u2014 you can jump back to fix anything.</p>';
-  html += reviewBlock('Client & schedule', 0, clientKV(d, type));
-  html += reviewBlock('Service details', 1, serviceKV(d, type));
-  html += reviewPhotosBlock(d, 2);
-  html += reviewBlock('Findings & remarks', 3, concernKV(d, type));
-  html += reviewSignoffBlock(d, 4);
+  const stepAt = function(key){ return wizardStepIndex(key, type); }; // the Edit buttons must follow the step list: 7-Eleven has no photos step
+  html += reviewBlock('Client & schedule', stepAt('client'), clientKV(d, type));
+  html += reviewBlock('Service details', stepAt('service'), serviceKV(d, type));
+  html += reviewPhotosBlock(d, type==='seven11' ? stepAt('service') : stepAt('photos'));
+  html += reviewBlock('Findings & remarks', stepAt('concern'), concernKV(d, type));
+  html += reviewSignoffBlock(d, stepAt('signoff'));
   html += '</div>';
   wrap.innerHTML = html;
 
-  qs('#reviewBack', wrap).addEventListener('click', function(){ navigate('wizard', { step: WIZARD_STEPS.length-1 }); });
+  qs('#reviewBack', wrap).addEventListener('click', function(){ navigate('wizard', { step: wizardSteps().length-1 }); });
   qsa('.rb-edit', wrap).forEach(function(btn){
     btn.addEventListener('click', function(){ navigate('wizard', { step: parseInt(btn.dataset.step,10) }); });
   });
@@ -3640,10 +3942,13 @@ async function submitReport(){
 
     const photoRecords = [];
     for(let i=0;i<d.photos.length;i++){
+      const p = d.photos[i];
+      if(btn && d.photos.length > 1) btn.innerHTML = 'Uploading photo '+(i+1)+' of '+d.photos.length+'\u2026';
       const path = 'reports/'+d.id+'/photos/'+(i+1)+'.jpg';
-      await uploadFile(path, dataURLToBlob(d.photos[i].dataUrl), 'image/jpeg');
-      photoRecords.push({ path: path, caption: d.photos[i].caption||'' });
+      await uploadFile(path, dataURLToBlob(p.dataUrl), 'image/jpeg');
+      photoRecords.push(p.areaKey ? { path: path, caption: p.caption||'', areaKey: p.areaKey, area: p.area||'' } : { path: path, caption: p.caption||'' });
     }
+    if(btn) btn.innerHTML = 'Sending\u2026';
     let techSigPath = null, clientSigPath = null;
     if(d.signOff.technicianSig){
       techSigPath = 'reports/'+d.id+'/signatures/technician.png';
@@ -4005,9 +4310,13 @@ async function loadDetailPhotosGrid(container, photos){
     return;
   }
   const urls = await Promise.all(photos.map(function(p){ return getSignedUrl(p.path, 600); }));
-  container.innerHTML = '<div class="photo-grid" style="grid-template-columns:repeat(4,1fr);">' +
-    urls.map(function(u,i){ return u ? '<div class="photo-tile"><img src="'+u+'" alt="Evidence photo '+(i+1)+'"></div>' : ''; }).join('') +
-  '</div>';
+  const shown = photos.map(function(p,i){ return Object.assign({}, p, { url: urls[i], n: i+1 }); });
+  container.innerHTML = photoGroups(shown).map(function(g){
+    const head = g.label ? '<div class="photo-group-title">'+escapeHTML(g.label)+'<span>'+g.photos.length+'</span></div>' : '';
+    return '<div class="photo-group">'+head+'<div class="photo-grid" style="grid-template-columns:repeat(4,1fr);">' +
+      g.photos.map(function(p){ return p.url ? '<div class="photo-tile"><img src="'+p.url+'" alt="Evidence photo '+p.n+'" loading="lazy" decoding="async"></div>' : ''; }).join('') +
+    '</div></div>';
+  }).join('');
 }
 
 function renderReportDetail(){
@@ -4635,7 +4944,9 @@ function openAccountForm(existing, presetClient, onSaved, clientChoices){
     const tf = qs('#af_typeFields', body);
     if(t==='seven11'){
       tf.innerHTML = '<div class="row-2">'+fieldMini('Store number', 'af_storeNumber', existing?existing.store_number:'')+fieldMini('Store name', 'af_storeName', existing?existing.store_name:'')+'</div>'+
-        '<div class="row-2">'+fieldMini('Store cluster', 'af_storeCluster', existing?existing.store_cluster:'')+fieldMini('Store manager', 'af_storeManager', existing?existing.store_manager:'')+'</div>';
+        '<div class="row-2">'+selectMini('Business Unit', 'af_storeCluster', existing?existing.store_cluster:'', businessUnitOptions(existing?existing.store_cluster:''))+fieldMini('Store manager', 'af_storeManager', existing?existing.store_manager:'')+'</div>';
+      const buSel = qs('#af_storeCluster', tf); // selectMini only sets "has-value" at render time, so keep it in step with the choice
+      if(buSel){ buSel.addEventListener('change', function(){ buSel.classList.toggle('has-value', !!buSel.value); }); }
     } else if(t==='government'){
       tf.innerHTML = fieldMini('Nature of business', 'af_natureOfBusiness', existing?existing.nature_of_business:'');
     } else { tf.innerHTML = ''; }
@@ -4721,7 +5032,7 @@ async function loadAccountDetail(wrap){
   }
   html += '</div>';
   const kvRows = [['Address', account.address], ['Phone', account.phone], ['Email', account.email]];
-  if(account.type==='seven11'){ kvRows.push(['Store number', account.store_number], ['Store cluster', account.store_cluster], ['Store manager', account.store_manager]); }
+  if(account.type==='seven11'){ kvRows.push(['Store number', account.store_number], ['Business Unit', account.store_cluster], ['Store manager', account.store_manager]); }
   if(account.type==='government'){ kvRows.push(['Nature of business', account.nature_of_business]); }
   html += '<dl class="kv" style="margin-top:14px;">' + kvRows.map(function(r){ return '<dt>'+r[0]+'</dt><dd class="'+(r[1]?'':'empty')+'">'+(escapeHTML(r[1])||'Not provided')+'</dd>'; }).join('') + '</dl>';
   html += '</div>';
