@@ -628,6 +628,13 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
   background: repeating-linear-gradient(#F6F5F3 0 27px, #D6D4CF 27px 28px);
 }
 .sig-toolbar{ display:flex; align-items:center; justify-content:space-between; padding:8px 10px; border-top:1px solid var(--line); font-size:12px; color: var(--ink-faint); }
+.sig-actions{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.sig-actions .btn{ flex:1 1 130px; }
+.sig-file{ position:absolute; width:1px; height:1px; opacity:0; overflow:hidden; pointer-events:none; }
+.stamp-chip{ display:flex; align-items:center; gap:10px; margin-top:10px; padding:8px 8px 8px 10px; border:1.5px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface); }
+.stamp-chip img{ width:46px; height:46px; object-fit:contain; background:#fff; border:1px solid var(--line); border-radius:6px; flex:0 0 auto; }
+.stamp-meta{ flex:1 1 auto; min-width:0; font-size:13px; font-weight:700; color: var(--ink); line-height:1.3; }
+.stamp-meta small{ display:block; font-size:11.5px; font-weight:500; color: var(--ink-faint); }
 
 /* ---------- Helper banners ---------- */
 .helper-banner{ display:flex; gap:10px; align-items:flex-start; background: var(--forest-pale); border-radius: var(--radius-md); padding:12px 14px; font-size:12.5px; color: var(--forest-dark); margin-bottom:16px; }
@@ -1503,6 +1510,8 @@ const ICONS = {
   chevronLeft: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>',
   history: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3.5 2"/></svg>',
   gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/><path d="M19.4 13.5a7.4 7.4 0 0 0 0-3l1.9-1.5-2-3.4-2.2.8a7.5 7.5 0 0 0-2.6-1.5L14 2.5h-4l-.5 2.4a7.5 7.5 0 0 0-2.6 1.5l-2.2-.8-2 3.4L4.6 10.5a7.4 7.4 0 0 0 0 3L2.7 15l2 3.4 2.2-.8c.76.66 1.64 1.18 2.6 1.5l.5 2.4h4l.5-2.4a7.5 7.5 0 0 0 2.6-1.5l2.2.8 2-3.4-1.9-1.5z"/></svg>',
+  image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M4 17.5l5-5 3.5 3.5 2.5-2.5 5 5"/></svg>',
+  stamp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5a3 3 0 0 1 6 0c0 1.6-.6 2.5-1 3.6-.3.8 0 1.4.9 1.7 2.3.7 3.6 1.4 3.6 3.2V15H5.5v-1.5c0-1.8 1.3-2.5 3.6-3.2.9-.3 1.2-.9.9-1.7C9.6 7.5 9 6.6 9 5z"/><path d="M4.5 19h15"/></svg>',
   camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.2-1.8A1 1 0 0 1 9.5 4.7h5a1 1 0 0 1 .83.5L16.5 7h2A1.5 1.5 0 0 1 20 8.5v9A1.5 1.5 0 0 1 18.5 19h-13A1.5 1.5 0 0 1 4 17.5v-9z"/><circle cx="12" cy="13" r="3.4"/></svg>',
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
   x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
@@ -1554,7 +1563,7 @@ function heroBadgeHTML(size){
 const CONFIG = {
   companyName: 'Gepestcon Co.',
   companyTagline: 'Pest Management Services',
-  companyAddress: '23-M Sct. Ybardolaza, Brgy. Sacred Heart, Quezon City',
+  companyAddress: '51A St. Tobias St., Brgy. Laging Handa, Diliman Quezon City',
   companyPhone: '02-79068414 / 0905-3017710',
   companyEmail: 'gepestcon_co@yahoo.com',
   companyWeb: 'gepestcon.co',
@@ -1935,6 +1944,10 @@ function setupSignatureCanvas(canvas){
   ctx.lineJoin = 'round';
   ctx.strokeStyle = '#16211B';
   let drawing = false, hasInk = false, last = null;
+  /* A picture put on the pad ("Add picture", or a saved signature coming back when the step is reopened) is remembered as the
+     original image, so it is saved exactly as it was added. Only if the signer then draws over it is the pad exported
+     (flattened to a JPEG on white). */
+  let pictureUrl = null, drewOnPicture = false, pending = false, token = 0;
   function getPos(e){
     const rect = canvas.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -1947,7 +1960,7 @@ function setupSignatureCanvas(canvas){
     if(!drawing) return;
     const p = getPos(e);
     ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke();
-    last = p; hasInk = true; e.preventDefault();
+    last = p; hasInk = true; if(pictureUrl) drewOnPicture = true; e.preventDefault();
   }
   function up(e){ drawing = false; }
   canvas.addEventListener('pointerdown', down);
@@ -1956,21 +1969,127 @@ function setupSignatureCanvas(canvas){
   canvas.addEventListener('pointercancel', up);
   canvas.addEventListener('pointerleave', up);
   return {
-    clear(){ ctx.clearRect(0,0,canvas.width,canvas.height); hasInk = false; },
+    clear(){ token++; pending = false; ctx.clearRect(0,0,canvas.width,canvas.height); hasInk = false; pictureUrl = null; drewOnPicture = false; },
     isEmpty(){ return !hasInk; },
+    isLoading(){ return pending; },
     markHasInk(){ hasInk = true; },
-    dataURL(){ return canvas.toDataURL('image/png'); }
+    /* Puts a picture on the pad, scaled to fit and centred without stretching it (margin = gap around it, in px). */
+    setPicture(dataUrl, margin){
+      const m = (margin === undefined) ? 6 : margin;
+      const mine = ++token; pending = true;
+      const img = new Image();
+      img.onload = function(){
+        if(mine !== token) return;          // cleared or replaced while it was still loading
+        pending = false;
+        if(!img.width || !img.height) return;
+        ctx.clearRect(0, 0, cssWidth, cssHeight);
+        const bw = cssWidth - 2*m, bh = cssHeight - 2*m;
+        const s = Math.min(bw / img.width, bh / img.height);
+        const w = img.width * s, h = img.height * s;
+        ctx.drawImage(img, m + (bw - w) / 2, m + (bh - h) / 2, w, h);
+        hasInk = true; pictureUrl = dataUrl; drewOnPicture = false;
+      };
+      img.onerror = function(){ if(mine === token) pending = false; };
+      img.src = dataUrl;
+    },
+    dataURL(){
+      if(pictureUrl && !drewOnPicture) return pictureUrl;
+      if(pictureUrl){
+        const flat = document.createElement('canvas'); flat.width = canvas.width; flat.height = canvas.height;
+        const g = flat.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, flat.width, flat.height); g.drawImage(canvas, 0, 0);
+        return flat.toDataURL('image/jpeg', 0.9);
+      }
+      return canvas.toDataURL('image/png');
+    }
   };
 }
 function drawExistingSignature(canvas, sigApi, dataUrl){
-  const img = new Image();
-  img.onload = function(){
-    const ctx = canvas.getContext('2d');
-    const ratio = Math.max(window.devicePixelRatio||1,1);
-    ctx.drawImage(img, 0, 0, canvas.width/ratio, canvas.height/ratio);
-    sigApi.markHasInk();
-  };
-  img.src = dataUrl;
+  sigApi.setPicture(dataUrl, 0);   // fits the saved image onto the pad without stretching it, even if the pad is now a different shape
+}
+
+/* Mime type of a data URL (signatures and stamps can be PNG or JPEG pictures). */
+function dataUrlMime(dataUrl){
+  const m = /^data:([^;,]+)/i.exec(dataUrl || '');
+  return m ? m[1].toLowerCase() : 'image/png';
+}
+/* Photographed signatures and stamps come with a grey or cream paper background. This evens it out to white: the paper's own
+   colour becomes white while the ink keeps its colour and darkness, so the picture sits cleanly on the report. It is skipped
+   when the picture is not mostly light paper (for example a dark background). */
+function whitenPaper(g, w, h){
+  let img;
+  try{ img = g.getImageData(0, 0, w, h); }catch(e){ return; }
+  const px = img.data, n = w * h;
+  const lum = new Uint8Array(n), hist = new Uint32Array(256);
+  for(let i = 0, j = 0; j < n; i += 4, j++){
+    const l = ((px[i] * 299 + px[i + 1] * 587 + px[i + 2] * 114) / 1000) | 0;
+    lum[j] = l; hist[l]++;
+  }
+  // the brightest 40% of the pixels are the paper: take the median of each colour channel there as "paper white"
+  let acc = 0, cut = 255;
+  for(let v = 0; v < 256; v++){ acc += hist[v]; if(acc >= n * 0.6){ cut = v; break; } }
+  const hr = new Uint32Array(256), hg = new Uint32Array(256), hb = new Uint32Array(256);
+  let m = 0;
+  for(let i = 0, j = 0; j < n; i += 4, j++){
+    if(lum[j] >= cut){ hr[px[i]]++; hg[px[i + 1]]++; hb[px[i + 2]]++; m++; }
+  }
+  function median(hs){ let a = 0; for(let v = 0; v < 256; v++){ a += hs[v]; if(a >= m / 2) return v; } return 255; }
+  const wr = median(hr), wg = median(hg), wb = median(hb);
+  if(Math.min(wr, wg, wb) < 140) return;                  // not a light sheet of paper: leave the picture alone
+  const clip = 0.93;                                      // anything within 7% of the paper's brightness becomes pure white (faint shadows, grain)
+  const kr = 255 / (wr * clip), kg = 255 / (wg * clip), kb = 255 / (wb * clip);
+  for(let i = 0; i < px.length; i += 4){
+    px[i] = Math.min(255, px[i] * kr);
+    px[i + 1] = Math.min(255, px[i + 1] * kg);
+    px[i + 2] = Math.min(255, px[i + 2] * kb);
+  }
+  g.putImageData(img, 0, 0);
+}
+/* Reads a picture of a signature or a stamp: scales it down so the saved report stays light, keeps transparency (PNG) only
+   when the picture really has some, and saves every other picture as a compact JPEG with its paper background made white. */
+function readSignoffPicture(file, maxDim){
+  maxDim = maxDim || 700;
+  return new Promise(function(resolve, reject){
+    const looksLikeImage = file && (
+      (file.type && file.type.indexOf('image/') === 0) ||
+      (!file.type && /\.(heic|heif|jpe?g|png|gif|webp|bmp)$/i.test(file.name || ''))
+    );
+    if(!looksLikeImage){ reject(new Error('That file is not a picture.')); return; }
+    const isHeic = /\.(heic|heif)$/i.test(file.name || '') || file.type === 'image/heic' || file.type === 'image/heif';
+    const reader = new FileReader();
+    reader.onerror = function(){ reject(new Error('Could not read that picture. Try again.')); };
+    reader.onload = function(){
+      const img = new Image();
+      img.onerror = function(){
+        reject(new Error(isHeic ? 'This browser cannot open iPhone HEIC pictures. Share the picture as a JPEG instead.' : 'That picture could not be opened.'));
+      };
+      img.onload = function(){
+        let w = img.width, h = img.height;
+        if(!w || !h){ reject(new Error('That picture could not be opened.')); return; }
+        if(w > maxDim || h > maxDim){ const s = maxDim / Math.max(w, h); w = Math.max(1, Math.round(w * s)); h = Math.max(1, Math.round(h * s)); }
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        const g = c.getContext('2d');
+        g.drawImage(img, 0, 0, w, h);
+        let hasAlpha = false;
+        try{
+          const px = g.getImageData(0, 0, w, h).data;
+          for(let i = 3; i < px.length; i += 4){ if(px[i] < 250){ hasAlpha = true; break; } }
+        }catch(e){ hasAlpha = /png|webp|gif/.test(file.type || ''); }
+        if(hasAlpha){
+          const png = c.toDataURL('image/png');
+          if(png.length <= 600000){ resolve(png); return; }
+          // a large picture with transparency: flatten it onto white as a JPEG so the saved report stays light
+          const f = document.createElement('canvas'); f.width = w; f.height = h;
+          const fg = f.getContext('2d'); fg.fillStyle = '#fff'; fg.fillRect(0, 0, w, h); fg.drawImage(c, 0, 0);
+          resolve(f.toDataURL('image/jpeg', 0.88));
+          return;
+        }
+        whitenPaper(g, w, h);                  // a photo on paper: make the paper white
+        resolve(c.toDataURL('image/jpeg', 0.88));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 /* ---------------- PHOTO CAPTURE + RESIZE — ported unchanged ---------------- */
@@ -2441,83 +2560,247 @@ async function saveAppSettings(patch){
    ============================================================ */
 "use strict";
 /* ============================================================
-   PDF GENERATION (jsPDF + autoTable) — ported unchanged.
-   headStyles.fillColor below is [31,92,70], the RGB of --forest,
-   hardcoded because jsPDF can't read CSS variables. Logged
-   assumption from the audit: the printed/emailed document keeps
-   this identity regardless of any future in-app theme change —
-   Section 4 only re-scopes on-screen interactive color. Say so if
-   client-facing PDFs should pick up the red brand too.
+   PDF GENERATION (jsPDF + autoTable) - client-facing design.
+   The report now wears the Gepestcon crest's own colours: crest red, charcoal
+   black and white, with the crest itself in the letterhead. jsPDF can't read
+   CSS variables, so the RGB values are written out once in PDF_C and reused
+   everywhere below (change a colour there and the whole PDF follows).
+   Note: the report detail screen downloads the PDF that was stored when the
+   report was submitted, so older reports keep the PDF they were sent with;
+   only reports submitted from now on use this look.
+   Only characters that exist in jsPDF's built-in Helvetica/Courier (WinAnsi)
+   may be printed: no check marks, stars or other symbols. Shapes are drawn.
    ============================================================ */
+const PDF_C = {
+  red:       [255, 21, 22],    // crest red (#FF1516): bars, rules, big fills
+  redText:   [196, 20, 25],    // deeper red for small red text on white (= --brand-text)
+  redTint:   [253, 237, 237],  // recommendation call-out background (= --brand-tint)
+  black:     [40, 40, 40],     // crest charcoal (#282828): table headers, report badge
+  ink:       [28, 29, 32],     // body text (= --text)
+  soft:      [85, 87, 94],     // field labels (= --text-soft)
+  muted:     [105, 108, 116],  // secondary text (= --text-muted)
+  faint:     [165, 167, 173],  // "nothing recorded" dashes
+  line:      [227, 225, 220],  // hairlines (= --border)
+  zebra:     [247, 247, 246],  // alternate table rows
+  pillLight: [238, 238, 238]   // "Light" severity pill
+};
+const PDF_TOP = 58;      // where content starts on pages 2+, just below the compact running header
+const PDF_BOTTOM = 70;   // custom blocks never start below pageHeight - PDF_BOTTOM (the footer lives under it)
+
+/* The crest is stored at 455 x 512 px, far more than a letterhead 64 pt tall needs. It is shrunk once, as soon as the page loads,
+   so every PDF is about 125 KB lighter (256 px tall is still ~250 dpi on paper). If that has not finished yet, or the browser
+   refuses, pdfDrawCrest simply uses the full-size crest. It is derived from GEPESTCON_CREST_LARGE, so swapping the logo there
+   is all it takes to change the PDF too. */
+let PDF_CREST_SRC = null;
+(function prepareCrestForPdf(){
+  try{
+    if(typeof GEPESTCON_CREST_LARGE === 'undefined' || !GEPESTCON_CREST_LARGE) return;
+    const img = new Image();
+    img.onload = function(){
+      try{
+        const h = Math.min(256, img.naturalHeight), w = Math.round(h * img.naturalWidth / img.naturalHeight);
+        if(!(w > 0 && h > 0)) return;
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        const g = c.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+        g.drawImage(img, 0, 0, w, h);
+        PDF_CREST_SRC = c.toDataURL('image/png');
+      }catch(e){}
+    };
+    img.src = GEPESTCON_CREST_LARGE;
+  }catch(e){}
+})();
+
+function pdfFill(doc, c){ doc.setFillColor(c[0], c[1], c[2]); }
+function pdfStroke(doc, c){ doc.setDrawColor(c[0], c[1], c[2]); }
+function pdfTextColor(doc, c){ doc.setTextColor(c[0], c[1], c[2]); }
+/* Shrinks the current font until `text` fits `maxW` (never larger than `size`). Set the font before calling. */
+function pdfFitText(doc, text, size, maxW){
+  doc.setFontSize(size);
+  const w = doc.getTextWidth(text);
+  if(w > maxW) doc.setFontSize(Math.max(5, size * maxW / w));
+}
+/* Draws the crest (the same picture the app shows) inside a maxW x maxH box whose top-left is x,y.
+   Returns the width used, or 0 if the picture is missing - the layout then simply closes up. */
+function pdfDrawCrest(doc, x, y, maxH, maxW){
+  try{
+    const src = PDF_CREST_SRC || (typeof GEPESTCON_CREST_LARGE !== 'undefined' ? GEPESTCON_CREST_LARGE : '');
+    if(!src) return 0;
+    const fmt = /^data:image\/jpe?g/i.test(src) ? 'JPEG' : 'PNG';
+    let ratio = 455 / 512;
+    try{ const ip = doc.getImageProperties(src); if(ip && ip.width > 0 && ip.height > 0) ratio = ip.width / ip.height; }catch(e){}
+    let h = maxH, w = h * ratio;
+    if(w > maxW){ w = maxW; h = w / ratio; }
+    doc.addImage(src, fmt, x, y + (maxH - h) / 2, w, h, 'gepestcon-crest', 'FAST');
+    return w;
+  }catch(e){ return 0; }
+}
+/* 1 = light, 2 = medium, 3 = high. Covers every scale the forms use (Light / Medium / High and Light / Moderate / Heavy);
+   0 means "not a severity word", and the cell is then printed as plain text. */
+function pdfSeverityLevel(v){
+  const s = String(v == null ? '' : v).trim().toLowerCase();
+  if(s === 'light' || s === 'low') return 1;
+  if(s === 'medium' || s === 'moderate') return 2;
+  if(s === 'high' || s === 'heavy') return 3;
+  return 0;
+}
+/* Small rounded label: level 1 = light grey, 2 = charcoal, 3 = crest red. Returns its width. */
+function pdfPill(doc, x, y, label, level){
+  const h = 13, t = String(label).toUpperCase();
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.4);
+  const w = doc.getTextWidth(t) + 16;
+  doc.setLineWidth(0.5);
+  if(level === 1){
+    pdfFill(doc, PDF_C.pillLight); pdfStroke(doc, [208, 208, 208]);
+    doc.roundedRect(x, y, w, h, h / 2, h / 2, 'FD');
+    pdfTextColor(doc, PDF_C.black);
+  } else {
+    pdfFill(doc, level === 3 ? PDF_C.red : PDF_C.black);
+    doc.roundedRect(x, y, w, h, h / 2, h / 2, 'F');
+    pdfTextColor(doc, [255, 255, 255]);
+  }
+  doc.text(t, x + w / 2, y + h / 2 + 2.6, { align: 'center' });
+  return w;
+}
+
 function drawLetterhead(doc, d){
   const pageWidth = doc.internal.pageSize.getWidth();
-  doc.setFillColor(31,92,70);
-  doc.rect(0,0,pageWidth,66,'F');
-  doc.setTextColor(255,255,255);
-  doc.setFont('helvetica','bold'); doc.setFontSize(15);
-  doc.text(CONFIG.companyName.toUpperCase(), 40, 28);
-  doc.setFont('helvetica','normal'); doc.setFontSize(8);
-  doc.text(CONFIG.companyAddress, 40, 41);
-  doc.text(CONFIG.companyPhone + '   \u2022   ' + CONFIG.companyEmail, 40, 53);
 
-  doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
-  doc.text((TYPE_META[d.type].label).toUpperCase(), pageWidth-40, 24, { align:'right' });
-  doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
-  doc.text('JOB ACCOMPLISHMENT REPORT', pageWidth-40, 34, { align:'right' });
-  doc.setFont('courier','bold'); doc.setFontSize(14);
-  doc.text(d.controlDisplay || '', pageWidth-40, 53, { align:'right' });
+  // brand stripe across the very top: crest red over crest charcoal
+  pdfFill(doc, PDF_C.red);   doc.rect(0, 0, pageWidth, 6, 'F');
+  pdfFill(doc, PDF_C.black); doc.rect(0, 6, pageWidth, 2, 'F');
 
-  doc.setTextColor(20,30,25);
+  const top = 24, bandH = 64;
+  const crestW = pdfDrawCrest(doc, 40, top, bandH, 90);
+  const textX = 40 + (crestW ? crestW + 14 : 0);
 
-  /* fix: P3.5-1, see build prompt — optional PH pest-control compliance
+  // report badge (right): charcoal block, with the control number on a red strip
+  const badgeW = 178, badgeX = pageWidth - 40 - badgeW, stripH = 23, stripY = top + bandH - stripH;
+  const typeLabel = (TYPE_META[d.type].label || '').toUpperCase();
+  pdfFill(doc, PDF_C.black); doc.rect(badgeX, top, badgeW, bandH - stripH, 'F');
+  pdfFill(doc, PDF_C.red);   doc.rect(badgeX, stripY, badgeW, stripH, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.8); doc.setTextColor(205, 205, 205);
+  doc.text('JOB ACCOMPLISHMENT REPORT', badgeX + 12, top + 14.5);
+  doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255);
+  pdfFitText(doc, typeLabel, 10.5, badgeW - 24);
+  doc.text(typeLabel, badgeX + 12, top + 29.5);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(255, 255, 255);
+  doc.text('CONTROL NO.', badgeX + 12, stripY + 14.5);
+  doc.setFont('courier', 'bold');
+  pdfFitText(doc, d.controlDisplay || '', 14, badgeW - 24 - 52);
+  doc.text(d.controlDisplay || '', badgeX + badgeW - 12, stripY + 15.5, { align: 'right' });
+
+  // company block (left): name, tagline, then contact lines pinned to the bottom of the band
+  const textMaxW = badgeX - textX - 14;
+  doc.setFont('helvetica', 'bold'); pdfTextColor(doc, PDF_C.black);
+  pdfFitText(doc, CONFIG.companyName.toUpperCase(), 20, textMaxW);
+  doc.text(CONFIG.companyName.toUpperCase(), textX, top + 19);
+  if(CONFIG.companyTagline){
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.6); pdfTextColor(doc, PDF_C.redText);
+    doc.text(CONFIG.companyTagline.toUpperCase(), textX, top + 31.5);
+  }
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); pdfTextColor(doc, PDF_C.soft);
+  const contact = doc.splitTextToSize(CONFIG.companyAddress || '', textMaxW)
+    .concat(doc.splitTextToSize(CONFIG.companyPhone + '   \u2022   ' + CONFIG.companyEmail, textMaxW));
+  const contactY = top + bandH - 4 - (contact.length - 1) * 10;
+  contact.forEach(function(line, i){ doc.text(line, textX, contactY + i * 10); });
+
+  pdfStroke(doc, PDF_C.line); doc.setLineWidth(0.8);
+  doc.line(40, top + bandH + 10, pageWidth - 40, top + bandH + 10);
+
+  /* fix: P3.5-1, see build prompt - optional PH pest-control compliance
      line. Only drawn when the owner has filled in at least one field in
-     Settings; sits in the existing gap between the letterhead band (ends
-     at y=66) and the first section (starts at y=90), so nothing above
-     moves and the returned offset is unchanged either way. */
+     Settings; it sits in the gap between the letterhead rule and the first
+     section, so nothing moves and the returned offset is the same either way. */
   const complianceBits = [];
   if(CONFIG.ltoNumber) complianceBits.push('LTO No. ' + CONFIG.ltoNumber + (CONFIG.ltoExpiry ? (' (exp. ' + formatDateDisplay(CONFIG.ltoExpiry) + ')') : ''));
   if(CONFIG.supervisingHandlerName) complianceBits.push('Supervising Pesticide Handler: ' + CONFIG.supervisingHandlerName + (CONFIG.supervisingHandlerCertNo ? (' (Cert. No. ' + CONFIG.supervisingHandlerCertNo + ')') : ''));
   if(complianceBits.length){
-    doc.setFont('helvetica','normal'); doc.setFontSize(7);
-    doc.setTextColor(100,100,105);
-    doc.text(complianceBits.join('    \u2022    '), 40, 78);
-    doc.setTextColor(20,30,25);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+    pdfTextColor(doc, PDF_C.muted);
+    doc.text(complianceBits.join('    \u2022    '), 40, top + bandH + 23);
   }
-  return 90;
+  pdfTextColor(doc, PDF_C.ink);
+  return 122;
 }
 function sectionHeading(doc, text, y){
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  if(y > pageHeight - 100){ doc.addPage(); y = 50; }
-  doc.setFillColor(220,234,226);
-  doc.rect(40, y, pageWidth-80, 18, 'F');
-  doc.setTextColor(18,58,44);
-  doc.setFont('helvetica','bold'); doc.setFontSize(9);
-  doc.text(text.toUpperCase(), 46, y+12.5);
-  doc.setTextColor(20,30,25);
-  return y + 18 + 8;
+  if(y > pageHeight - 100){ doc.addPage(); y = PDF_TOP; }
+  pdfFill(doc, PDF_C.red); doc.rect(40, y, 4, 15, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); pdfTextColor(doc, PDF_C.black);
+  doc.text(text.toUpperCase(), 52, y + 11.5);
+  pdfStroke(doc, PDF_C.line); doc.setLineWidth(0.6); doc.line(40, y + 21, pageWidth - 40, y + 21);
+  pdfTextColor(doc, PDF_C.ink);
+  return y + 21 + 6;
 }
+/* rows: [label, value] or [label, value, 'severity' | 'callout'].
+   'severity' prints the value as a coloured pill; 'callout' puts the row in a red-tinted box (used for the recommendation). */
 function kvTable(doc, y, rows){
+  const kind = function(i){ return rows[i] && rows[i][2]; };
   doc.autoTable({
     startY: y,
     body: rows.map(function(r){ return [r[0], r[1] || '\u2014']; }),
     theme: 'plain',
-    margin: { top:50, left:40, right:40 },
-    styles: { font:'helvetica', fontSize:9, cellPadding:{top:3,bottom:3,left:0,right:6}, textColor:[20,30,25], overflow:'linebreak' },
-    columnStyles: { 0:{ fontStyle:'bold', textColor:[85,100,91], cellWidth:150 }, 1:{} }
+    margin: { top:PDF_TOP, left:40, right:40, bottom:44 },
+    rowPageBreak: 'avoid',
+    styles: { font:'helvetica', fontSize:9.5, cellPadding:{top:5,bottom:5,left:0,right:8}, textColor:PDF_C.ink, overflow:'linebreak', lineWidth:0 },
+    columnStyles: { 0:{ fontStyle:'bold', textColor:PDF_C.soft, cellWidth:140 }, 1:{} },
+    didParseCell: function(data){
+      if(data.section !== 'body') return;
+      const k = kind(data.row.index);
+      if(data.column.index === 1 && data.cell.raw === '\u2014') data.cell.styles.textColor = PDF_C.faint;
+      if(k === 'severity' && data.column.index === 1 && pdfSeverityLevel(data.cell.raw)) data.cell.text = [''];   // the pill is drawn in didDrawCell
+      if(k === 'callout'){
+        data.cell.styles.fillColor = PDF_C.redTint;
+        data.cell.styles.cellPadding = data.column.index === 0 ? {top:8,bottom:8,left:12,right:0} : {top:8,bottom:8,left:0,right:12};
+      }
+    },
+    didDrawCell: function(data){
+      if(data.section !== 'body') return;
+      const c = data.cell, g = data.doc, k = kind(data.row.index);
+      pdfStroke(g, PDF_C.line); g.setLineWidth(0.5);
+      g.line(c.x, c.y + c.height, c.x + c.width, c.y + c.height);   // hairline under every row
+      if(k === 'callout' && data.column.index === 0){ pdfFill(g, PDF_C.red); g.rect(c.x, c.y, 3, c.height, 'F'); }
+      if(k === 'severity' && data.column.index === 1){
+        const lvl = pdfSeverityLevel(c.raw);
+        if(lvl) pdfPill(g, c.x + c.padding('left'), c.y + (c.height - 13) / 2, String(c.raw), lvl);
+      }
+    }
   });
   return doc.lastAutoTable.finalY + 16;
 }
-function gridTable(doc, y, head, body, colStyles){
+/* opts.severityCol: index of a column to print as a coloured severity pill. The first column (the row name) is bold;
+   empty cells show a soft dash so a blank never looks like a missing value. */
+function gridTable(doc, y, head, body, colStyles, opts){
+  const sevCol = (opts && opts.severityCol !== undefined) ? opts.severityCol : -1;
   doc.autoTable({
     startY: y,
     head: [head],
     body: body,
-    margin: { top:50, left:40, right:40 },
-    styles: { font:'helvetica', fontSize:7.6, cellPadding:4, textColor:[20,30,25], overflow:'linebreak', valign:'top' },
-    headStyles: { fillColor:[31,92,70], textColor:[255,255,255], fontStyle:'bold', fontSize:7.6 },
-    alternateRowStyles: { fillColor:[239,243,238] },
-    columnStyles: colStyles || {}
+    theme: 'plain',
+    margin: { top:PDF_TOP, left:40, right:40, bottom:44 },
+    rowPageBreak: 'avoid',
+    styles: { font:'helvetica', fontSize:8.8, cellPadding:{top:5.5,bottom:5.5,left:7,right:7}, textColor:PDF_C.ink, overflow:'linebreak', valign:'middle', lineWidth:0 },
+    headStyles: { fillColor:PDF_C.black, textColor:[255,255,255], fontStyle:'bold', fontSize:8.2 },
+    alternateRowStyles: { fillColor:PDF_C.zebra },
+    columnStyles: colStyles || {},
+    didParseCell: function(data){
+      if(data.section !== 'body') return;
+      const raw = data.cell.raw;
+      if(data.column.index === 0) data.cell.styles.fontStyle = 'bold';
+      if(raw === '' || raw == null){ data.cell.text = ['\u2014']; data.cell.styles.textColor = PDF_C.faint; data.cell.styles.fontStyle = 'normal'; }
+      else if(data.column.index === sevCol && pdfSeverityLevel(raw)){ data.cell.text = ['']; }   // the pill is drawn in didDrawCell
+    },
+    didDrawCell: function(data){
+      if(data.section !== 'body') return;
+      const c = data.cell, g = data.doc;
+      pdfStroke(g, PDF_C.line); g.setLineWidth(0.5);
+      g.line(c.x, c.y + c.height, c.x + c.width, c.y + c.height);
+      if(data.column.index === sevCol){
+        const lvl = pdfSeverityLevel(c.raw);
+        if(lvl) pdfPill(g, c.x + c.padding('left'), c.y + (c.height - 13) / 2, String(c.raw), lvl);
+      }
+    }
   });
   return doc.lastAutoTable.finalY + 16;
 }
@@ -2525,7 +2808,7 @@ function pdfServicePrivate(doc, d, y){
   return kvTable(doc, y, [
     ['Services performed', d.service.typesOfServices.join(', ') || '\u2014'],
     ['Active pest observed', (d.service.activePests.concat(d.service.activePestOther?[d.service.activePestOther]:[])).join(', ') || '\u2014'],
-    ['Degree of infestation', d.service.degreeOfInfestation || '\u2014'],
+    ['Degree of infestation', d.service.degreeOfInfestation || '\u2014', 'severity'],
     ['Chemical used', d.service.chemicalUsed || '\u2014']
   ]);
 }
@@ -2536,26 +2819,26 @@ function pdfServiceSeven11(doc, d, y){
     const pestLabel = pests.map(function(p){ return (p==='Others' && r.pestOther) ? r.pestOther : p; }).join(', ');
     return [a, pestLabel, r.severity||''];
   });
-  y = gridTable(doc, y, ['Area','Pest spotted','Severity'], rows, {0:{cellWidth:120}});
+  y = gridTable(doc, y, ['Area','Pest spotted','Severity'], rows, {0:{cellWidth:140}, 2:{cellWidth:100}}, { severityCol:2 });
   y = kvTable(doc, y, [
     ['Services rendered', d.service.servicesRendered],
     ['Chemicals applied', d.service.chemicalUsed],
     ['Dilution (mL/L)', d.service.dilution],
-    ['Brand', d.service.brand]
+    ['Brand', d.service.brand],
+    ['Weather condition', d.service.weather]
   ]);
-  y = kvTable(doc, y, [['Weather condition', d.service.weather]]);
   y = sectionHeading(doc, 'Other Parameters of Concern', y);
   const otherRows = SEVEN11_OTHER_PARAMS.map(function(row,i){
     const r = d.service.otherParams['o'+i] || {};
     return [row, r.remarks||'', r.recommendation||''];
   });
-  y = gridTable(doc, y, ['Item','Remarks','Recommendation'], otherRows, {0:{cellWidth:160}});
+  y = gridTable(doc, y, ['Item','Remarks','Recommendation'], otherRows, {0:{cellWidth:170}});
   y = sectionHeading(doc, 'Insect Light Trap (ILT) Parts', y);
   const fixtureRows = SEVEN11_FIXTURE_ITEMS.map(function(item,i){
     const r = d.service.fixtureItems ? (d.service.fixtureItems['f'+i]||{}) : {};
     return [item, r.qty || '\u2014', r.remarks || '\u2014'];
   });
-  y = gridTable(doc, y, ['Item','Qty','Remarks'], fixtureRows, {0:{cellWidth:160},1:{cellWidth:50}});
+  y = gridTable(doc, y, ['Item','Qty','Remarks'], fixtureRows, {0:{cellWidth:170},1:{cellWidth:60}});
   return y;
 }
 function pdfServiceGovernment(doc, d, y){
@@ -2574,9 +2857,9 @@ function pdfServiceGovernment(doc, d, y){
   y = sectionHeading(doc, 'Findings \u2014 Degree of Infestation', y);
   const findRows = GOV_FINDINGS_PESTS.map(function(p,i){
     const r = d.findings.byPest['p'+i] || {};
-    return [p, r.severity || '\u2014'];
+    return [p, r.severity || ''];
   });
-  y = gridTable(doc, y, ['Pest','Severity (Light / Medium / High)'], findRows, {});
+  y = gridTable(doc, y, ['Pest','Severity (Light / Medium / High)'], findRows, {1:{cellWidth:190}}, { severityCol:1 });
   return y;
 }
 function pdfPhotoCell(doc){
@@ -2600,20 +2883,32 @@ function pdfPhotos(doc, d, y){
   const cell = pdfPhotoCell(doc), cols = cell.cols, gap = cell.gap, imgW = cell.imgW, imgH = cell.imgH;
   photoGroups(d.photos).forEach(function(g){
     if(g.label){ // store-area heading: travels with the first row of its photos, never left alone at the foot of a page
-      if(y + 22 + imgH > pageHeight - 70){ doc.addPage(); y = 50; }
-      doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(31,92,70);
-      doc.text(g.label + '  \u2014  ' + g.photos.length + (g.photos.length===1 ? ' photo' : ' photos'), 40, y+9);
-      doc.setDrawColor(214,222,211); doc.line(40, y+14, pageWidth-40, y+14);
-      doc.setTextColor(20,30,25);
-      y += 22;
+      if(y + 23 + imgH > pageHeight - PDF_BOTTOM){ doc.addPage(); y = PDF_TOP; }
+      pdfFill(doc, PDF_C.red); doc.rect(40, y + 1, 3, 9.5, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(9); pdfTextColor(doc, PDF_C.black);
+      doc.text(g.label + '  \u2014  ' + g.photos.length + (g.photos.length===1 ? ' photo' : ' photos'), 50, y+9);
+      pdfStroke(doc, PDF_C.line); doc.setLineWidth(0.6); doc.line(40, y+15, pageWidth-40, y+15);
+      pdfTextColor(doc, PDF_C.ink);
+      y += 23;
     }
     let rowStartY = y, col = 0, x;
     g.photos.forEach(function(p){
-      if(col===0 && rowStartY + imgH > pageHeight - 70){ doc.addPage(); rowStartY = 50; }
+      if(col===0 && rowStartY + imgH > pageHeight - PDF_BOTTOM){
+        doc.addPage(); rowStartY = PDF_TOP;
+        if(g.label){ // this area's photos run on to a new page: say which area they belong to
+          pdfFill(doc, PDF_C.red); doc.rect(40, rowStartY + 1, 3, 9.5, 'F');
+          doc.setFont('helvetica','bold'); doc.setFontSize(9); pdfTextColor(doc, PDF_C.black);
+          doc.text(g.label + '  \u2014  continued', 50, rowStartY + 9);
+          pdfStroke(doc, PDF_C.line); doc.setLineWidth(0.6); doc.line(40, rowStartY + 15, pageWidth-40, rowStartY + 15);
+          pdfTextColor(doc, PDF_C.ink);
+          rowStartY += 23;
+        }
+      }
       x = 40 + col * (imgW+gap);
       const f = pdfPhotoFit(doc, p.dataUrl, imgW, imgH);
-      if(f.dx > 0.5 || f.dy > 0.5){ doc.setFillColor(239,243,238); doc.rect(x, rowStartY, imgW, imgH, 'F'); }
+      if(f.dx > 0.5 || f.dy > 0.5){ pdfFill(doc, [240,240,240]); doc.rect(x, rowStartY, imgW, imgH, 'F'); }
       try{ doc.addImage(p.dataUrl, 'JPEG', x + f.dx, rowStartY + f.dy, f.w, f.h, undefined, 'FAST'); }catch(e){}
+      pdfStroke(doc, [214,214,218]); doc.setLineWidth(0.6); doc.rect(x, rowStartY, imgW, imgH);   // thin frame around every photo
       col++;
       if(col>=cols){ col=0; rowStartY += imgH + gap; }
     });
@@ -2622,52 +2917,99 @@ function pdfPhotos(doc, d, y){
   });
   return y + 4;
 }
+function pdfImageFormat(dataUrl){ return /^data:image\/jpe?g/i.test(dataUrl || '') ? 'JPEG' : 'PNG'; }
+/* Draws a signature or stamp picture centred inside the given box without stretching it. */
+function pdfDrawImageFit(doc, dataUrl, x, y, w, h){
+  const f = pdfPhotoFit(doc, dataUrl, w, h);
+  try{ doc.addImage(dataUrl, pdfImageFormat(dataUrl), x + f.dx, y + f.dy, f.w, f.h, undefined, 'FAST'); }catch(e){}
+}
 function pdfSignoff(doc, d, y){
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  const colW = (pageWidth - 80 - 20) / 2;
-  const sigH = 60;
-  if(y + sigH + 70 > pageHeight - 70){ doc.addPage(); y = 50; }
-  const leftX = 40, rightX = 40 + colW + 20;
-  doc.setDrawColor(214,222,211);
-  doc.rect(leftX, y, colW, sigH);
-  doc.rect(rightX, y, colW, sigH);
-  if(d.signOff.technicianSig){ try{ doc.addImage(d.signOff.technicianSig,'PNG', leftX+6, y+6, colW-12, sigH-12, undefined,'FAST'); }catch(e){} }
-  if(d.signOff.clientSig){ try{ doc.addImage(d.signOff.clientSig,'PNG', rightX+6, y+6, colW-12, sigH-12, undefined,'FAST'); }catch(e){} }
-  const labelY = y + sigH + 14;
-  doc.setDrawColor(180,190,182);
-  doc.line(leftX, labelY-6, leftX+colW, labelY-6);
-  doc.line(rightX, labelY-6, rightX+colW, labelY-6);
-  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(60,70,62);
-  doc.text((d.signOff.technicianName||'\u2014') + '  \u2014  Service Technician', leftX, labelY+4);
-  doc.text((d.signOff.clientRepName||'\u2014') + '  \u2014  Client Representative', rightX, labelY+4);
+  const gap = 24, colW = (pageWidth - 80 - gap) / 2;
+  const sigH = 66;
+  if(y + sigH + 80 > pageHeight - PDF_BOTTOM){ doc.addPage(); y = PDF_TOP; }
+  const leftX = 40, rightX = 40 + colW + gap;
 
-  let yy = labelY + 26;
-  const satisfactionText = d.signOff.satisfaction ? satisfactionLabel(d.signOff.satisfaction) : 'Not rated';
-  doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(20,30,25);
-  doc.text('Client satisfaction: ' + satisfactionText, leftX, yy);
-  yy += 16;
+  // signature boxes: the signature and/or stamp keep their own proportions instead of being stretched to fill the box.
+  // With both, the signature takes the left part and the stamp the right part; with just one, it is centred in the box.
+  pdfStroke(doc, [200,200,205]); doc.setLineWidth(0.8);
+  doc.roundedRect(leftX, y, colW, sigH, 3, 3);
+  doc.roundedRect(rightX, y, colW, sigH, 3, 3);
+  [[d.signOff.technicianSig, d.signOff.technicianStamp, leftX], [d.signOff.clientSig, d.signOff.clientStamp, rightX]].forEach(function(s){
+    const innerW = colW - 12, innerH = sigH - 12, bx = s[2] + 6, by = y + 6;
+    if(s[0] && s[1]){
+      const sigW = Math.round(innerW * 0.6), stampW = innerW - sigW - 8;
+      pdfDrawImageFit(doc, s[0], bx, by, sigW, innerH);
+      pdfDrawImageFit(doc, s[1], bx + sigW + 8, by, stampW, innerH);
+    } else if(s[0] || s[1]){
+      pdfDrawImageFit(doc, s[0] || s[1], bx, by, innerW, innerH);
+    }
+  });
+
+  // who signed: name in bold, role underneath
+  const nameY = y + sigH + 15;
+  [[d.signOff.technicianName, leftX, 'SERVICE TECHNICIAN'], [d.signOff.clientRepName, rightX, 'CLIENT REPRESENTATIVE']].forEach(function(p){
+    doc.setFont('helvetica','bold'); doc.setFontSize(9.5); pdfTextColor(doc, PDF_C.ink);
+    doc.text(doc.splitTextToSize(p[0] || '\u2014', colW)[0], p[1], nameY);
+    doc.setFont('helvetica','bold'); doc.setFontSize(6.8); pdfTextColor(doc, PDF_C.muted);
+    doc.text(p[2], p[1], nameY + 10.5);
+  });
+
+  // satisfaction
+  let yy = nameY + 32;
+  doc.setFont('helvetica','bold'); doc.setFontSize(8.5); pdfTextColor(doc, PDF_C.soft);
+  doc.text('Client satisfaction', leftX, yy + 9.5);
+  const labelW = doc.getTextWidth('Client satisfaction');
+  const satText = d.signOff.satisfaction ? satisfactionLabel(d.signOff.satisfaction) : '';
+  if(satText){
+    pdfPill(doc, leftX + labelW + 10, yy, satText, 2);
+  } else {
+    doc.setFont('helvetica','normal'); pdfTextColor(doc, PDF_C.muted);
+    doc.text('Not rated', leftX + labelW + 10, yy + 9.5);
+  }
+  yy += 25;
+
+  // client remarks in a quiet quote box
   if(d.signOff.clientRemarks){
-    doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
-    const lines = doc.splitTextToSize('Client remarks: ' + d.signOff.clientRemarks, pageWidth-80);
-    doc.text(lines, leftX, yy);
-    yy += lines.length*11;
+    const lineH = 9 * 1.35;
+    doc.setFont('helvetica','normal'); doc.setFontSize(9);
+    const lines = doc.splitTextToSize(d.signOff.clientRemarks, pageWidth - 80 - 28);
+    const boxH = 12 + 15 + lines.length * lineH;
+    if(yy + boxH > pageHeight - 50){ doc.addPage(); yy = PDF_TOP; }
+    pdfFill(doc, PDF_C.zebra); doc.rect(40, yy, pageWidth - 80, boxH, 'F');
+    pdfFill(doc, PDF_C.red);   doc.rect(40, yy, 3, boxH, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(6.8); pdfTextColor(doc, PDF_C.muted);
+    doc.text('CLIENT REMARKS', 54, yy + 14);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); pdfTextColor(doc, PDF_C.ink);
+    doc.text(lines, 54, yy + 28, { lineHeightFactor: 1.35 });
+    yy += boxH;
   }
   return yy + 10;
 }
+/* Running header on pages 2+: small crest, company name, control number. */
 function drawContinuationHeader(doc, d){
   const pageWidth = doc.internal.pageSize.getWidth();
-  doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(31,92,70);
-  doc.text(CONFIG.companyName + '  \u2014  ' + (d.controlDisplay||''), 40, 28);
-  doc.setDrawColor(214,222,211); doc.line(40,36,pageWidth-40,36);
-  doc.setTextColor(20,30,25);
+  pdfFill(doc, PDF_C.red); doc.rect(0, 0, pageWidth, 4, 'F');
+  const crestW = pdfDrawCrest(doc, 40, 13, 28, 40);
+  const tx = 40 + (crestW ? crestW + 9 : 0);
+  doc.setFont('helvetica','bold'); doc.setFontSize(9.5); pdfTextColor(doc, PDF_C.black);
+  doc.text(CONFIG.companyName.toUpperCase(), tx, 27);
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); pdfTextColor(doc, PDF_C.muted);
+  doc.text('Job Accomplishment Report', tx, 37.5);
+  doc.setFont('courier','bold'); doc.setFontSize(11); pdfTextColor(doc, PDF_C.redText);
+  doc.text(d.controlDisplay||'', pageWidth-40, 31, { align:'right' });
+  pdfStroke(doc, PDF_C.line); doc.setLineWidth(0.8); doc.line(40, 46, pageWidth-40, 46);
+  pdfTextColor(doc, PDF_C.ink);
 }
 function drawFooter(doc, d, pageNum, total){
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  doc.setDrawColor(214,222,211); doc.line(40, pageHeight-34, pageWidth-40, pageHeight-34);
-  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(120,130,122);
+  pdfFill(doc, PDF_C.black); doc.rect(0, pageHeight-3, pageWidth, 3, 'F');   // charcoal edge, the counterpart of the red one at the top
+  pdfStroke(doc, PDF_C.line); doc.setLineWidth(0.6); doc.line(40, pageHeight-34, pageWidth-40, pageHeight-34);
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); pdfTextColor(doc, PDF_C.muted);
   doc.text('Generated ' + formatDateTimeStamp(d.submittedAt||new Date().toISOString()), 40, pageHeight-22);
+  doc.setFont('helvetica','bold');
   doc.text('Page ' + pageNum + ' of ' + total, pageWidth-40, pageHeight-22, { align:'right' });
 }
 function finalizeAllPages(doc, d){
@@ -2692,17 +3034,17 @@ function buildPDF(d){
   else y = pdfServiceGovernment(doc, d, y);
 
   y = sectionHeading(doc, 'Findings & Recommendation', y);
-  y = kvTable(doc, y, concernKV(d, d.type));
+  y = kvTable(doc, y, concernKV(d, d.type).map(function(r){ return (r[0]==='Recommendation' && r[1]) ? [r[0], r[1], 'callout'] : r; }));
 
   if(d.photos && d.photos.length){
     const first = photoGroups(d.photos)[0];
     // keep the section heading together with the first area heading and the first row of photos
-    if(y + 26 + (first && first.label ? 22 : 0) + pdfPhotoCell(doc).imgH > doc.internal.pageSize.getHeight() - 70){ doc.addPage(); y = 50; }
+    if(y + 27 + (first && first.label ? 23 : 0) + pdfPhotoCell(doc).imgH > doc.internal.pageSize.getHeight() - PDF_BOTTOM){ doc.addPage(); y = PDF_TOP; }
     y = sectionHeading(doc, 'Photo Evidence', y);
     y = pdfPhotos(doc, d, y);
   }
 
-  if(y + 26 + 60 + 70 > doc.internal.pageSize.getHeight() - 70){ doc.addPage(); y = 50; } // keep the Sign-off heading together with its signature boxes
+  if(y + 27 + 66 + 80 > doc.internal.pageSize.getHeight() - PDF_BOTTOM){ doc.addPage(); y = PDF_TOP; } // keep the Sign-off heading together with its signature boxes
   y = sectionHeading(doc, 'Sign-off', y);
   y = pdfSignoff(doc, d, y);
 
@@ -2725,72 +3067,174 @@ function buildPDF(d){
    ============================================================ */
 let pendingMailto = null;
 
-function buildEmailSummary(d){
-  const meta = TYPE_META[d.type];
-  const clientDisplayName = d.client.name || d.client.storeName || 'Client';
-  const subject = 'Job Accomplishment Report ' + d.controlDisplay + ' \u2014 ' + clientDisplayName;
+/* ---- WELCOME EMAIL WITH THE PDF ATTACHED AUTOMATICALLY ----
+   The message is a short, friendly welcome: who the report is for, the report number, the service date and the technician,
+   then a note that the full report is attached as a PDF. Nothing else (findings, weather, parts serviced ...) - all of that
+   is in the PDF. It is plain text on purpose, so it works with any EmailJS template.
+   The PDF travels as an EmailJS "Variable Attachment" named report_pdf (see the setup steps on the Settings screen).
+   An email that says "attached" is never sent without the PDF: if the PDF is missing or EmailJS refuses the send, nothing
+   goes out and the app falls back to the pre-filled email draft (where the PDF is attached by hand). */
+function emailGreeting(d){
+  const c = d.client || {};
+  const who = String(c.contactPerson || c.storeManager || c.name || c.storeName || '').trim();
+  if(!who) return 'Good day!';
+  return 'Good day, ' + who + (/[.!?]$/.test(who) ? '' : '!');
+}
+function reportPdfFilename(d){
+  return 'Job-Accomplishment-Report-' + String(d.controlDisplay || 'report').replace(/[^A-Za-z0-9._-]+/g, '-') + '.pdf';
+}
+function buildEmailSummary(d, opts){
+  opts = opts || {};
+  const c = d.client || {}, so = d.signOff || {};
+  const company = CONFIG.companyName || 'Gepestcon Co.';
+  const isStore = d.type === 'seven11';
+  const forWhom = isStore ? ((c.storeNumber ? ('#' + c.storeNumber + ' - ') : '') + (c.storeName || '')) : (c.name || '');
+  const serviceDate = (d.schedule && d.schedule.serviceDate) ? formatDateDisplay(d.schedule.serviceDate) : '';
   const lines = [];
-  lines.push('JOB ACCOMPLISHMENT REPORT \u2014 ' + d.controlDisplay);
-  lines.push(meta.label);
+  lines.push(emailGreeting(d));
   lines.push('');
-  lines.push('Client: ' + clientDisplayName);
-  lines.push('Address: ' + (d.client.address||''));
-  lines.push('Service date: ' + formatDateDisplay(d.schedule.serviceDate));
-  lines.push('Technician: ' + (d.signOff.technicianName||''));
+  lines.push('Thank you for choosing ' + company + '. We have completed your pest control service, and your Job Accomplishment Report is ready.');
   lines.push('');
-  if(d.type==='private'){
-    lines.push('Services: ' + d.service.typesOfServices.join(', '));
-    lines.push('Pests observed: ' + d.service.activePests.join(', '));
-    lines.push('Degree of infestation: ' + (d.service.degreeOfInfestation||'\u2014'));
-  } else if(d.type==='seven11'){
-    lines.push('Weather during application: ' + (d.service.weather||'\u2014'));
-    const fixtureLines = SEVEN11_FIXTURE_ITEMS.map(function(item,i){
-      const r = d.service.fixtureItems ? (d.service.fixtureItems['f'+i]||{}) : {};
-      return (r.qty || r.remarks) ? (item + ': ' + (r.qty||'0') + (r.remarks?(' \u2014 '+r.remarks):'')) : null;
-    }).filter(Boolean);
-    if(fixtureLines.length) lines.push('ILT parts serviced: ' + fixtureLines.join('; '));
-  } else {
-    lines.push('Nature of work: ' + d.service.natureOfWork.join(', '));
-    lines.push('Pests noted: ' + d.service.gpcPests.join(', '));
-  }
+  lines.push('Report no.: ' + (d.controlDisplay || ''));
+  if(forWhom) lines.push((isStore ? 'Store' : 'Client') + ': ' + forWhom);
+  if(serviceDate) lines.push('Service date: ' + serviceDate);
+  if(so.technicianName) lines.push('Technician: ' + so.technicianName);
   lines.push('');
-  if(d.concern.finding) lines.push('Finding: ' + d.concern.finding);
-  if(d.concern.recommendation) lines.push('Recommendation: ' + d.concern.recommendation);
+  lines.push('Your complete report is attached to this email as a PDF. It includes the service details, findings and recommendations, photos and sign-off.');
   lines.push('');
-  lines.push('\u2014 Sent via the ' + CONFIG.companyName + ' Job Accomplishment Report system.');
-  lines.push('The complete report with photos and signatures is available as a PDF \u2014 download it from the app to attach or forward.');
+  lines.push('If you have any questions or would like to schedule a follow-up visit, just reply to this email' + (CONFIG.companyPhone ? (' or call us at ' + CONFIG.companyPhone) : '') + '.');
+  lines.push('');
+  lines.push('Thank you for trusting us.');
+  lines.push('');
+  lines.push('Warm regards,');
+  lines.push(company);
+  if(CONFIG.companyAddress) lines.push(CONFIG.companyAddress);
+  const subject = (opts.test ? '[TEST] ' : '') + 'Job Accomplishment Report No. ' + (d.controlDisplay || '') + ' - ' + company;
   return { subject: subject, body: lines.join('\n') };
 }
+/* Fallback when automatic sending is not available: a pre-filled draft in the person's own email app (mailto cannot attach
+   files, so the PDF is downloaded and attached by hand). */
 function preparePendingMailto(d, summary){
-  const bodyForMailto = summary.body.length > 1500 ? (summary.body.slice(0,1450) + '\n\n[Full details are in the PDF \u2014 download and attach it before sending.]') : summary.body;
+  const bodyForMailto = summary.body.length > 1500 ? (summary.body.slice(0,1450) + '\n\n[Please attach the PDF report before sending.]') : summary.body;
   const cc = d.client.ccEmail ? ('&cc=' + encodeURIComponent(d.client.ccEmail)) : '';
   pendingMailto = 'mailto:' + encodeURIComponent(d.client.email) + '?subject=' + encodeURIComponent(summary.subject) + cc + '&body=' + encodeURIComponent(bodyForMailto);
 }
-async function attemptSend(d){
-  const summary = buildEmailSummary(d);
-  const emailJsReady = (typeof emailjs !== 'undefined') && state.settings.configured && state.settings.serviceId && state.settings.templateId && state.settings.publicKey;
-  if(emailJsReady){
-    try{
-      await emailjs.send(state.settings.serviceId, state.settings.templateId, {
-        to_email: d.client.email,
-        cc_email: d.client.ccEmail || '',
-        from_name: state.settings.fromName || CONFIG.companyName,
-        subject: summary.subject,
-        report_id: d.controlDisplay,
-        client_name: d.client.name || d.client.storeName || '',
-        technician_name: d.signOff.technicianName || '',
-        message: summary.body
-      }, { publicKey: state.settings.publicKey });
-      return { status:'sent' };
-    } catch(err){
-      console.error('EmailJS send failed', err);
-      preparePendingMailto(d, summary);
-      return { status:'manual' };
+function blobToDataURL(blob){
+  return new Promise(function(resolve, reject){
+    const r = new FileReader();
+    r.onload = function(){ resolve(r.result); };
+    r.onerror = function(){ reject(new Error('Could not read the PDF.')); };
+    r.readAsDataURL(new Blob([blob], { type:'application/pdf' }));   // always labelled as a PDF
+  });
+}
+function emailErrorText(err){
+  const t = err && (err.text || err.message);
+  return String(t || err || 'unknown error').slice(0, 200);
+}
+/* The PDF that was stored when the report was submitted (the same file the Download PDF button gives). null if it cannot be read. */
+async function fetchStoredPdf(path){
+  if(!path) return null;
+  try{
+    const { data, error } = await sb.storage.from('report-media').download(path);
+    if(!error && data) return new Blob([data], { type:'application/pdf' });
+  }catch(e){ console.error('PDF download failed', e); }
+  try{
+    const url = await getSignedUrl(path, 120);
+    if(url){
+      const res = await fetch(url);
+      if(res.ok) return new Blob([await res.blob()], { type:'application/pdf' });
     }
-  } else {
-    preparePendingMailto(d, summary);
-    return { status:'manual' };
+  }catch(e){ console.error('PDF fetch failed', e); }
+  return null;
+}
+/* The PDF is also the email attachment, and some mail servers refuse messages over about 10 MB. A report with a lot of photos
+   can be bigger than that, so when the PDF is over EMAIL_PDF_MAX_BYTES the photos are saved a little smaller (they are printed
+   only about 6 cm wide, so the difference is not visible) and the PDF is built again. Smaller reports are left exactly as they are. */
+const EMAIL_PDF_MAX_BYTES = 7 * 1024 * 1024;
+function shrinkJpegDataUrl(dataUrl, maxDim, quality){
+  return new Promise(function(resolve){
+    const img = new Image();
+    img.onload = function(){
+      if(!img.width || !img.height){ resolve(dataUrl); return; }
+      const s = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * s)), h = Math.max(1, Math.round(img.height * s));
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      const out = c.toDataURL('image/jpeg', quality);
+      resolve(out.length < dataUrl.length ? out : dataUrl);
+    };
+    img.onerror = function(){ resolve(dataUrl); };
+    img.src = dataUrl;
+  });
+}
+async function buildReportPdfBlob(d){
+  const blob = buildPDF(d).output('blob');
+  if(blob.size <= EMAIL_PDF_MAX_BYTES || !d.photos || !d.photos.length) return blob;
+  const small = [];
+  for(let i = 0; i < d.photos.length; i++){
+    small.push(Object.assign({}, d.photos[i], { dataUrl: await shrinkJpegDataUrl(d.photos[i].dataUrl, 900, 0.72) }));
   }
+  const smaller = buildPDF(Object.assign({}, d, { photos: small })).output('blob');
+  return smaller.size < blob.size ? smaller : blob;
+}
+/* Sends the welcome email through EmailJS with the report PDF attached.
+   Returns { status:'sent' } or { status:'manual', reason, detail }, where reason is
+   'not_configured' (EmailJS not set up), 'no_pdf' (nothing to attach, so nothing was sent) or 'failed' (EmailJS refused). */
+async function attemptSend(d, pdfBlob, opts){
+  const summary = buildEmailSummary(d, opts);
+  const emailJsReady = (typeof emailjs !== 'undefined') && state.settings.configured && state.settings.serviceId && state.settings.templateId && state.settings.publicKey;
+  if(!emailJsReady){
+    preparePendingMailto(d, summary);
+    return { status:'manual', reason:'not_configured' };
+  }
+  if(!pdfBlob){
+    preparePendingMailto(d, summary);
+    return { status:'manual', reason:'no_pdf' };
+  }
+  try{
+    const c = d.client || {}, so = d.signOff || {};
+    await emailjs.send(state.settings.serviceId, state.settings.templateId, {
+      to_email: c.email,
+      cc_email: c.ccEmail || '',
+      from_name: state.settings.fromName || CONFIG.companyName,
+      subject: summary.subject,
+      report_id: d.controlDisplay,
+      client_name: c.name || c.storeName || '',
+      technician_name: so.technicianName || '',
+      service_date: (d.schedule && d.schedule.serviceDate) ? formatDateDisplay(d.schedule.serviceDate) : '',
+      company_name: CONFIG.companyName || '',
+      company_phone: CONFIG.companyPhone || '',
+      company_email: CONFIG.companyEmail || '',
+      company_address: CONFIG.companyAddress || '',
+      message: summary.body,
+      pdf_filename: reportPdfFilename(d),
+      report_pdf: await blobToDataURL(pdfBlob)
+    }, { publicKey: state.settings.publicKey });
+    return { status:'sent' };
+  } catch(err){
+    console.error('EmailJS send failed', err);
+    preparePendingMailto(d, summary);
+    return { status:'manual', reason:'failed', detail: emailErrorText(err) };
+  }
+}
+/* Settings > "Send test email": the same welcome message and PDF attachment as a real report, built from a small sample report
+   (no real client is emailed), so the EmailJS template can be checked before it is used for real. */
+function sampleReportForTest(toEmail){
+  return {
+    id: 'test', type: 'private', controlDisplay: 'TEST-0001', accountId: null,
+    client: { name:'Sample Client', contactPerson:'Sample Client', phone:'', address: CONFIG.companyAddress || '', email: toEmail, ccEmail:'' },
+    schedule: { serviceDate: todayISO(), actualDate: todayISO(), timeStarted:'', timeFinished:'' },
+    service: { typesOfServices:['Wet Spraying'], activePests:['Cockroaches'], activePestOther:'', degreeOfInfestation:'Light', chemicalUsed:'' },
+    findings: {},
+    concern: { finding:'This is a test report sent from the Settings screen to check that the email and its PDF attachment work.', recommendation:'', category:'', location:'' },
+    signOff: { technicianName:'Test Technician', technicianSig:null, technicianStamp:null, clientRepName:'', clientSig:null, clientStamp:null, satisfaction:'', clientRemarks:'' },
+    photos: [], submittedAt: new Date().toISOString()
+  };
+}
+async function sendTestEmail(toEmail){
+  const sample = sampleReportForTest(toEmail);
+  const pdfBlob = buildPDF(sample).output('blob');
+  return attemptSend(sample, pdfBlob, { test:true });
 }
 ;
 /* ============================================================
@@ -2819,7 +3263,7 @@ function emptyDraft(type){
     findings: { postAction:{}, byPest:{} },
     photos: [],
     concern: { finding:'', recommendation:'', remarks:'', category:'', location:'' },
-    signOff: { technicianName:'', technicianSig:null, clientRepName:'', clientSig:null, satisfaction:'', clientRemarks:'' },
+    signOff: { technicianName:'', technicianSig:null, technicianStamp:null, clientRepName:'', clientSig:null, clientStamp:null, satisfaction:'', clientRemarks:'' },
     controlNo: null,
     status: 'draft'
   };
@@ -3425,19 +3869,68 @@ function saveConcernStep(){
 function rateBtnHTML(val, emoji, label, current){
   return '<button type="button" class="rate-btn'+(current===val?' is-picked':'')+'" data-val="'+val+'"><span class="rate-emoji">'+emoji+'</span><span>'+label+'</span></button>';
 }
+/* One signer block (technician or client): the signature pad, plus two optional extras. "Add picture" puts a picture of the
+   signature on the pad; "Add stamp" attaches a stamp image that is printed beside the signature on the PDF. */
+function signoffPartyHTML(key, label, hint){
+  return '<div class="field"><label>'+label+'</label>'+
+    '<div class="sig-wrap"><canvas id="sig'+key+'"></canvas>'+
+    '<div class="sig-toolbar"><span>'+hint+'</span><button type="button" class="btn btn-ghost btn-sm" id="clear'+key+'">'+icon('trash')+' Clear</button></div></div>'+
+    '<div class="sig-actions">'+
+      '<button type="button" class="btn btn-secondary btn-sm" id="pic'+key+'">'+icon('image')+' Add picture</button>'+
+      '<button type="button" class="btn btn-secondary btn-sm" id="stampBtn'+key+'">'+icon('stamp')+' Add stamp</button>'+
+    '</div>'+
+    '<input type="file" accept="image/*" class="sig-file" id="picFile'+key+'" tabindex="-1" aria-hidden="true">'+
+    '<input type="file" accept="image/*" class="sig-file" id="stampFile'+key+'" tabindex="-1" aria-hidden="true">'+
+    '<div id="stampHolder'+key+'"></div></div>';
+}
+function renderStampChip(holder, dataUrl, onRemove){
+  if(!dataUrl){ holder.innerHTML = ''; return; }
+  holder.innerHTML = '<div class="stamp-chip"><img alt="Stamp preview" src="'+dataUrl+'">'+
+    '<div class="stamp-meta">Stamp added<small>Printed beside the signature on the PDF</small></div>'+
+    '<button type="button" class="btn btn-ghost btn-sm" data-act="remove-stamp">'+icon('x')+' Remove</button></div>';
+  qs('[data-act="remove-stamp"]', holder).addEventListener('click', onRemove);
+}
+function wireSignoffParty(container, key, savedSig, savedStamp){
+  const canvas = qs('#sig'+key, container);
+  const api = setupSignatureCanvas(canvas);
+  container['__sig'+key] = api;
+  container['__stamp'+key] = savedStamp || null;
+  if(savedSig) drawExistingSignature(canvas, api, savedSig);
+  const holder = qs('#stampHolder'+key, container);
+  function removeStamp(){ container['__stamp'+key] = null; renderStampChip(holder, null); }
+  renderStampChip(holder, container['__stamp'+key], removeStamp);
+  qs('#clear'+key, container).addEventListener('click', function(){ api.clear(); });
+
+  const picFile = qs('#picFile'+key, container), stampFile = qs('#stampFile'+key, container);
+  qs('#pic'+key, container).addEventListener('click', function(){ picFile.click(); });
+  qs('#stampBtn'+key, container).addEventListener('click', function(){ stampFile.click(); });
+  picFile.addEventListener('change', async function(){
+    const file = picFile.files && picFile.files[0];
+    picFile.value = '';                       // lets the same file be picked again later
+    if(!file) return;
+    try{ api.setPicture(await readSignoffPicture(file, 800)); }
+    catch(err){ toast(err.message || 'That picture could not be added.', 'error'); }
+  });
+  stampFile.addEventListener('change', async function(){
+    const file = stampFile.files && stampFile.files[0];
+    stampFile.value = '';
+    if(!file) return;
+    try{
+      container['__stamp'+key] = await readSignoffPicture(file, 600);
+      renderStampChip(holder, container['__stamp'+key], removeStamp);
+    }
+    catch(err){ toast(err.message || 'That stamp could not be added.', 'error'); }
+  });
+}
 function buildStepSignoff(container){
   const d = state.draft;
   let html = '';
   html += field('Technician name', 'f_techName', 'text', d.signOff.technicianName, {required:true, placeholder:'Name of service technician'});
-  html += '<div class="field"><label>Technician signature <span class="req">*</span></label>'+
-    '<div class="sig-wrap"><canvas id="sigTech"></canvas>'+
-    '<div class="sig-toolbar"><span>Sign with finger, stylus, or mouse</span><button type="button" class="btn btn-ghost btn-sm" id="clearTech">'+icon('trash')+' Clear</button></div></div></div>';
+  html += signoffPartyHTML('Tech', 'Technician signature', 'Optional: sign with finger, stylus, or mouse');
 
   html += '<hr class="hairline">';
   html += field('Client representative name', 'f_clientRepName', 'text', d.signOff.clientRepName, {placeholder:'Optional if client isn\u2019t on-site'});
-  html += '<div class="field"><label>Client representative signature</label>'+
-    '<div class="sig-wrap"><canvas id="sigClient"></canvas>'+
-    '<div class="sig-toolbar"><span>Optional</span><button type="button" class="btn btn-ghost btn-sm" id="clearClient">'+icon('trash')+' Clear</button></div></div></div>';
+  html += signoffPartyHTML('Client', 'Client representative signature', 'Optional: sign with finger, stylus, or mouse');
 
   html += '<hr class="hairline">';
   html += '<div class="field"><label>How happy is the client with the service?</label>'+
@@ -3450,15 +3943,8 @@ function buildStepSignoff(container){
 
   container.innerHTML = html;
 
-  const techCanvas = qs('#sigTech', container);
-  const clientCanvas = qs('#sigClient', container);
-  container.__sigTech = setupSignatureCanvas(techCanvas);
-  container.__sigClient = setupSignatureCanvas(clientCanvas);
-  if(d.signOff.technicianSig) drawExistingSignature(techCanvas, container.__sigTech, d.signOff.technicianSig);
-  if(d.signOff.clientSig) drawExistingSignature(clientCanvas, container.__sigClient, d.signOff.clientSig);
-
-  qs('#clearTech', container).addEventListener('click', function(){ container.__sigTech.clear(); });
-  qs('#clearClient', container).addEventListener('click', function(){ container.__sigClient.clear(); });
+  wireSignoffParty(container, 'Tech', d.signOff.technicianSig, d.signOff.technicianStamp);
+  wireSignoffParty(container, 'Client', d.signOff.clientSig, d.signOff.clientStamp);
 
   qsa('.rate-btn', container).forEach(function(b){
     b.addEventListener('click', function(){
@@ -3476,11 +3962,14 @@ function saveSignoffStep(){
   const pickedRate = qs('.rate-btn.is-picked', container);
   d.signOff.satisfaction = pickedRate ? pickedRate.dataset.val : '';
 
-  if(container.__sigTech && !container.__sigTech.isEmpty()){ d.signOff.technicianSig = container.__sigTech.dataURL(); }
-  if(container.__sigClient && !container.__sigClient.isEmpty()){ d.signOff.clientSig = container.__sigClient.dataURL(); }
+  // The pad is the signature: an emptied pad removes it (signatures are optional now). A saved picture that is still loading is left alone.
+  if(container.__sigTech && !container.__sigTech.isLoading()){ d.signOff.technicianSig = container.__sigTech.isEmpty() ? null : container.__sigTech.dataURL(); }
+  if(container.__sigClient && !container.__sigClient.isLoading()){ d.signOff.clientSig = container.__sigClient.isEmpty() ? null : container.__sigClient.dataURL(); }
+  if('__stampTech' in container){ d.signOff.technicianStamp = container.__stampTech || null; }
+  if('__stampClient' in container){ d.signOff.clientStamp = container.__stampClient || null; }
 
   if(!d.signOff.technicianName){ markFieldError('f_techName','This is required.'); return {valid:false, message:'Enter the technician\u2019s name to continue.'}; }
-  if(!d.signOff.technicianSig){ return {valid:false, message:'Technician signature is required before sending.'}; }
+  // The technician signature is optional for now (a signature, a picture or a stamp), so only the name is required.
   return { valid:true };
 }
 
@@ -3490,7 +3979,7 @@ function stepHintText(stepKey, type){
     service: type==='seven11' ? 'Log what was found and treated in each store area. Attach photo evidence inside the area where you found a pest.' : type==='government' ? 'Nature of work, areas treated, and pest presence.' : 'Services performed and the pest situation found.',
     photos: 'Attach evidence photos \u2014 optional but recommended.',
     concern: 'What you found on site and what you recommend.',
-    signoff: 'Sign off on the visit and capture client feedback.'
+    signoff: 'Sign off on the visit and capture client feedback. Signatures are optional; a picture or a stamp can be added too.'
   };
   return map[stepKey] || '';
 }
@@ -3832,12 +4321,16 @@ function reviewPhotosBlock(d, stepIdx){
   return '<div class="review-block"><div class="rb-title">Photo evidence'+editBtn+'</div>'+inner+'</div>';
 }
 function reviewSignoffBlock(d, stepIdx){
+  const so = d.signOff || {};
+  // a saved report keeps its signature / stamp as a file path instead of the picture itself
   const rows = [
-    ['Technician', d.signOff.technicianName],
-    ['Technician signed', d.signOff.technicianSig ? 'Yes' : 'No'],
-    ['Client rep.', d.signOff.clientRepName],
-    ['Client signed', d.signOff.clientSig ? 'Yes' : 'No'],
-    ['Satisfaction', d.signOff.satisfaction ? satisfactionLabel(d.signOff.satisfaction) : '']
+    ['Technician', so.technicianName],
+    ['Technician signed', (so.technicianSig || so.technicianSigPath) ? 'Yes' : 'No'],
+    ['Technician stamp', (so.technicianStamp || so.technicianStampPath) ? 'Yes' : 'No'],
+    ['Client rep.', so.clientRepName],
+    ['Client signed', (so.clientSig || so.clientSigPath) ? 'Yes' : 'No'],
+    ['Client stamp', (so.clientStamp || so.clientStampPath) ? 'Yes' : 'No'],
+    ['Satisfaction', so.satisfaction ? satisfactionLabel(so.satisfaction) : '']
   ];
   return reviewBlock('Sign-off & feedback', stepIdx===undefined?wizardStepIndex('signoff'):stepIdx, rows);
 }
@@ -3894,6 +4387,14 @@ function renderReview(){
 let lastSubmittedPdfBlobUrl = null;
 let lastSubmittedReport = null;
 
+/* Saves a signature or stamp picture next to the report; PNG keeps transparency, JPEG is smaller. Returns its path (null if there is none). */
+async function uploadSignoffImage(reportId, baseName, dataUrl){
+  if(!dataUrl) return null;
+  const mime = dataUrlMime(dataUrl) === 'image/jpeg' ? 'image/jpeg' : 'image/png';
+  const path = 'reports/' + reportId + '/signatures/' + baseName + (mime === 'image/jpeg' ? '.jpg' : '.png');
+  await uploadFile(path, dataURLToBlob(dataUrl), mime);
+  return path;
+}
 async function submitReport(){
   const btn = qs('#sendReportBtn');
   if(btn){ btn.disabled = true; btn.innerHTML = 'Sending\u2026'; }
@@ -3949,49 +4450,50 @@ async function submitReport(){
       photoRecords.push(p.areaKey ? { path: path, caption: p.caption||'', areaKey: p.areaKey, area: p.area||'' } : { path: path, caption: p.caption||'' });
     }
     if(btn) btn.innerHTML = 'Sending\u2026';
-    let techSigPath = null, clientSigPath = null;
-    if(d.signOff.technicianSig){
-      techSigPath = 'reports/'+d.id+'/signatures/technician.png';
-      await uploadFile(techSigPath, dataURLToBlob(d.signOff.technicianSig), 'image/png');
-    }
-    if(d.signOff.clientSig){
-      clientSigPath = 'reports/'+d.id+'/signatures/client.png';
-      await uploadFile(clientSigPath, dataURLToBlob(d.signOff.clientSig), 'image/png');
-    }
+    // Signatures and stamps are optional; each one that was added is saved in its own format.
+    const techSigPath = await uploadSignoffImage(d.id, 'technician', d.signOff.technicianSig);
+    const techStampPath = await uploadSignoffImage(d.id, 'technician-stamp', d.signOff.technicianStamp);
+    const clientSigPath = await uploadSignoffImage(d.id, 'client', d.signOff.clientSig);
+    const clientStampPath = await uploadSignoffImage(d.id, 'client-stamp', d.signOff.clientStamp);
 
     // fix: P1-1 — PDF path is deterministic and uploadFile upserts, so this
     // is always safe to redo; only skip it if a prior attempt already got
     // far enough to record the path on the draft.
     let pdfPath = d.pdfPath || null;
+    let pdfBlob = null;
     if(!pdfPath){
-      const pdfDoc = buildPDF(d);
-      const pdfBlob = pdfDoc.output('blob');
+      pdfBlob = await buildReportPdfBlob(d);   // normal size; photos are saved a bit smaller only if the PDF would be too big to email
       pdfPath = 'reports/'+d.id+'/report.pdf';
       await uploadFile(pdfPath, pdfBlob, 'application/pdf');
       d.pdfPath = pdfPath;
-      if(lastSubmittedPdfBlobUrl) URL.revokeObjectURL(lastSubmittedPdfBlobUrl);
-      lastSubmittedPdfBlobUrl = URL.createObjectURL(pdfBlob);
     }
+    // The email attachment and the Download button both need the PDF in memory; on a resumed attempt it is already stored, so rebuild it.
+    if(!pdfBlob){ pdfBlob = await buildReportPdfBlob(d); }
+    if(lastSubmittedPdfBlobUrl) URL.revokeObjectURL(lastSubmittedPdfBlobUrl);
+    lastSubmittedPdfBlobUrl = URL.createObjectURL(pdfBlob);
 
     // fix: P1-1 — don't re-send an email a prior attempt already got out the
     // door; only (re)try the send if we don't already know it went out.
     let emailStatus = d.emailStatus;
     if(!emailStatus){
-      const sendResult = await attemptSend(d);
+      if(btn) btn.innerHTML = 'Emailing report...';
+      const sendResult = await attemptSend(d, pdfBlob);    // welcome message + the PDF attached automatically
       emailStatus = sendResult.status;
       d.emailStatus = emailStatus;
+      d.emailReason = sendResult.reason || '';
+      d.emailDetail = sendResult.detail || '';
     }
 
     await updateReport(d.id, {
       photos: photoRecords,
-      sign_off: { technicianName: d.signOff.technicianName, technicianSigPath: techSigPath, clientRepName: d.signOff.clientRepName, clientSigPath: clientSigPath, satisfaction: d.signOff.satisfaction, clientRemarks: d.signOff.clientRemarks },
+      sign_off: { technicianName: d.signOff.technicianName, technicianSigPath: techSigPath, technicianStampPath: techStampPath, clientRepName: d.signOff.clientRepName, clientSigPath: clientSigPath, clientStampPath: clientStampPath, satisfaction: d.signOff.satisfaction, clientRemarks: d.signOff.clientRemarks },
       pdf_path: pdfPath,
       email_status: emailStatus
     });
 
     createNotification({ type:'report_submitted', title:'Report ' + d.controlDisplay + ' submitted', body:(d.client.name||d.client.storeName||'Client') + ' \u2014 ' + TYPE_META[type].label, report_id: d.id });
     if(emailStatus === 'manual'){
-      createNotification({ type:'email_manual_fallback', title:'Email needs manual send \u2014 ' + d.controlDisplay, body:'Automatic email wasn\u2019t available for this report. Download the PDF from Report Detail and forward it.', report_id: d.id });
+      createNotification({ type:'email_manual_fallback', title:'Email needs manual send \u2014 ' + d.controlDisplay, body:(d.emailReason === 'failed' ? ('The automatic email could not be sent' + (d.emailDetail ? (' (' + d.emailDetail + ')') : '') + '.') : 'Automatic email is not connected.') + ' Download the PDF from Report Detail, attach it and forward it.', report_id: d.id });
     }
 
     clearDraftStorage();
@@ -4022,11 +4524,14 @@ function renderSuccess(){
   let html = '<div class="success-wrap">';
   html += '<div class="stamp">'+icon('checkSeal')+'</div>';
   html += '<h2>Report '+escapeHTML(d.controlDisplay)+' submitted</h2>';
-  html += '<p>'+(sentAutomatically ? ('Emailed automatically to '+escapeHTML(d.client.email)+'.') : ('Saved \u2014 finish sending it to '+escapeHTML(d.client.email)+' below.'))+'</p>';
+  html += '<p>'+(sentAutomatically ? ('Emailed to '+escapeHTML(d.client.email)+' with the PDF report attached.') : ('Saved &mdash; finish sending it to '+escapeHTML(d.client.email)+' below.'))+'</p>';
   html += '</div>';
 
   if(!sentAutomatically){
-    html += '<div class="helper-banner amber">'+icon('info')+'<span>Automatic email isn\u2019t connected yet, so the message is already written and addressed \u2014 download the PDF, then hit send in your email app.</span></div>';
+    const why = d.emailReason === 'failed'
+      ? ('The email could not be sent automatically' + (d.emailDetail ? (' (' + escapeHTML(d.emailDetail) + ')') : '') + '.')
+      : 'Automatic email is not connected yet.';
+    html += '<div class="helper-banner amber">'+icon('info')+'<span>'+why+' The message is already written and addressed &mdash; download the PDF, attach it to the email, then hit send in your email app.</span></div>';
   }
 
   html += '<div class="card stack-14">';
@@ -4376,17 +4881,31 @@ async function loadAndRenderDetail(wrap, id){
   });
   qs('#detailResend', wrap).addEventListener('click', async function(){
     const btn = qs('#detailResend', wrap);
-    btn.disabled = true; btn.innerHTML = 'Sending\u2026';
-    const result = await attemptSend(d);
-    try{ await updateReport(d.id, { email_status: result.status }); }
-    catch(err){ toast('Could not update the email status: ' + (err.message||'unknown error'), 'error'); } /* single-file build fix: used to leave the button stuck on "Sending..." and raise an uncaught error */
-    btn.disabled = false; btn.innerHTML = icon('mail') + ' Resend email';
-    if(result.status==='sent'){ toast('Report emailed to ' + d.client.email, 'success'); }
-    else {
-      toast('Automatic email isn\u2019t connected \u2014 opening your email app instead.', 'error');
-      createNotification({ type:'email_manual_fallback', title:'Email needs manual send \u2014 ' + d.controlDisplay, body:'Automatic email wasn\u2019t available for this report. Download the PDF and forward it.', report_id: d.id });
-      if(pendingMailto) window.location.href = pendingMailto;
+    btn.disabled = true; btn.innerHTML = 'Sending...';
+    let result;
+    try{
+      // the email carries the PDF stored when the report was submitted - the same file the Download PDF button gives
+      const pdfBlob = await fetchStoredPdf(d.pdfPath);
+      result = await attemptSend(d, pdfBlob);
+    } catch(err){
+      console.error('Resend failed', err);
+      result = { status:'manual', reason:'failed', detail: emailErrorText(err) };
     }
+    if(result.reason === 'no_pdf'){
+      toast('The stored PDF could not be found, so nothing was sent. Contact an admin.', 'error');
+    } else {
+      try{ await updateReport(d.id, { email_status: result.status }); }
+      catch(err){ toast('Could not update the email status: ' + (err.message||'unknown error'), 'error'); } /* single-file build fix: used to leave the button stuck on "Sending..." and raise an uncaught error */
+      if(result.status==='sent'){ toast('Report emailed to ' + d.client.email + ' with the PDF attached.', 'success'); }
+      else {
+        toast(result.reason === 'failed'
+          ? ('The email could not be sent automatically' + (result.detail ? (': ' + result.detail) : '') + '. Opening your email app instead - attach the PDF.')
+          : 'Automatic email is not connected - opening your email app instead. Attach the PDF.', 'error');
+        createNotification({ type:'email_manual_fallback', title:'Email needs manual send - ' + d.controlDisplay, body:'Automatic email was not available for this report. Download the PDF, attach it and forward it.', report_id: d.id });
+        if(pendingMailto) window.location.href = pendingMailto;
+      }
+    }
+    btn.disabled = false; btn.innerHTML = icon('mail') + ' Resend email';
   });
 }
 ;
@@ -4417,7 +4936,7 @@ function renderSettings(){
 
   html += '<div class="card" style="margin-bottom:16px;">';
   html += '<h3 class="section-title" style="font-size:15px;margin-bottom:2px;">Company info</h3>';
-  html += '<p class="section-hint">Used on the PDF letterhead and in the email summary sent with every report.</p>';
+  html += '<p class="section-hint">Used on the PDF letterhead and in the welcome email sent with every report.</p>';
   if(!isAdmin){ html += '<div class="helper-banner">'+icon('info')+'<span>Only an admin can change these.</span></div>'; }
   html += field('Company name', 'set_companyName', 'text', CONFIG.companyName, {});
   html += field('Address', 'set_companyAddress', 'text', CONFIG.companyAddress, {});
@@ -4459,7 +4978,7 @@ function renderSettings(){
   if(!isAdmin){
     html += '<div class="helper-banner">'+icon('info')+'<span>Only an admin can change these \u2014 you can see the current setup below.</span></div>';
   }
-  html += '<p class="section-hint" style="margin-bottom:16px;">Connect a free <strong>EmailJS</strong> account so \u201CSend report\u201D emails the client automatically, with zero clicks after submit. This is optional \u2014 the app works without it using a pre-filled email draft instead.</p>';
+  html += '<p class="section-hint" style="margin-bottom:16px;">Connect your <strong>EmailJS</strong> account so &ldquo;Send report&rdquo; and &ldquo;Resend email&rdquo; email the client a friendly welcome message with the PDF report attached automatically. Attaching files needs a paid EmailJS plan (the Free plan cannot send attachments). This is optional &mdash; without it the app opens a pre-filled email draft and you attach the PDF yourself.</p>';
 
   html += field('EmailJS Service ID', 'set_serviceId', 'text', s.serviceId, {placeholder:'service_xxxxxxx'});
   html += field('EmailJS Template ID', 'set_templateId', 'text', s.templateId, {placeholder:'template_xxxxxxx'});
@@ -4468,18 +4987,25 @@ function renderSettings(){
 
   if(isAdmin){
     html += '<button class="btn btn-primary btn-block btn-lg" id="saveSettingsBtn" style="margin-top:6px;">Save settings</button>';
+    html += '<hr class="hairline">';
+    html += '<h3 class="section-title" style="font-size:15px;margin-bottom:2px;">Test the email</h3>';
+    html += '<p class="section-hint">Sends the real welcome message with a sample PDF attached to the address below, so you can check that the attachment arrives. Save your settings first.</p>';
+    html += field('Send the test email to', 'set_testEmail', 'email', '', {placeholder:'you@example.com'});
+    html += '<button class="btn btn-secondary btn-block" id="sendTestEmailBtn">'+icon('mail')+' Send test email with PDF</button>';
   }
   html += '</div>';
 
   html += '<div class="card">';
-  html += '<h3 class="section-title" style="font-size:15px;margin-bottom:10px;">How to connect EmailJS (about 5 minutes)</h3>';
+  html += '<h3 class="section-title" style="font-size:15px;margin-bottom:10px;">How to connect EmailJS (about 10 minutes)</h3>';
   html += '<ol style="margin:0;padding-left:18px;font-size:13.5px;color:var(--ink-soft);line-height:1.8;">'+
-    '<li>Create a free account at <span class="pill-mono">emailjs.com</span>.</li>'+
-    '<li>Add an Email Service (e.g. connect your Gmail or Outlook) \u2014 copy its <strong>Service ID</strong>.</li>'+
-    '<li>Create an Email Template with these merge tags in the body: <span class="pill-mono">{{to_email}}</span>, <span class="pill-mono">{{subject}}</span>, <span class="pill-mono">{{message}}</span>, <span class="pill-mono">{{client_name}}</span>, <span class="pill-mono">{{report_id}}</span>, <span class="pill-mono">{{technician_name}}</span>, <span class="pill-mono">{{cc_email}}</span> \u2014 copy the <strong>Template ID</strong>.</li>'+
+    '<li>Sign in at <span class="pill-mono">emailjs.com</span> and pick a plan that allows <strong>attachments</strong>. Every plan has a size limit per email and a report with many photos can be several MB, so check that the limit is big enough.</li>'+
+    '<li>Add an Email Service (e.g. connect your Gmail or Outlook) &mdash; copy its <strong>Service ID</strong>.</li>'+
+    '<li>Create an Email Template: <strong>Subject</strong> <span class="pill-mono">{{subject}}</span>, <strong>To Email</strong> <span class="pill-mono">{{to_email}}</span>, <strong>Cc</strong> <span class="pill-mono">{{cc_email}}</span>, <strong>From Name</strong> <span class="pill-mono">{{from_name}}</span>, and make the <strong>Content</strong> just <span class="pill-mono">{{message}}</span>. The welcome message already holds the report number, client, date and technician, so remove any old header lines from the template.</li>'+
+    '<li>Open that template&rsquo;s <strong>Attachments</strong> tab and add a <strong>Variable Attachment</strong>: Parameter name <span class="pill-mono">report_pdf</span>, Filename <span class="pill-mono">{{pdf_filename}}</span>, Content type <span class="pill-mono">application/pdf</span>. Save it &mdash; copy the <strong>Template ID</strong>.</li>'+
     '<li>Under Account &rarr; General, copy your <strong>Public Key</strong>.</li>'+
-    '<li>Paste all three above and save. Submit a test report to confirm.</li>'+
+    '<li>Paste the three values above and save, then press <strong>Send test email</strong> and check that the PDF arrives attached.</li>'+
   '</ol>';
+  html += '<p class="small-muted" style="margin-top:12px;">Other values the app sends, if you want them in the template: <span class="pill-mono">{{report_id}}</span> <span class="pill-mono">{{client_name}}</span> <span class="pill-mono">{{technician_name}}</span> <span class="pill-mono">{{service_date}}</span> <span class="pill-mono">{{company_name}}</span> <span class="pill-mono">{{company_phone}}</span> <span class="pill-mono">{{company_email}}</span> <span class="pill-mono">{{company_address}}</span>.</p>';
   html += '<p class="small-muted" style="margin-top:14px;">Note: these values sit in the page\u2019s own code, the same as on any website using EmailJS \u2014 that\u2019s how the service is designed to work, so this is normal and expected, not a security gap specific to this app.</p>';
   html += '</div>';
 
@@ -4567,6 +5093,22 @@ function renderSettings(){
       } catch(err){
         toast('Could not save settings: ' + (err.message||'unknown error'), 'error');
       }
+    });
+
+    qs('#sendTestEmailBtn', wrap).addEventListener('click', async function(){
+      const btn = qs('#sendTestEmailBtn', wrap);
+      const to = qs('#set_testEmail', wrap).value.trim();
+      if(!validateEmail(to)){ markFieldError('set_testEmail', 'Enter a valid email address.'); return; }
+      if(typeof emailjs === 'undefined' || !s.configured){ toast('Fill in and save the three EmailJS fields first.', 'error'); return; }
+      btn.disabled = true; btn.innerHTML = 'Sending test...';
+      try{
+        const r = await sendTestEmail(to);
+        if(r.status === 'sent') toast('Test email sent to ' + to + '. Open it and check that the PDF is attached.', 'success');
+        else toast('The test email was not sent' + (r.detail ? (': ' + r.detail) : '') + '.', 'error');
+      } catch(err){
+        toast('The test email was not sent: ' + emailErrorText(err), 'error');
+      }
+      btn.disabled = false; btn.innerHTML = icon('mail') + ' Send test email with PDF';
     });
   }
 
@@ -6026,7 +6568,8 @@ async function loadSettings(){
     state.settings.fromName = s.from_name || CONFIG.companyName;
     state.settings.configured = !!(s.service_id && s.template_id && s.public_key);
     if(s.company_name) CONFIG.companyName = s.company_name;
-    if(s.company_address) CONFIG.companyAddress = s.company_address;
+    // An address saved from before the office moved (Sct. Ybardolaza) is ignored, so the current address is used until an admin saves a different one.
+    if(s.company_address && !/ybardolaza/i.test(s.company_address)) CONFIG.companyAddress = s.company_address;
     if(s.company_phone) CONFIG.companyPhone = s.company_phone;
     if(s.company_email) CONFIG.companyEmail = s.company_email;
     // fix: P3.5-1, see build prompt
