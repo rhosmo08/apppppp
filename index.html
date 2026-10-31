@@ -5556,12 +5556,12 @@ async function publicLogoUrl(){
   if(!/^https:\/\//i.test(url)) return '';
   return (await imageLoads(url)) ? url : '';
 }
-/* ---- AUTOMATIC SENDING FROM ONE GMAIL ACCOUNT (Google Apps Script "mailer") ----
-   A tiny script lives in the sending Gmail account and is published as a private web app. The app posts the finished email (HTML design,
-   PDF attached) to it and the script sends it from that account. There is no sign-in popup and nothing expires, so a click on
-   "Send email to client" just sends. The script is protected by a password that only the script and this app know. */
+/* ---- OPEN GMAIL WITH THE FINISHED DRAFT, FROM ONE GMAIL ACCOUNT (Google Apps Script "draft maker") ----
+   A tiny script lives in the Gmail account that sends the reports and is published as a private web app. The app posts the finished email
+   (HTML design, PDF attached, To / Cc / Subject) to it, and the script saves it as a DRAFT in that Gmail. The app then opens the draft in a
+   new tab, where the admin checks it and presses Send. There is no sign-in popup and nothing expires. The script cannot send anything. */
 const MAILER_URL_KEY = 'gepestcon_mailer_url', MAILER_SECRET_KEY = 'gepestcon_mailer_secret';
-const MAILER_SCRIPT = "// Gepestcon Co. - report mailer. It sends the report email from THIS Google account.\n// Do not share the web app link or the password below.\nvar SECRET = '__SECRET__';\n\nfunction doPost(e) {\n  try {\n    var p = JSON.parse(e.postData.contents);\n    if (p.secret !== SECRET) {\n      return reply({ ok: false, error: 'Wrong password. The password in the app Settings must match the one in this script.' });\n    }\n    if (!p.to || String(p.to).indexOf('@') < 1) {\n      return reply({ ok: false, error: 'The client email address is not valid.' });\n    }\n    var opts = { to: p.to, subject: p.subject, body: p.text, htmlBody: p.html, name: p.fromName || 'Gepestcon Co.' };\n    if (p.cc) { opts.cc = p.cc; }\n    if (p.pdfBase64) {\n      opts.attachments = [Utilities.newBlob(Utilities.base64Decode(p.pdfBase64), 'application/pdf', p.pdfName || 'report.pdf')];\n    }\n    if (p.logoBase64) {\n      opts.inlineImages = { 'gepestcon-logo': Utilities.newBlob(Utilities.base64Decode(p.logoBase64), 'image/png', 'gepestcon-logo.png') };\n    }\n    MailApp.sendEmail(opts);\n    return reply({ ok: true, from: Session.getEffectiveUser().getEmail(), remaining: MailApp.getRemainingDailyQuota() });\n  } catch (err) {\n    return reply({ ok: false, error: String(err) });\n  }\n}\n\nfunction doGet() {\n  return reply({ ok: true, info: 'Gepestcon mailer is running.' });\n}\n\nfunction reply(o) {\n  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);\n}\n";
+const MAILER_SCRIPT = "// Gepestcon Co. - Gmail draft maker.\n// This script ONLY creates a DRAFT in this Gmail account. It cannot send anything - a person must open the draft and press Send.\n// Do not share the web app link or the password below.\nvar SECRET = '__SECRET__';\n\nfunction doPost(e) {\n  try {\n    var p = JSON.parse(e.postData.contents);\n    if (p.key !== SECRET) {\n      return reply({ ok: false, error: 'Wrong password, or an older version of the script is still deployed.' });\n    }\n    if (!p.to || String(p.to).indexOf('@') < 1) {\n      return reply({ ok: false, error: 'The client email address is not valid.' });\n    }\n    var opts = { htmlBody: p.html, name: p.fromName || 'Gepestcon Co.' };\n    if (p.cc) { opts.cc = p.cc; }\n    if (p.pdfBase64) {\n      opts.attachments = [Utilities.newBlob(Utilities.base64Decode(p.pdfBase64), 'application/pdf', p.pdfName || 'report.pdf')];\n    }\n    if (p.logoBase64) {\n      opts.inlineImages = { 'gepestcon-logo': Utilities.newBlob(Utilities.base64Decode(p.logoBase64), 'image/png', 'gepestcon-logo.png') };\n    }\n    var draft = GmailApp.createDraft(p.to, p.subject, p.text, opts);\n    return reply({ ok: true, version: 2, from: Session.getEffectiveUser().getEmail(), messageId: draft.getMessageId() });\n  } catch (err) {\n    return reply({ ok: false, error: String(err) });\n  }\n}\n\nfunction doGet() {\n  return reply({ ok: true, version: 2, info: 'Gepestcon Gmail draft maker is running.' });\n}\n\nfunction reply(o) {\n  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);\n}\n";
 function mailerUrl(){ try{ return (localStorage.getItem(MAILER_URL_KEY) || '').trim(); }catch(e){ return ''; } }
 function mailerSecret(){ try{ return (localStorage.getItem(MAILER_SECRET_KEY) || '').trim(); }catch(e){ return ''; } }
 function mailerConfigured(){ return !!(mailerUrl() && mailerSecret()); }
@@ -5570,18 +5570,27 @@ function randomSecret(){
   const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789', a = new Uint32Array(24); crypto.getRandomValues(a);
   let s = ''; for(let i = 0; i < a.length; i++) s += chars[a[i] % chars.length]; return s;
 }
-/* Sends one report email. pdfBlob is required (an email that says "attached" is never sent without the PDF). Returns { from }. */
-async function sendViaMailer(d, pdfBlob, opts){
+/* A tab opened straight from the click (so it is not blocked) that says what is happening while the draft is made. */
+function openPreparingTab(){
+  let w = null;
+  try{
+    w = window.open('about:blank', '_blank');
+    if(w){ w.document.title = 'Preparing your Gmail draft'; w.document.body.innerHTML = '<p style="font-family:Arial,sans-serif;font-size:18px;margin:40px;color:#333;">Preparing your Gmail draft&hellip; this takes a few seconds.</p>'; }
+  }catch(e){}
+  return w;
+}
+/* Makes the draft in the sending Gmail. pdfBlob is required (the email says "attached", so a draft without the PDF is never made). Returns { from, messageId }. */
+async function createDraftViaMailer(d, pdfBlob, opts){
   opts = opts || {};
-  if(!mailerConfigured()) throw new Error('Automatic sending is not set up yet. Open Settings and follow the steps under \u201cAutomatic sending\u201d.');
+  if(!mailerConfigured()) throw new Error('Gmail drafts are not set up yet. Open Settings and follow the steps under \u201cOpen Gmail automatically\u201d.');
   const c = d.client || {};
   if(!c.email) throw new Error('This report has no client email.');
-  if(!pdfBlob) throw new Error('The report PDF could not be found, so nothing was sent. Use Download PDF and check the report.');
+  if(!pdfBlob) throw new Error('The report PDF could not be found, so no draft was made. Use Download PDF and check the report.');
   const m = approvalEmailContent(d);
   const logoUrl = await publicLogoUrl();
   const pdfB64 = (await blobToDataURL(pdfBlob)).split(',')[1] || '';
   const payload = {
-    secret: mailerSecret(), to: c.email, cc: c.ccEmail || '',
+    key: mailerSecret(), to: c.email, cc: c.ccEmail || '',
     subject: (opts.test ? '[TEST] ' : '') + m.subject, text: m.body,
     html: designedEmailDocument(d, logoUrl || 'cid:gepestcon-logo'),
     fromName: CONFIG.companyName || 'Gepestcon Co.',
@@ -5590,19 +5599,31 @@ async function sendViaMailer(d, pdfBlob, opts){
   };
   let res, data;
   try{
-    // text/plain keeps this a "simple" request, which Google web apps accept from a browser page
+    // no custom headers keeps this a "simple" request, which Google web apps accept from a browser page
     res = await fetch(mailerUrl(), { method: 'POST', body: JSON.stringify(payload), redirect: 'follow' });
   }catch(err){
-    throw new Error('Could not reach the mailer. Check your internet connection and the web app link in Settings.');
+    throw new Error('Could not reach your Gmail. Check your internet connection and the web app link in Settings.');
   }
   try{ data = await res.json(); }
-  catch(err){ throw new Error('The mailer link did not answer correctly. In Apps Script, deploy it as a Web app with \u201cWho has access: Anyone\u201d, then paste the link ending in /exec.'); }
-  if(!data || !data.ok) throw new Error((data && data.error) || 'The mailer reported an error.');
-  return { from: data.from || '' };
+  catch(err){ throw new Error('The web app link did not answer correctly. In Apps Script, deploy it as a Web app with \u201cWho has access: Anyone\u201d, then paste the link ending in /exec.'); }
+  if(!data || !data.ok){
+    let msg = (data && data.error) || 'Gmail reported an error.';
+    if(/wrong password/i.test(msg)) msg += ' If you set this up earlier, paste the NEW script over the old one, then Deploy \u2192 Manage deployments \u2192 pencil \u2192 Version: New version \u2192 Deploy.';
+    throw new Error(msg);
+  }
+  if(!data.messageId) throw new Error('The script did not return the draft. Paste the NEW script over the old one and deploy a new version.');
+  return { from: data.from || '', messageId: data.messageId };
 }
-async function sendMailerTest(toEmail){
-  const sample = sampleReportForTest(toEmail);
-  return sendViaMailer(sample, buildPDF(sample).output('blob'), { test:true });
+/* Creates the draft and shows it in Gmail (in `pre`, the tab opened by the click, or a new tab; a link button if the browser blocks it). */
+async function openMailerDraft(d, pdfBlob, opts, pre){
+  const r = await createDraftViaMailer(d, pdfBlob, opts);
+  const url = gmailDraftUrl(r.from, r.messageId);
+  if(pre && !pre.closed){ pre.location.href = url; }
+  else {
+    const w = window.open(url, '_blank');
+    if(!w) openModal('<p style="margin-bottom:14px;">Your draft is ready in Gmail.</p><a class="btn btn-primary btn-block btn-lg" target="_blank" rel="noopener" href="' + escapeHTML(url) + '">' + icon('mail') + ' Open the draft in Gmail</a>', { title: 'Draft ready' });
+  }
+  return r;
 }
 /* Full flow behind the "Open in Gmail" button when a Client ID is saved. `pre` is a tab opened inside the click (or null). */
 async function openDesignedGmailDraft(d, token, pre){
@@ -9018,13 +9039,11 @@ async function loadAndRenderDetail(wrap, id){
     html += '<button class="btn btn-primary btn-block btn-lg" id="detailApprove">'+icon('checkSeal')+' Approve report</button>';
   }
   if(isAdminViewer && approved){
-    if(mailerConfigured()){
-      html += '<button class="btn btn-primary btn-block btn-lg" id="detailSendAuto">'+icon('mail')+(d.emailStatus === 'sent' ? ' Send the email again' : ' Send email to client')+'</button>';
-    } else {
-      html += '<p class="small-muted" style="text-align:center;">For one-click sending from your Gmail, set up <strong>Automatic sending</strong> in Settings.</p>';
+    html += '<button class="btn btn-primary btn-block btn-lg" id="detailGmail" type="button">'+icon('mail')+' Open in Gmail (designed email)</button>';
+    html += '<button class="btn btn-secondary btn-block" id="detailMailApp">'+icon('mail')+' Open email to client (plain text)</button>';
+    if(!mailerConfigured()){
+      html += '<p class="small-muted" style="text-align:center;">To get the finished draft in one click, with the PDF already attached, set up <strong>Open Gmail automatically</strong> in Settings.</p>';
     }
-    html += '<button class="btn '+(mailerConfigured() ? 'btn-secondary' : 'btn-primary btn-lg')+' btn-block" id="detailMailApp">'+icon('mail')+' Open email to client</button>';
-    html += '<button class="btn btn-secondary btn-block" id="detailGmail" type="button">'+icon('mail')+' Open in Gmail (designed email)</button>';
     html += '<p class="small-muted" style="text-align:center;">To: '+escapeHTML(d.client.email || 'no client email on file')+(d.client.email ? '' : ' \u2014 add the client\u2019s email first.')+'</p>';
   }
   html += '</div>';
@@ -9091,43 +9110,27 @@ async function loadAndRenderDetail(wrap, id){
       loadAndRenderDetail(wrap, id);           // redraw: the email buttons appear
     });
   }
-  const autoBtn = qs('#detailSendAuto', wrap);
-  if(autoBtn){
-    autoBtn.addEventListener('click', function(){
-      if(!d.client.email){ toast('This report has no client email. Add the client’s email first.', 'error'); return; }
-      const body = openModal(
-        '<p style="margin-bottom:8px;">Send the report email now?</p>' +
-        '<p class="small-muted" style="margin-bottom:16px;">To: <strong>' + escapeHTML(d.client.email) + '</strong>' +
-        (d.client.ccEmail ? '<br>Cc: <strong>' + escapeHTML(d.client.ccEmail) + '</strong>' : '') +
-        '<br>The designed email is sent with the report PDF attached.</p>' +
-        '<div style="display:flex;gap:10px;"><button class="btn btn-secondary btn-block" id="autoCancel">Cancel</button><button class="btn btn-primary btn-block" id="autoGo">Send email</button></div>',
-        { title: 'Send to client' });
-      qs('#autoCancel', body).addEventListener('click', closeModal);
-      qs('#autoGo', body).addEventListener('click', async function(){
-        const go = qs('#autoGo', body);
-        go.disabled = true; go.textContent = 'Sending…';
-        try{
-          const blob = d.pdfPath ? await fetchStoredPdf(d.pdfPath) : null;
-          await sendViaMailer(d, blob);
-        } catch(err){
-          console.error('Mailer send failed', err);
-          toast(err.message || 'Could not send the email.', 'error');
-          go.disabled = false; go.textContent = 'Send email';
-          return;
-        }
-        closeModal();
-        let marked = true;
-        try{ await updateReport(d.id, { email_status: 'sent' }); }catch(err){ marked = false; console.error('Could not mark as emailed', err); }
-        toast('Email sent to ' + d.client.email + (marked ? '.' : '. (It could not be marked as emailed in the list.)'), 'success');
-        loadAndRenderDetail(wrap, id);
-      });
-    });
-  }
   const gmailBtn = qs('#detailGmail', wrap);
   if(gmailBtn){
     if(gmailClientId()) loadGoogleIdentity().catch(function(){});   // preload so the sign-in popup opens instantly on click
     gmailBtn.addEventListener('click', async function(){
       if(!d.client.email){ toast('This report has no client email. Add the client’s email first.', 'error'); return; }
+      if(mailerConfigured()){
+        const label = gmailBtn.innerHTML;
+        gmailBtn.disabled = true; gmailBtn.innerHTML = 'Preparing your Gmail draft\u2026';
+        const pre = openPreparingTab();
+        try{
+          const blob = d.pdfPath ? await fetchStoredPdf(d.pdfPath) : null;
+          await openMailerDraft(d, blob, {}, pre);
+          toast('Your Gmail draft is ready with the PDF attached. Check the To, Cc and message, then press Send.', 'success');
+        } catch(err){
+          console.error('Gmail draft failed', err);
+          if(pre && !pre.closed) pre.close();
+          toast(err.message || 'Could not make the Gmail draft.', 'error');
+        }
+        gmailBtn.disabled = false; gmailBtn.innerHTML = label;
+        return;
+      }
       const clientId = gmailClientId();
       if(!clientId){
         // No Google connection saved yet: copy the design so it can be pasted into a blank Gmail message.
@@ -9231,35 +9234,37 @@ function renderSettings(){
   if(isAdmin){
     const gid = gmailClientId();
     const mUrl = mailerUrl(), mSecret = mailerSecret() || randomSecret();
-    html += '<h2 style="font-size:21px;margin-bottom:16px;">Automatic sending</h2>';
+    html += '<h2 style="font-size:21px;margin-bottom:16px;">Open Gmail automatically</h2>';
     html += '<div class="card" style="margin-bottom:16px;">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">';
-    html += '<h3 class="section-title" style="font-size:15px;">Send from one Gmail account</h3>';
+    html += '<h3 class="section-title" style="font-size:15px;">One Gmail account, no signing in</h3>';
     html += '<span id="mailerPill">' + (mailerConfigured() ? '<span class="status-pill ok">'+icon('check')+' Connected</span>' : '<span class="status-pill off">'+icon('info')+' Not connected</span>') + '</span>';
     html += '</div>';
-    html += '<p class="section-hint">One Gmail account sends every report email &mdash; the designed email with the PDF attached &mdash; with a single click and <strong>no signing in again</strong>. It is set up once, below, and works for every admin who pastes the same two values.</p>';
+    html += '<p class="section-hint">On an approved report, <strong>Open in Gmail</strong> opens your Gmail with the <strong>finished draft</strong>: the designed email, the report PDF attached, and the To, Cc and subject filled in. <strong>Nothing is sent automatically</strong> &mdash; you check it and press Send yourself. It never asks you to sign in again.</p>';
     html += '<h3 class="section-title" style="font-size:15px;margin:14px 0 8px;">Set it up (about 5 minutes, once)</h3>';
     html += '<ol style="margin:0 0 14px;padding-left:18px;font-size:13.5px;color:var(--ink-soft);line-height:1.8;">'+
       '<li>Press <strong>Copy the script</strong> below.</li>'+
-      '<li>Open <span class="pill-mono">script.google.com</span> signed in with the Gmail that should send the emails, and press <strong>New project</strong>.</li>'+
+      '<li>Open <span class="pill-mono">script.google.com</span> signed in with the Gmail that sends the reports, and press <strong>New project</strong>.</li>'+
       '<li>Select all the sample code in the editor, delete it, and <strong>paste</strong> the copied script. Press the save icon.</li>'+
       '<li>Press <strong>Deploy &rarr; New deployment</strong>. Click the gear and choose <strong>Web app</strong>. Set <strong>Execute as: Me</strong> and <strong>Who has access: Anyone</strong>. Press <strong>Deploy</strong>.</li>'+
-      '<li>If Google asks, press <strong>Authorize access</strong>, choose your account, then <strong>Advanced &rarr; Go to project (unsafe) &rarr; Allow</strong>. This is your own script, so it is safe.</li>'+
-      '<li>Copy the <strong>Web app URL</strong> (it ends with <span class="pill-mono">/exec</span>), paste it below with the password, and press <strong>Save</strong>. Then send a test email.</li>'+
+      '<li>If Google asks, press <strong>Authorize access</strong>, choose your account, then <strong>Advanced &rarr; Go to project (unsafe) &rarr; Allow</strong>. This is your own script. It only creates drafts &mdash; it has no way to send email.</li>'+
+      '<li>Copy the <strong>Web app URL</strong> (it ends with <span class="pill-mono">/exec</span>), paste it below, and press <strong>Save</strong>. Then press <strong>Create a test draft</strong>.</li>'+
     '</ol>';
+    html += '<p class="small-muted" style="margin-bottom:14px;"><strong>Already pasted an earlier script?</strong> Paste this new one over it, save, then <strong>Deploy &rarr; Manage deployments &rarr; pencil icon &rarr; Version: New version &rarr; Deploy</strong>. Keep the same link.</p>';
     html += field('Password (already filled in, and already inside the copied script)', 'set_mailerSecret', 'text', mSecret, {});
     html += '<button class="btn btn-secondary btn-block" id="copyMailerScriptBtn" style="margin-bottom:14px;">Copy the script</button>';
     html += field('Web app URL', 'set_mailerUrl', 'text', mUrl, {placeholder:'https://script.google.com/macros/s/.../exec'});
-    html += '<button class="btn btn-primary btn-block" id="saveMailerBtn">Save automatic sending</button>';
+    html += '<button class="btn btn-primary btn-block" id="saveMailerBtn">Save</button>';
     html += '<hr class="hairline">';
-    html += '<h3 class="section-title" style="font-size:15px;margin-bottom:2px;">Send a test email</h3>';
-    html += '<p class="section-hint">Sends the designed email with a sample PDF to the address below, so you can check how it looks. Save first.</p>';
-    html += field('Send the test to', 'set_mailerTestTo', 'email', '', {placeholder:'you@example.com'});
-    html += '<button class="btn btn-secondary btn-block" id="mailerTestBtn">'+icon('mail')+' Send test email</button>';
-    html += '<p class="small-muted" style="margin-top:12px;">Keep the web app link and the password private &mdash; anyone who has both can send email from that Gmail. A free Gmail can send about 100 emails a day this way. To change the sending account later, repeat these steps signed in with the other Gmail and save the new link.</p>';
+    html += '<h3 class="section-title" style="font-size:15px;margin-bottom:2px;">Create a test draft</h3>';
+    html += '<p class="section-hint">Makes a draft with a sample PDF addressed to the email below and opens it in Gmail. Nothing is sent. Save first.</p>';
+    html += field('Address for the test draft', 'set_mailerTestTo', 'email', '', {placeholder:'you@example.com'});
+    html += '<button class="btn btn-secondary btn-block" id="mailerTestBtn">'+icon('mail')+' Create a test draft</button>';
+    html += '<p class="small-muted" style="margin-top:12px;">Keep the web app link and the password private. Save them on each device you use as admin. To change the Gmail account later, repeat these steps signed in with the other Gmail and save its new link.</p>';
     html += '</div>';
 
-    html += '<h2 style="font-size:21px;margin-bottom:16px;">Gmail draft (optional)</h2>';
+    if(gid){
+    html += '<h2 style="font-size:21px;margin-bottom:16px;">Gmail sign-in (older method)</h2>';
     html += '<div class="card" style="margin-bottom:16px;">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">';
     html += '<h3 class="section-title" style="font-size:15px;">Designed email in Gmail</h3>';
@@ -9278,6 +9283,7 @@ function renderSettings(){
       '<li>Copy the <strong>Client ID</strong>, paste it above and save. The first time you press Open in Gmail, Google asks you to sign in; it may show &ldquo;Google hasn&rsquo;t verified this app&rdquo; &mdash; that is normal for your own app: press <strong>Advanced &rarr; Continue</strong>.</li>'+
     '</ol>';
     html += '</div>';
+    }
   }
 
   html += '<h2 style="font-size:21px;margin-bottom:16px;">Email automation</h2>';
@@ -9348,15 +9354,23 @@ function renderSettings(){
     });
     qs('#mailerTestBtn', wrap).addEventListener('click', async function(){
       const to = qs('#set_mailerTestTo', wrap).value.trim();
-      if(!to){ toast('Type the address to send the test to.', 'error'); return; }
-      if(!mailerConfigured()){ toast('Save the web app link and password first.', 'error'); return; }
+      if(!to){ toast('Type the address for the test draft.', 'error'); return; }
+      if(!mailerConfigured()){ toast('Save the web app link first.', 'error'); return; }
       const btn = qs('#mailerTestBtn', wrap); const label = btn.innerHTML;
-      btn.disabled = true; btn.textContent = 'Sending…';
-      try{ const r = await sendMailerTest(to); toast('Test email sent to ' + to + (r.from ? ' from ' + r.from : '') + '.', 'success'); }
-      catch(err){ console.error(err); toast(err.message || 'The test email failed.', 'error'); }
+      btn.disabled = true; btn.textContent = 'Preparing…';
+      const pre = openPreparingTab();
+      try{
+        const sample = sampleReportForTest(to);
+        await openMailerDraft(sample, buildPDF(sample).output('blob'), { test:true }, pre);
+        toast('Test draft ready in Gmail. Nothing was sent.', 'success');
+      } catch(err){
+        console.error(err); if(pre && !pre.closed) pre.close();
+        toast(err.message || 'The test draft failed.', 'error');
+      }
       btn.disabled = false; btn.innerHTML = label;
     });
-    qs('#saveGmailBtn', wrap).addEventListener('click', function(){
+    const oldSaveBtn = qs('#saveGmailBtn', wrap);
+    if(oldSaveBtn) oldSaveBtn.addEventListener('click', function(){
       const v = qs('#set_gmailClientId', wrap).value.trim();
       if(v && !/\.apps\.googleusercontent\.com$/i.test(v)){ toast('That does not look like a Google Client ID. It ends with .apps.googleusercontent.com', 'error'); return; }
       try{ if(v) localStorage.setItem(GMAIL_CLIENT_KEY, v); else localStorage.removeItem(GMAIL_CLIENT_KEY); }
