@@ -2467,6 +2467,10 @@ const CONFIG = {
   companyPhone: '02-79068414 / 0905-3017710',
   companyEmail: 'gepestcon_co@yahoo.com',
   companyWeb: 'gepestcon.co',
+  // Optional: a public https link to the logo for the designed email. Leave blank to embed the built-in copy.
+  emailLogoUrl: '',
+  // Optional: a Google OAuth Client ID, so every admin does not have to paste it in Settings. Normally left blank.
+  gmailClientId: '',
   // fix: P3.5-1, see build prompt — optional PH FDA pest-control compliance
   // fields. Deliberately blank by default: the exact wording/requirement
   // needs confirming with the owner or a compliance contact before this is
@@ -3539,12 +3543,18 @@ async function areaEnter(code){
     if(live()){ await areaOpenApp(); return; }
     if(isOfflineNow()){
       if(hasAnon && enterOfflineMode() === true){ try{ await loadSettings(); }catch(e){} checkForSavedDraft(); return; }
+      // the first time on this phone with no internet: open on this phone alone; the real sign-in is made when the internet is back
+      if(!hasAnon && enterLocalAreaMode()){ try{ await loadSettings(); }catch(e){} checkForSavedDraft(); return; }
       throw new Error('There is no internet connection.');
     }
     const r = await sb.auth.signInAnonymously();
     if(r.error) throw r.error;
     // onAuthStateChange takes it from here (areaOpenApp)
-  }catch(err){ areaFail(err); }
+  }catch(err){
+    // internet looks on but the server cannot be reached (no signal): same, never stop the first time
+    if(isNetworkError(err) && !readStoredLogin() && enterLocalAreaMode()){ try{ await loadSettings(); }catch(e){} checkForSavedDraft(); return; }
+    areaFail(err);
+  }
 }
 let areaOpenPromise = null;
 /* Opens the app for an area phone that has a session. Safe to call twice at once (the sign-in event and the tap can race). */
@@ -3557,6 +3567,7 @@ function areaOpenApp(){
     if(!state.profile || state.profile.id !== sess.user.id) state.profile = await fetchProfile(sess.user.id);
     if(!state.profile){ showProfileErrorScreen(); return; }
     if(state.profile.active === false){ toast('This account has been deactivated. Contact your admin.', 'error'); welcomeCancel(); await signOutUser(); return; }
+    await localAreaRekey(state.profile.id);   // reports saved while this phone had never been online belong to this sign-in now
     showApp();
     try{ await loadSettings(); }catch(e){}
     checkForSavedDraft();
@@ -4094,12 +4105,14 @@ function renderAuthScreen(){
     const password = qs('#authPassword', wrap).value;
     btn.disabled = true; btn.textContent = 'Signing in\u2026';
     try{
-      if(isOfflineNow()) throw new Error('There is no internet. The first sign-in on this phone needs internet. After that, the app opens without it.');
+      if(isOfflineNow()) throw new Error('There is no internet. Main Office needs internet once to check the password. To work with no internet, go back and choose your area.');
+      saveArea(null);
+      welcomeStart('MAIN');   // WELCOME MAIN OFFICE covers the screen BEFORE signing in: the app can open while signIn() is still finishing, and the dashboard must never show first
       const { error } = await signIn(email, password);
       if(error) throw error;
-      saveArea(null);
-      welcomeStart('MAIN');   // WELCOME MAIN OFFICE while the app opens (onAuthStateChange handles the transition)
+      // onAuthStateChange handles the transition: the animation finishes its run, then fades away over the dashboard
     } catch(err){
+      welcomeCancel();   // wrong password or no connection: take the animation off again so the error can be read
       alertBox.innerHTML = '<div class="auth-error">'+escapeHTML(err.message || 'Something went wrong.')+'</div>';
       btn.disabled = false; btn.textContent = 'Sign in';
     }
@@ -5273,15 +5286,258 @@ function approvalEmailContent(d){
   ].join('\r\n');
   return { subject: 'Job Accomplishment Report #' + no + ' - ' + company, body: body };
 }
+/* ---- DESIGNED (HTML) APPROVAL EMAIL ----
+   Gmail's compose link can only carry plain text, so the designed email is copied to the clipboard as rich HTML and the admin
+   pastes it into the Gmail message (Ctrl+V / Cmd+V). Everything is inline-styled and table-based, because Gmail keeps inline
+   styles on paste but drops <style> blocks and classes. */
+const EMAIL_LOGO_DATAURI = "data:image/png;base64,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uXPn0tDQsEk1us50nETAfcaMGSxZsmS9+vBIs705D9M0aWlp4ZJLLmHEiBEl7xM9PBMmTKC+vl47jiN79uz1+W233joTSGxq6NpsBhQuiC8A9bOf/3yq63qeEEILIfSvfvUr8vl8u56t8847j/3333+LFxKXL1/OjBkzuh0HzZgxY73vH5F5m7PYbJomzc3NHH744ZxxxhntkpW2tjZ++ctfYhiGFkLoguu6V175y2ejh7p7pwd18rBtUzuOEztx7NiFY8aMeSOTycjKyko9a9YsbrnlllLYip6I3/72t8Tj8S2alUkpmTZt2kZV2KObHNH/GypdFAoF/vnPf64zfGmtN4s+ac3rchyHfv368Yc//KEd7pRScu211zJnzhwqKyt1Op2Rhx566LRjjz12ieM4dldC12Y1oHJuaMKECW/07NlrXj6flzU1NfqOO+7gpZdewrKsUj/SsGHD+M1vfkM6nd5ixdZUKsX06dNZvnx5CZttTi8nhGDevHksXLiww/AV8WJRJro5P79QKHDdddfRp0+fdqNjpk6dyqRJj1BfX69yuZzs26/vnHvvuectINnV0LXZDajoEgXADTf86SmtdQ4Qtm3rSy+9tEQwRl0cJ554Iueccw6NjY1bpKHOsixWrVrFP//5z40OY5FUZc3MKXoghBDMmTOHF154Yb21v8iAooepqw+PaZo0NjZy0UUXMWbMmNJwhkiwf/nll5NMprRSWmot0rfe/OenALE5Qle3GFAxK7NHj95v1cnjxj2TzWaJx+O6tbWViy++mFwuV0orgyDgsssu47DDDqOpqanbQXUUip566ik2dtCCZVkdnl8U4oQQTJ06lffff3+dRhF5oKamps3SA2ZZFk1NTRx33HH85Cc/aSchTqfTnHfeebS1tRGLJXQmk+MHPzjtmd322K3FcRxrc4SubjGgMoIx+aurrvrPDjvu9FY2m5E1NTXq7bff5rLLLiuVE6KJZLfccgsjRozodgms1pqKigr+8Y9/8Nlnn3WaTlifFigi6JYsWcILL7zA4sWLNwiOm5qa1jn3cGM8T2trKzvvvDM33HDDWt7y8ssv58MPP6S6ulplMmm52267zrjiiss/dF03sblCV7cZUPECFZB4bPJjL1VX1ywppvbqscce4+abby6Jq4IgoKamhjvvvJOamhocx+k2I4pwQVtbG5MmTdoo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oLLqvdmjRw9/xptvPjRkyND/pNNpmUqllNaaCy64gNtuuw3Lsko30/d99t13X5544gkOO+wwVq1atUHGuDPYJJ/P89Of/hTXddv1U0We5vXXX+ett94qpe50oXvC932am5s58cQTefLJJ9ljjz3aDX4yDIObbrqJSy+9FNu2dSKR1G1tafm1r33tnTffnD6xMpXCdV1jSwLmrdKAImDt+75hWZacNu2VKTvvvOvfW1tbpWVZurKyUv/2t7/l8ssvb1doDYKAXr16cf/993PNNdcAoQ5mXZXzzoayf/7zn/zpT39qVyeLyh2R99nUOl0UuqJs8ve//z233HILdXV1pQFdkXFdfPHF/P73v6eqqkobhiHa2tJizz33euNvf3vpCcPA8H1fbmnAvNUaUBlPJAHriSemTD3uuOOmFhvwRF1dnfrLX/7C9773PZYsWVIKMUopgiDgzDPP5PHHH2evvfaisbGx3QD0jc3K6uvr+fOf/8wrr7xCbW0trutSXV3Nq6++yltvvVUiADdFw+P7PqtWreKAAw7gqaee4tRTTy1JMaLfifY8mzz5MXr16qW0ViKdyQTHH/+tpx99dNKLRZJQfNmep/RQaK2vZis6ijhHmqaZvfnmm7e/9dZbT5BSVsTjcdXU1CS32WYbrr/++tKeqOVgE+Dee+/l5ptvLgm3Nla+KqUsGU11dTWffvppaSzuBx980K5deWN2bm5ubqZ3795ccskljBs3DqDkUSNjnzZtGj//+c9ZsWIFtbV1ysnnpdI6c/HFP5583nk/+tR13ZRpmmpr2i1pqzMgymYyxuPx/Jtvzuhx0cUXfau1pXlIZWWlzmazaK3FmWeeyQUXXEAqlWrH0gohmD9/PjfccAPPPfccWmuqqqrW2rx2Q6EmErzFYrGSTCPKCDemlywKV2PHjuXCCy9kwIABpWQgMvxsNsstt9wSaaJ0KlVBOp0RdXV182665aan999331WO4yS+rEzrv9KAyozIzebzcuy3xh4za9Yne1RWVqC1Vs1NTXLHnXbisssuY8yYMWsNMYhA74033sg777xDIpEgkUh02pAinFPOGHf2dZFq0HEc9tlnH3784x+z3377Ud6LFbUKvffee1x22WW8//771NXVKSGEzGSyfH3HnWY8Pnny32IxSzuOY2+NxrPVG1CZESnA+clPLtnjqaeePNq2rZgd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";
+function approvalEmailHtml(d, opts){
+  const c = d.client || {};
+  const company = String(CONFIG.companyName || 'Gepestcon Co.');
+  const who = String(c.name || c.storeName || '').trim();
+  const no = String(d.controlDisplay || '');
+  const logo = (opts && opts.logoSrc) || CONFIG.emailLogoUrl || EMAIL_LOGO_DATAURI;
+  const e = escapeHTML;
+  const F = 'font-family:Arial,Helvetica,sans-serif;';
+  return '' +
+'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F3F4F6;"><tr><td align="center" style="padding:24px 8px;">' +
+'<table role="presentation" width="680" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:680px;background-color:#FFFFFF;border-top:6px solid #E8101A;border-left:1px solid #E5E7EB;border-right:1px solid #E5E7EB;">' +
+  '<tr><td class="px" style="padding:28px 38px;border-bottom:1px solid #EDEEF0;">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>' +
+      '<td width="72" valign="middle" style="width:72px;"><img src="' + e(logo) + '" width="72" alt="' + e(company) + '" style="display:block;width:72px;height:auto;border:0;"></td>' +
+      '<td valign="middle" style="padding-left:26px;' + F + '">' +
+        '<div class="co" style="font-size:22px;line-height:26px;font-weight:bold;color:#E8101A;letter-spacing:.5px;">' + e(company.toUpperCase()) + '</div>' +
+        '<div class="tag" style="font-size:12px;line-height:18px;font-weight:bold;color:#444444;letter-spacing:1.5px;padding-top:6px;">PROFESSIONAL PEST CONTROL SERVICES</div>' +
+      '</td>' +
+      '<td class="copy" width="90" valign="top" align="right" style="width:90px;' + F + 'font-size:11px;line-height:16px;font-weight:bold;color:#666666;letter-spacing:1.6px;padding-top:2px;">CUSTOMER COPY</td>' +
+    '</tr></table>' +
+  '</td></tr>' +
+  '<tr><td class="px" style="padding:34px 38px 30px 38px;' + F + '">' +
+    '<div style="font-size:13px;line-height:18px;font-weight:bold;color:#E8101A;letter-spacing:1.8px;">SERVICE REPORT NOTIFICATION</div>' +
+    '<h1 class="h1" style="margin:10px 0 22px 0;font-size:33px;line-height:40px;font-weight:bold;color:#222222;' + F + '">Your service report is ready.</h1>' +
+    '<p style="margin:0 0 14px 0;font-size:17px;line-height:26px;color:#222222;">Dear <strong>' + e(who || 'Valued Client') + (who ? ' Team,' : ',') + '</strong></p>' +
+    '<p style="margin:0 0 30px 0;font-size:17px;line-height:27px;color:#5B6068;">Thank you for choosing ' + e(company) + ' We appreciate your trust and are pleased to share your completed service report for your records.</p>' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 26px 0;"><tr>' +
+      '<td width="6" style="width:6px;background-color:#E8101A;font-size:0;line-height:0;">&nbsp;</td>' +
+      '<td style="background-color:#262626;padding:20px 22px;' + F + '">' +
+        '<div style="font-size:12.5px;line-height:18px;color:#FFFFFF;letter-spacing:1.3px;">REPORT REFERENCE / KEEP FOR YOUR RECORDS</div>' +
+        '<div style="font-size:17px;line-height:24px;font-weight:bold;color:#FFFFFF;padding-top:10px;">Job Accomplishment Report ' + e(no) + (who ? ' &mdash; ' + e(who) : '') + '</div>' +
+      '</td></tr></table>' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 28px 0;border:1px solid #D9DBDF;"><tr><td style="padding:20px 20px 18px 20px;' + F + '">' +
+      '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>' +
+        '<td width="44" height="48" align="center" valign="middle" style="width:44px;height:48px;background-color:#FF0A0A;color:#FFFFFF;font-size:16px;font-weight:bold;">PDF</td>' +
+        '<td valign="middle" style="padding-left:20px;">' +
+          '<div style="font-size:18px;line-height:22px;font-weight:bold;color:#1C1E2B;">Job Accomplishment Report</div>' +
+          '<div style="font-size:13px;line-height:18px;font-weight:bold;color:#E8101A;letter-spacing:1.3px;padding-top:3px;">PDF ATTACHED TO THIS EMAIL</div>' +
+        '</td></tr></table>' +
+      '<p style="margin:16px 0 0 0;font-size:15.5px;line-height:26px;color:#5B6068;">The attached PDF contains your service report and supporting photos and signatures where applicable. Please keep it for your records.</p>' +
+    '</td></tr></table>' +
+    '<p style="margin:0 0 22px 0;font-size:15.5px;line-height:24px;color:#5B6068;">If you have any questions or need further assistance, please feel free to contact us.</p>' +
+    '<p style="margin:0 0 22px 0;font-size:15.5px;line-height:24px;color:#5B6068;">Thank you again for your business.</p>' +
+    '<div style="font-size:18px;line-height:22px;font-weight:bold;color:#E8101A;">' + e(company) + '</div>' +
+    '<div style="font-size:14px;line-height:20px;font-style:italic;color:#6B7078;padding-top:4px;">Professional Pest Control Services</div>' +
+  '</td></tr>' +
+  '<tr><td align="center" style="background-color:#262626;border-top:4px solid #E8101A;padding:20px 24px;' + F + '">' +
+    '<div style="font-size:13px;line-height:18px;font-weight:bold;color:#FFFFFF;text-decoration:underline;">Automatically sent by the ' + e(company) + ' Job Accomplishment Report System.</div>' +
+    '<div style="font-size:12px;line-height:18px;color:#E5E5E5;padding-top:7px;">Please retain the report reference above for easy follow-up.</div>' +
+  '</td></tr>' +
+'</table></td></tr></table>';
+}
+/* Copies the designed email to the clipboard as rich text (with a plain-text fallback inside the same clipboard item). */
+function canCopyRichEmail(){ return !!(navigator.clipboard && navigator.clipboard.write && typeof ClipboardItem !== 'undefined'); }
+async function copyApprovalEmail(d){
+  const html = approvalEmailHtml(d);
+  const text = approvalEmailContent(d).body;
+  await navigator.clipboard.write([ new ClipboardItem({
+    'text/html': new Blob([html], { type:'text/html' }),
+    'text/plain': new Blob([text], { type:'text/plain' })
+  }) ]);
+}
+/* ---- GMAIL DRAFT WITH THE DESIGNED EMAIL + PDF ATTACHED ----
+   Gmail's compose link cannot carry HTML or an attachment, so when a Google Client ID is saved in Settings the app signs in to
+   the admin's Google account (Google Identity Services, scope gmail.compose = create drafts only, it cannot read mail), builds the
+   full email (HTML design, logo embedded inline, PDF attached) and saves it as a DRAFT in the admin's Gmail. The admin opens the
+   draft, checks it and presses Send. Nothing is ever sent automatically. */
+const GMAIL_CLIENT_KEY = 'gepestcon_gmail_client_id';
+const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.compose';
+let gmailTok = { token:'', exp:0, email:'' };
+let gisPromise = null;
+function gmailClientId(){
+  let v = '';
+  try{ v = localStorage.getItem(GMAIL_CLIENT_KEY) || ''; }catch(e){}
+  return (v || CONFIG.gmailClientId || '').trim();
+}
+function gmailTokenValid(){ return !!gmailTok.token && Date.now() < gmailTok.exp - 60000; }
+function loadGoogleIdentity(){
+  if(window.google && google.accounts && google.accounts.oauth2) return Promise.resolve();
+  if(gisPromise) return gisPromise;
+  gisPromise = new Promise(function(resolve, reject){
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client'; s.async = true; s.defer = true;
+    s.onload = function(){ resolve(); };
+    s.onerror = function(){ gisPromise = null; reject(new Error('Could not load Google sign-in. Check your internet connection.')); };
+    document.head.appendChild(s);
+  });
+  return gisPromise;
+}
+/* Must be called straight from a click (Google opens a sign-in popup). The script is preloaded, so the popup opens at once. */
+function requestGmailToken(clientId){
+  return new Promise(function(resolve, reject){
+    function go(){
+      const tc = google.accounts.oauth2.initTokenClient({
+        client_id: clientId, scope: GMAIL_SCOPE,
+        callback: function(r){
+          if(r.error){ reject(new Error(r.error_description || r.error)); return; }
+          gmailTok = { token: r.access_token, exp: Date.now() + (Number(r.expires_in) || 3600) * 1000, email: '' };
+          resolve(r.access_token);
+        },
+        error_callback: function(e){
+          reject(new Error(e && e.type === 'popup_closed' ? 'The Google sign-in window was closed before finishing.' :
+            (e && e.type === 'popup_failed_to_open' ? 'The browser blocked the Google sign-in window. Allow pop-ups for this page and try again.' : ((e && e.message) || 'Google sign-in failed.'))));
+        }
+      });
+      tc.requestAccessToken({ prompt: gmailTok.email ? '' : 'select_account' });
+    }
+    if(window.google && google.accounts && google.accounts.oauth2) go();
+    else loadGoogleIdentity().then(go, reject);
+  });
+}
+function b64Utf8(str){
+  const bytes = new TextEncoder().encode(str); let bin = '';
+  for(let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+function wrap76(b64){ return b64.replace(/(.{1,76})/g, '$1\r\n').replace(/\r\n$/, ''); }
+function mimeSubject(s){
+  if(/^[\x20-\x7E]*$/.test(s)) return s;
+  const words = []; let cur = '', curBytes = 0;
+  for(const ch of s){
+    const n = new TextEncoder().encode(ch).length;
+    if(curBytes + n > 42){ words.push(cur); cur = ''; curBytes = 0; }
+    cur += ch; curBytes += n;
+  }
+  if(cur) words.push(cur);
+  return words.map(function(w){ return '=?UTF-8?B?' + b64Utf8(w) + '?='; }).join('\r\n ');
+}
+/* The full message: To / Cc / Subject, then text + HTML, the logo as an inline image (cid), and the PDF as an attachment. */
+function buildGmailMime(d, pdfBase64){
+  const m = approvalEmailContent(d), c = d.client || {};
+  const html = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
+    '<meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light only">' +
+    '<style>@media only screen and (max-width:480px){.px{padding-left:20px !important;padding-right:20px !important;}.h1{font-size:28px !important;line-height:34px !important;}' +
+    '.tag{font-size:11px !important;letter-spacing:1px !important;}.co{font-size:19px !important;}.copy{display:none !important;}}</style></head>' +
+    '<body style="margin:0;padding:0;background-color:#F3F4F6;">' +
+    '<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#F3F4F6;font-size:1px;line-height:1px;">Your Job Accomplishment Report ' + escapeHTML(String(d.controlDisplay || '')) + ' is attached as a PDF.</div>' +
+    approvalEmailHtml(d, { logoSrc: 'cid:gepestcon-logo' }) + '</body></html>';
+  const logoB64 = EMAIL_LOGO_DATAURI.split(',')[1];
+  const bMix = '=_mix_' + uid(), bRel = '=_rel_' + uid(), bAlt = '=_alt_' + uid();
+  const L = [];
+  L.push('To: ' + (c.email || ''));
+  if(c.ccEmail) L.push('Cc: ' + c.ccEmail);
+  L.push('Subject: ' + mimeSubject(m.subject));
+  L.push('MIME-Version: 1.0');
+  L.push('Content-Type: multipart/mixed; boundary="' + bMix + '"');
+  L.push('');
+  L.push('--' + bMix);
+  L.push('Content-Type: multipart/related; boundary="' + bRel + '"');
+  L.push('');
+  L.push('--' + bRel);
+  L.push('Content-Type: multipart/alternative; boundary="' + bAlt + '"');
+  L.push('');
+  L.push('--' + bAlt);
+  L.push('Content-Type: text/plain; charset="UTF-8"'); L.push('Content-Transfer-Encoding: base64'); L.push('');
+  L.push(wrap76(b64Utf8(m.body)));
+  L.push('--' + bAlt);
+  L.push('Content-Type: text/html; charset="UTF-8"'); L.push('Content-Transfer-Encoding: base64'); L.push('');
+  L.push(wrap76(b64Utf8(html)));
+  L.push('--' + bAlt + '--');
+  L.push('--' + bRel);
+  L.push('Content-Type: image/png; name="gepestcon-logo.png"');
+  L.push('Content-Transfer-Encoding: base64');
+  L.push('Content-ID: <gepestcon-logo>');
+  L.push('Content-Disposition: inline; filename="gepestcon-logo.png"');
+  L.push('');
+  L.push(wrap76(logoB64));
+  L.push('--' + bRel + '--');
+  if(pdfBase64){
+    const fn = reportPdfFilename(d);
+    L.push('--' + bMix);
+    L.push('Content-Type: application/pdf; name="' + fn + '"');
+    L.push('Content-Transfer-Encoding: base64');
+    L.push('Content-Disposition: attachment; filename="' + fn + '"');
+    L.push('');
+    L.push(wrap76(pdfBase64));
+  }
+  L.push('--' + bMix + '--');
+  L.push('');
+  return L.join('\r\n');
+}
+function b64urlOfString(s){
+  const bytes = new TextEncoder().encode(s); let bin = '';
+  for(let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+async function gmailApiError(res){
+  let msg = 'Gmail returned an error (' + res.status + ').';
+  try{ const j = await res.json(); if(j && j.error && j.error.message) msg = j.error.message; }catch(e){}
+  if(res.status === 401) msg = 'The Google sign-in expired. Click the button again.';
+  return new Error(msg);
+}
+/* Saves the message as a draft. Returns { draftId, messageId }. */
+async function createGmailDraft(token, mime){
+  let res = await fetch('https://gmail.googleapis.com/upload/gmail/v1/users/me/drafts?uploadType=media', {
+    method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'message/rfc822' }, body: new Blob([mime], { type:'message/rfc822' })
+  });
+  if(!res.ok && res.status !== 401 && res.status !== 403){
+    // fallback: the ordinary JSON call (fine for messages up to a few MB)
+    res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/drafts', {
+      method: 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: { raw: b64urlOfString(mime) } })
+    });
+  }
+  if(!res.ok) throw await gmailApiError(res);
+  const j = await res.json();
+  return { draftId: j.id, messageId: j.message && j.message.id };
+}
+async function gmailAccountEmail(token){
+  if(gmailTok.email) return gmailTok.email;
+  try{
+    const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile', { headers: { Authorization: 'Bearer ' + token } });
+    if(res.ok){ const j = await res.json(); gmailTok.email = j.emailAddress || ''; }
+  }catch(e){}
+  return gmailTok.email;
+}
+function gmailDraftUrl(email, messageId){
+  return 'https://mail.google.com/mail/' + (email ? ('?authuser=' + encodeURIComponent(email)) : '') + '#drafts?compose=' + encodeURIComponent(messageId);
+}
+/* Full flow behind the "Open in Gmail" button when a Client ID is saved. `pre` is a tab opened inside the click (or null). */
+async function openDesignedGmailDraft(d, token, pre){
+  let pdfB64 = '';
+  try{
+    const blob = d.pdfPath ? await fetchStoredPdf(d.pdfPath) : null;
+    if(blob) pdfB64 = (await blobToDataURL(blob)).split(',')[1] || '';
+  }catch(e){ console.error('PDF for draft failed', e); }
+  const created = await createGmailDraft(token, buildGmailMime(d, pdfB64));
+  const email = await gmailAccountEmail(token);
+  const url = gmailDraftUrl(email, created.messageId);
+  let opened = false;
+  if(pre && !pre.closed){ pre.location.href = url; opened = true; }
+  else { const w = window.open(url, '_blank'); opened = !!w; }
+  if(!opened){
+    const body = openModal('<p style="margin-bottom:14px;">Your draft is ready in Gmail.</p><a class="btn btn-primary btn-block btn-lg" target="_blank" rel="noopener" href="' + escapeHTML(url) + '">' + icon('mail') + ' Open the draft in Gmail</a>', { title: 'Draft ready' });
+  }
+  return { pdfAttached: !!pdfB64 };
+}
 function approvalMailtoUrl(d){
   const m = approvalEmailContent(d), c = d.client || {};
   return 'mailto:' + encodeURIComponent(c.email || '') + '?subject=' + encodeURIComponent(m.subject) +
     (c.ccEmail ? ('&cc=' + encodeURIComponent(c.ccEmail)) : '') + '&body=' + encodeURIComponent(m.body);
 }
-function approvalGmailUrl(d){
+function approvalGmailUrl(d, withBody){
   const m = approvalEmailContent(d), c = d.client || {};
   return 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(c.email || '') +
-    (c.ccEmail ? ('&cc=' + encodeURIComponent(c.ccEmail)) : '') + '&su=' + encodeURIComponent(m.subject) + '&body=' + encodeURIComponent(m.body);
+    (c.ccEmail ? ('&cc=' + encodeURIComponent(c.ccEmail)) : '') + '&su=' + encodeURIComponent(m.subject) +
+    (withBody === false ? '' : ('&body=' + encodeURIComponent(m.body)));
 }
 /* Saves the stored PDF to the device (named like the report). Returns false when the PDF could not be found. */
 async function saveStoredPdf(d){
@@ -5883,53 +6139,6 @@ const PROBLEM_RECURRENCE = [
   { value:'recurring', label:'Recurring issue' }
 ];
 const PROBLEM_PRIORITIES = ['Low', 'Medium', 'High'];
-/* One-tap phrases, offered after the concern type is chosen. They are only suggestions: tapping one adds it to the box, and the
-   technician can edit or delete it. */
-const PROBLEM_DETAIL_PHRASES = {
-  'Structural or Facility': [
-    'Noted gaps that may serve as a pest entry point.',
-    'Noted cracks or holes on the wall or ceiling.',
-    'Door seal or door sweep is damaged or missing.',
-    'Drain or pipe opening is left uncovered.'
-  ],
-  'Sanitation or Housekeeping': [
-    'Food residue or spillage noted.',
-    'Garbage is not covered or not disposed of on time.',
-    'Items are stored on the floor or against the wall.',
-    'Stagnant water noted.'
-  ],
-  'Pest Activity': [
-    'Live pests were sighted.',
-    'Pest droppings were noted.',
-    'Gnaw marks were noted.',
-    'Possible pest nesting area noted.'
-  ],
-  'Others': []
-};
-const PROBLEM_RECO_PHRASES = {
-  'Structural or Facility': [
-    'Sealing of gaps',
-    'Installation of rubber strip / door sweep',
-    'Repair of damaged wall / ceiling',
-    'Cover or screen the opening'
-  ],
-  'Sanitation or Housekeeping': [
-    'Proper and regular disposal of garbage',
-    'Clean and sanitize the area',
-    'Keep food covered and properly stored',
-    'Keep items off the floor and away from the wall'
-  ],
-  'Pest Activity': [
-    'Follow-up treatment',
-    'Install glue boards / bait stations',
-    'Continue monitoring',
-    'Seal the entry points'
-  ],
-  'Others': [
-    'For monitoring',
-    "For the client's action"
-  ]
-};
 const PROBLEM_AREA_BASE = {
   seven11: SEVEN11_AREAS.concat(['Entrance Door', 'Ceiling', 'Exterior / Perimeter']),
   government: ['Office', 'Counter Area', 'Reception / Lobby', 'Hallways / Stairways', 'Comfort Room', 'Kitchen', 'Storage Area', 'Garbage Area', 'Entrance Door', 'Ceiling', 'Exterior / Perimeter'],
@@ -6036,13 +6245,6 @@ function problemPillsHTML(p){
 function paChipHTML(label, isOn, attrs){
   return '<button type="button" class="pa-chip' + (isOn ? ' is-on' : '') + '" ' + attrs + ' aria-pressed="' + (isOn ? 'true' : 'false') + '">' + escapeHTML(label) + '</button>';
 }
-function problemPhraseChipsHTML(kind, p){
-  const map = kind === 'details' ? PROBLEM_DETAIL_PHRASES : PROBLEM_RECO_PHRASES;
-  const list = map[p.type] || [];
-  if(!list.length) return '';
-  return '<div class="pa-quick"><div class="pa-quick-label">' + (kind === 'details' ? 'Quick add' : 'Common recommendations') + '</div><div class="pa-chips">' +
-    list.map(function(t, i){ return paChipHTML(t, false, 'data-pa-phrase="' + kind + ':' + i + '"'); }).join('') + '</div></div>';
-}
 function problemPhotosHTML(d, p){
   const mine = problemPhotos(d, p.id);
   let html = '';
@@ -6104,14 +6306,14 @@ function problemFormHTML(d, p){
 
   html += '<div class="' + fieldCls('details') + '" data-pa-field="details"><label for="' + idp + 'details">What did you find?<span class="req">*</span></label>' +
     '<textarea class="input" id="' + idp + 'details" data-pa-input="details" rows="3" maxlength="' + PROBLEM_DETAILS_MAX + '" placeholder="Describe what you saw, in simple words the client will understand.">' + escapeHTML(p.details || '') + '</textarea>' +
-    '<div data-pa-phrases="details">' + problemPhraseChipsHTML('details', p) + '</div><span class="err">Describe what you found.</span></div>';
+    '<span class="err">Describe what you found.</span></div>';
 
   html += '<div class="field" data-pa-field="photos"><label>Photos <span class="pa-count" data-pa-photo-count>(' + problemPhotos(d, p.id).length + ' of ' + PROBLEM_MAX_PHOTOS + ')</span></label>' +
     '<div data-pa-photos>' + problemPhotosHTML(d, p) + '</div></div>';
 
   html += '<div class="' + fieldCls('recommendation') + '" data-pa-field="recommendation"><label for="' + idp + 'recommendation">What do you recommend?<span class="req">*</span></label>' +
     '<textarea class="input" id="' + idp + 'recommendation" data-pa-input="recommendation" rows="2" maxlength="' + PROBLEM_RECO_MAX + '" placeholder="What should be done to fix it?">' + escapeHTML(p.recommendation || '') + '</textarea>' +
-    '<div data-pa-phrases="recommendation">' + problemPhraseChipsHTML('recommendation', p) + '</div><span class="err">Add your recommendation.</span></div>';
+    '<span class="err">Add your recommendation.</span></div>';
 
   html += '<div class="' + fieldCls('recurrence') + '" data-pa-field="recurrence"><label id="' + idp + 'recLbl">Has this happened before?<span class="req">*</span></label>' +
     '<div class="pa-seg" role="group" aria-labelledby="' + idp + 'recLbl">' + PROBLEM_RECURRENCE.map(function(r){
@@ -6234,28 +6436,8 @@ function setProblemArea(card, p, value){
 function setProblemType(card, p, value){
   p.type = (p.type === value) ? '' : value;      // tapping the chosen one again clears it
   qsa('[data-pa-type]', card).forEach(function(b){ const on = b.getAttribute('data-pa-type') === p.type; b.classList.toggle('is-on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
-  const a = qs('[data-pa-phrases="details"]', card), b2 = qs('[data-pa-phrases="recommendation"]', card);
-  if(a) a.innerHTML = problemPhraseChipsHTML('details', p);
-  if(b2) b2.innerHTML = problemPhraseChipsHTML('recommendation', p);
   syncProblemHead(card, p);
   clearProblemFieldError(card, 'type', p);
-}
-function addProblemPhrase(card, p, token){
-  const parts = String(token).split(':'), kind = parts[0], idx = parseInt(parts[1], 10);
-  const list = (kind === 'details' ? PROBLEM_DETAIL_PHRASES : PROBLEM_RECO_PHRASES)[p.type] || [];
-  const text = list[idx];
-  if(!text) return;
-  const key = kind === 'details' ? 'details' : 'recommendation', max = kind === 'details' ? PROBLEM_DETAILS_MAX : PROBLEM_RECO_MAX;
-  const cur = String(p[key] || '').replace(/\s+$/, '');
-  if(cur.toLowerCase().indexOf(text.toLowerCase()) >= 0) return;          // already there
-  const joiner = !cur ? '' : (kind === 'details' ? (/[.!?]$/.test(cur) ? ' ' : '. ') : '; ');
-  const next = cur + joiner + text;
-  if(next.length > max){ toast('That is too long. Shorten the text first.', 'error'); return; }
-  p[key] = next;
-  const ta = qs('[data-pa-input="' + key + '"]', card);
-  if(ta) ta.value = next;
-  clearProblemFieldError(card, key, p);
-  persistDraft();
 }
 function onProblemClick(container, e){
   const t = e.target;
@@ -6268,7 +6450,6 @@ function onProblemClick(container, e){
   if(t.closest('[data-pa-toggle]')){ toggleProblem(container, p.id); return; }
   if((el = t.closest('[data-pa-area]'))){ setProblemArea(card, p, el.getAttribute('data-pa-area')); persistDraft(); return; }
   if((el = t.closest('[data-pa-type]'))){ setProblemType(card, p, el.getAttribute('data-pa-type')); persistDraft(); return; }
-  if((el = t.closest('[data-pa-phrase]'))){ addProblemPhrase(card, p, el.getAttribute('data-pa-phrase')); return; }
   if((el = t.closest('[data-pa-recur]'))){
     p.recurrence = el.getAttribute('data-pa-recur');
     qsa('[data-pa-recur]', card).forEach(function(b){ const on = b === el; b.classList.toggle('is-on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
@@ -7484,6 +7665,11 @@ async function submitReport(){
       if(await saveReportForLater(d, type, btn)) return;
       return;
     }
+    // first time on this phone and the real sign-in is not made yet: try it now; if it cannot be made, keep the report and send it later
+    if(isLocalOnly()){
+      try{ await localAreaUpgrade(); }catch(e){}
+      if(isLocalOnly()){ await saveReportForLater(d, type, btn); return; }
+    }
     const sent = await sendReportCore(d, type, {
       technicianId: state.profile.id,
       onStatus: function(text){ if(btn) btn.innerHTML = text; },
@@ -7554,6 +7740,75 @@ function enterOfflineMode(){
   offlineBootEntered = true;
   showApp();
   return true;
+}
+/* ---- FIRST TIME WITH NO INTERNET (area phones) ----
+   An area phone signs in anonymously, which needs the server once. When there is no internet (or no signal) the very first time, the app
+   no longer stops: it opens on this phone alone, with a made-up local identity, so reports can be filled in and "Save & send later" works.
+   As soon as the internet is back, the phone signs in anonymously by itself, the waiting reports are handed over to that real sign-in
+   (their owner is changed from the local identity), and they are sent. Nothing is re-drawn while the person is typing. */
+const LOCAL_AREA_KEY = 'gepestcon_local_area_id_v1';
+function localAreaId(create){
+  let v = '';
+  try{ v = localStorage.getItem(LOCAL_AREA_KEY) || ''; if(!v && create){ v = 'local-' + uid() + uid(); localStorage.setItem(LOCAL_AREA_KEY, v); } }
+  catch(e){ if(create && !v) v = 'local-' + uid() + uid(); }
+  return v;
+}
+function isLocalOnly(){ return !!(state.profile && state.profile._localOnly); }
+let localWatchStarted = false, localUpgrading = null;
+function enterLocalAreaMode(){
+  const code = readArea(), a = areaInfo(code);
+  if(!a) return false;
+  const id = localAreaId(true);
+  state.session = { user: { id: id, email: '', is_anonymous: true }, offlineLogin: true, localOnly: true };
+  state.profile = { id: id, full_name: a.title, email: '', role: 'technician', active: true, notification_prefs: null, _offlineStub: true, _localOnly: true };
+  offlineBootEntered = true;
+  showApp();
+  if(!localWatchStarted){
+    localWatchStarted = true;
+    window.addEventListener('online', function(){ setTimeout(localAreaUpgrade, 1500); });
+    document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') localAreaUpgrade(); });
+    setInterval(localAreaUpgrade, 20000);
+  }
+  return true;
+}
+/* waiting reports belong to the local identity: hand them to the real sign-in */
+async function localAreaRekey(newId){
+  const oldId = localAreaId(false);
+  if(!oldId || !newId || oldId === newId) return;
+  try{
+    const all = (await outboxAll()) || [];
+    for(const it of all){ if(it.userId === oldId){ it.userId = newId; await outboxPut(it); } }
+    localStorage.removeItem(LOCAL_AREA_KEY);
+  }catch(e){ console.error('could not hand the waiting reports to the new sign-in', e); }
+}
+/* the internet is back while the phone is still on its local identity: sign in anonymously (the sign-in listener finishes the hand-over) */
+function localAreaUpgrade(){
+  if(!isLocalOnly() || isOfflineNow()) return Promise.resolve(false);
+  if(localUpgrading) return localUpgrading;
+  localUpgrading = (async function(){
+    try{
+      const r = await sb.auth.signInAnonymously();
+      if(r.error) return false;
+      for(let i = 0; i < 60 && isLocalOnly(); i++) await new Promise(function(res){ setTimeout(res, 100); });   // the listener swaps the profile
+      return !isLocalOnly();
+    }catch(e){ return false; }
+  })();
+  localUpgrading.then(function(){ localUpgrading = null; }, function(){ localUpgrading = null; });
+  return localUpgrading;
+}
+async function localAreaAdopt(session){
+  const newId = session.user.id;
+  await localAreaRekey(newId);
+  let prof = null;
+  try{ prof = await fetchProfile(newId); }catch(e){}
+  const old = state.profile;
+  state.profile = prof || Object.assign({}, old, { id: newId, _localOnly: false, _offlineStub: true });
+  if(state.profile._localOnly) state.profile._localOnly = false;
+  offlineBootEntered = false;
+  try{ updateHeaderUserChip(); }catch(e){}
+  try{ await outboxLoad(); outboxChanged(); }catch(e){}
+  try{ await loadSettings(); }catch(e){}
+  atRefresh(true); outboxSyncSoon();
 }
 /* The real profile replaces the basic one as soon as the server can be reached. */
 async function upgradeOfflineProfile(userId){
@@ -7774,6 +8029,8 @@ function outboxSyncSoon(){
 /* manual = the person pressed Sync: also retries reports the server refused, and refreshes the lists on screen. */
 async function outboxSyncNow(manual){
   if(outbox.syncing || !state.profile) return;
+  if(isLocalOnly() && !isOfflineNow()){ await localAreaUpgrade(); }   // the real sign-in first; the waiting reports are handed over to it
+  if(isLocalOnly()){ if(manual) toast('Could not reach the server yet. Your reports are still saved on this phone.', 'error'); outboxChanged(); return; }
   if(!outbox.syncing) await outboxLoad();
   const todo = outboxMine().filter(function(i){ return manual || !i.fatal; });
   if(isOfflineNow()){
@@ -8667,7 +8924,7 @@ async function loadAndRenderDetail(wrap, id){
   }
   if(isAdminViewer && approved){
     html += '<button class="btn btn-primary btn-block btn-lg" id="detailMailApp">'+icon('mail')+' Open email to client</button>';
-    html += '<a class="btn btn-secondary btn-block" id="detailGmail" target="_blank" rel="noopener" href="'+escapeHTML(approvalGmailUrl(d))+'">'+icon('mail')+' Open in Gmail</a>';
+    html += '<button class="btn btn-secondary btn-block" id="detailGmail" type="button">'+icon('mail')+' Open in Gmail (designed email)</button>';
     html += '<p class="small-muted" style="text-align:center;">To: '+escapeHTML(d.client.email || 'no client email on file')+(d.client.email ? '' : ' \u2014 add the client\u2019s email first.')+'</p>';
   }
   html += '</div>';
@@ -8732,6 +8989,46 @@ async function loadAndRenderDetail(wrap, id){
       const saved = await saveStoredPdf(d);   // the PDF is downloaded now, ready to attach to the email
       toast(saved ? 'Report approved. The PDF was downloaded \u2014 attach it to the email.' : 'Report approved. Use Download PDF, then attach it to the email.', 'success');
       loadAndRenderDetail(wrap, id);           // redraw: the email buttons appear
+    });
+  }
+  const gmailBtn = qs('#detailGmail', wrap);
+  if(gmailBtn){
+    if(gmailClientId()) loadGoogleIdentity().catch(function(){});   // preload so the sign-in popup opens instantly on click
+    gmailBtn.addEventListener('click', async function(){
+      if(!d.client.email){ toast('This report has no client email. Add the client’s email first.', 'error'); return; }
+      const clientId = gmailClientId();
+      if(!clientId){
+        // No Google connection saved yet: copy the design so it can be pasted into a blank Gmail message.
+        if(!canCopyRichEmail()){
+          window.open(approvalGmailUrl(d, true), '_blank', 'noopener');
+          toast('This browser cannot copy the designed email, so the plain-text email was opened.', 'error');
+          return;
+        }
+        window.open(approvalGmailUrl(d, false), '_blank', 'noopener');
+        try{
+          await copyApprovalEmail(d);
+          toast('Email design copied. In Gmail, click the message body and press Ctrl+V (Cmd+V on Mac). Tip: connect Gmail in Settings to get the finished draft with the PDF attached.', 'success');
+        } catch(err){
+          console.error('Copy failed', err);
+          toast('Could not copy the email design. Use “Open email to client” for the plain-text email.', 'error');
+        }
+        return;
+      }
+      const label = gmailBtn.innerHTML;
+      gmailBtn.disabled = true; gmailBtn.innerHTML = 'Creating the Gmail draft…';
+      let pre = null;
+      try{
+        let token;
+        if(gmailTokenValid()){ token = gmailTok.token; pre = window.open('about:blank', '_blank'); }
+        else { token = await requestGmailToken(clientId); }
+        const r = await openDesignedGmailDraft(d, token, pre);
+        toast(r.pdfAttached ? 'Draft created in your Gmail with the PDF attached (it is also in your Drafts folder). Check it, then press Send.' : 'Draft created, but the PDF could not be attached. Attach it by hand, then press Send.', r.pdfAttached ? 'success' : 'error');
+      } catch(err){
+        console.error('Gmail draft failed', err);
+        if(pre && !pre.closed) pre.close();
+        toast('Could not create the Gmail draft: ' + (err.message || 'unknown error'), 'error');
+      }
+      gmailBtn.disabled = false; gmailBtn.innerHTML = label;
     });
   }
   const mailBtn = qs('#detailMailApp', wrap);
@@ -8799,6 +9096,29 @@ function renderSettings(){
     }).join('') +
   '</div></div>';
 
+  if(isAdmin){
+    const gid = gmailClientId();
+    html += '<h2 style="font-size:21px;margin-bottom:16px;">Gmail connection</h2>';
+    html += '<div class="card" style="margin-bottom:16px;">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">';
+    html += '<h3 class="section-title" style="font-size:15px;">Designed email in Gmail</h3>';
+    html += gid ? '<span class="status-pill ok">'+icon('check')+' Connected</span>' : '<span class="status-pill off">'+icon('info')+' Not connected</span>';
+    html += '</div>';
+    html += '<p class="section-hint">When connected, <strong>Open in Gmail</strong> on an approved report creates a finished <strong>draft</strong> in your Gmail: the designed email with the logo and the report PDF already attached. You check it and press Send yourself. The app can only create drafts &mdash; it cannot read or send your mail.</p>';
+    html += field('Google Client ID', 'set_gmailClientId', 'text', gid, {placeholder:'1234567890-abc123.apps.googleusercontent.com'});
+    html += '<button class="btn btn-secondary btn-block" id="saveGmailBtn">Save Gmail connection</button>';
+    html += '<hr class="hairline">';
+    html += '<h3 class="section-title" style="font-size:15px;margin-bottom:10px;">How to get the Client ID (about 10 minutes, once)</h3>';
+    html += '<ol style="margin:0;padding-left:18px;font-size:13.5px;color:var(--ink-soft);line-height:1.8;">'+
+      '<li>Open <span class="pill-mono">console.cloud.google.com</span>, sign in with the Gmail you send from, and create a <strong>New Project</strong> (any name).</li>'+
+      '<li>Go to <strong>APIs &amp; Services &rarr; Library</strong>, search <strong>Gmail API</strong> and press <strong>Enable</strong>.</li>'+
+      '<li>Go to <strong>OAuth consent screen</strong> (Google Auth Platform). Choose <strong>External</strong>, enter an app name and your email. Under <strong>Test users</strong> add your own Gmail address. Add the scope <span class="pill-mono">gmail.compose</span> if it asks.</li>'+
+      '<li>Go to <strong>Credentials &rarr; Create credentials &rarr; OAuth client ID</strong>. Type: <strong>Web application</strong>. Under <strong>Authorized JavaScript origins</strong> add exactly: <span class="pill-mono">'+escapeHTML(location.origin)+'</span></li>'+
+      '<li>Copy the <strong>Client ID</strong>, paste it above and save. The first time you press Open in Gmail, Google asks you to sign in; it may show &ldquo;Google hasn&rsquo;t verified this app&rdquo; &mdash; that is normal for your own app: press <strong>Advanced &rarr; Continue</strong>.</li>'+
+    '</ol>';
+    html += '</div>';
+  }
+
   html += '<h2 style="font-size:21px;margin-bottom:16px;">Email automation</h2>';
 
   html += '<div class="card" style="margin-bottom:16px;">';
@@ -8844,6 +9164,17 @@ function renderSettings(){
   html += '</div>';
 
   wrap.innerHTML = html;
+
+  if(isAdmin){
+    qs('#saveGmailBtn', wrap).addEventListener('click', function(){
+      const v = qs('#set_gmailClientId', wrap).value.trim();
+      if(v && !/\.apps\.googleusercontent\.com$/i.test(v)){ toast('That does not look like a Google Client ID. It ends with .apps.googleusercontent.com', 'error'); return; }
+      try{ if(v) localStorage.setItem(GMAIL_CLIENT_KEY, v); else localStorage.removeItem(GMAIL_CLIENT_KEY); }
+      catch(e){ toast('This browser would not save the Client ID.', 'error'); return; }
+      gmailTok = { token:'', exp:0, email:'' };
+      toast(v ? 'Gmail connection saved on this device.' : 'Gmail connection removed.', 'success');
+    });
+  }
 
   if(isAdmin){
     qs('#saveCompanyBtn', wrap).addEventListener('click', async function(){
@@ -11778,7 +12109,9 @@ function init(){
   sb.auth.onAuthStateChange(async function(event, session){
     authEventSeen = true; __authEventSeenFlag = true;
     const wasOfflineLogin = !!(state.session && state.session.offlineLogin);
+    const wasLocalOnly = isLocalOnly();   // the phone was opened the first time with no internet
     state.session = session;
+    if(wasLocalOnly && session && session.user && session.user.is_anonymous){ await localAreaAdopt(session); return; }   // quiet hand-over: nothing is re-drawn
     if(event === 'PASSWORD_RECOVERY'){ // fix: P1-3, see build prompt
       authMode = 'reset';
       showAuthScreen();
