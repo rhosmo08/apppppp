@@ -2547,6 +2547,7 @@ const SIDEBAR_NAV = [
   { key:'inventory', label:'Inventory', icon:'box' },
   { key:'analytics', label:'Analytics', icon:'barChart' },
   { key:'notifications', label:'Notifications', icon:'bell' },
+  { key:'usermgmt', label:'User Management', icon:'shield' },
   { key:'settings', label:'Settings', icon:'gear' }
 ];
 const TAB_BAR_NAV = [
@@ -3730,6 +3731,7 @@ function atStart(){
 function atNeedOnline(){ if(isOfflineNow()) throw new Error('There is no internet connection. Changing the fixed list needs internet.'); }
 /* Who may change a list: Main Office (supervisor and up) any area; a person on an area phone only their own area. */
 function atCanEditArea(area){
+  if(!can('areatechs.manage')) return false;   // User Management
   if(isAreaSession()) return !!area && area === readArea();
   return roleRank(state.profile && state.profile.role) >= ROLE_RANK.supervisor;
 }
@@ -3911,8 +3913,8 @@ function renderAreaTechs(){
   const wrap = document.createElement('div');
   const onAreaPhone = isAreaSession();
   const myArea = onAreaPhone ? readArea() : null;                       // an area phone sees and changes only its own area
-  const canSetup = !onAreaPhone && roleRank(state.profile && state.profile.role) >= ROLE_RANK.supervisor;   // the one-time SQL is for Main Office
-  const canEdit = onAreaPhone ? !!myArea : canSetup;
+  const canSetup = !onAreaPhone && roleRank(state.profile && state.profile.role) >= ROLE_RANK.supervisor && can('areatechs.manage');   // the one-time SQL is for Main Office
+  const canEdit = (onAreaPhone ? !!myArea : canSetup) && can('areatechs.manage');
   function copySql(){
     function done(){ toast('SQL copied. Paste it in Supabase > SQL Editor and press Run.', 'success'); }
     try{ navigator.clipboard.writeText(AT_SETUP_SQL).then(done, fallback); }catch(e){ fallback(); }
@@ -4000,7 +4002,7 @@ function renderAuthScreen(){
 
   if(authMode === 'forgot'){
     html += '<h2 class="section-title">Reset your password</h2>';
-    html += '<p class="section-hint">Enter your email and we\u2019ll send you a link to set a new password.</p>';
+    html += '<p class="section-hint">Enter your email and we\u2019ll send you a link to set a new password. Signing in with a username? Ask your admin to reset your password.</p>';
     html += '<div id="authAlert"></div>';
     html += '<form id="authForm">';
     html += field('Email', 'authEmail', 'email', '', {required:true, placeholder:'you@gepestcon.co'});
@@ -4019,10 +4021,10 @@ function renderAuthScreen(){
   } else {
     html += '<button type="button" class="lg-back" id="authBackAreaBtn">' + icon('chevronLeft') + ' Choose your area</button>';
     html += '<h2 class="section-title">Sign in</h2>';
-    html += '<p class="section-hint">Use the email and password your admin set up.</p>';
+    html += '<p class="section-hint">Staff: use the username and password your admin gave you. Administrators and IT: use your email.</p>';
     html += '<div id="authAlert"></div>';
     html += '<form id="authForm">';
-    html += field('Email', 'authEmail', 'email', '', {required:true, placeholder:'you@gepestcon.co'});
+    html += field('Username or email', 'authEmail', 'text', '', {required:true, placeholder:'username, or you@gepestcon.co'});
     html += field('Password', 'authPassword', 'password', '', {required:true, placeholder:''});
     html += '<button type="submit" class="btn btn-primary btn-block btn-lg" id="authSubmitBtn">Sign in</button>';
     html += '</form>';
@@ -4104,7 +4106,7 @@ function renderAuthScreen(){
     }
 
     // signin
-    const email = qs('#authEmail', wrap).value.trim();
+    const email = loginIdentifierToEmail(qs('#authEmail', wrap).value);   // a username becomes its login address; a real email stays as typed
     const password = qs('#authPassword', wrap).value;
     btn.disabled = true; btn.textContent = 'Signing in\u2026';
     try{
@@ -4154,6 +4156,7 @@ async function updateReport(id, patch){
 async function getReportById(id){
   const { data, error } = await sb.from('reports').select('*').eq('id', id).single();
   if(error){ console.error('getReportById failed', error); return null; }
+  if(data && reportsOwnOnly() && data.technician_id !== state.profile.id) return null;   // User Management: not theirs, so it does not open
   return data;
 }
 
@@ -4216,6 +4219,7 @@ async function listReportsPage({ page, search, type, status, area, dateBy, year,
   const from = page * REPORTS_PAGE_SIZE;
   const to = from + REPORTS_PAGE_SIZE - 1;
   let q = sb.from('reports').select('*', { count:'exact' });
+  if(reportsOwnOnly()){ q = q.eq('technician_id', state.profile.id); }   // User Management: this position sees only its own reports
   if(type){ q = q.eq('type', type); }
   if(status){ q = q.eq('email_status', status); }
   if(area){ q = q.eq('sign_off->>area', area); }   // the area is kept inside the report's sign_off data
@@ -4249,7 +4253,9 @@ async function earliestReportYear(){
 }
 
 async function listRecentReports(limit){
-  const { data, error } = await sb.from('reports').select('*').order('created_at', { ascending:false }).limit(limit || 3);
+  let rq = sb.from('reports').select('*');
+  if(reportsOwnOnly()){ rq = rq.eq('technician_id', state.profile.id); }
+  const { data, error } = await rq.order('created_at', { ascending:false }).limit(limit || 3);
   if(error){ console.error('listRecentReports failed', error); throw error; }
   return data;
 }
@@ -4315,12 +4321,16 @@ async function updateAccount(id, patch){
 }
 async function listReportsForAccountIds(accountIds){
   if(!accountIds || !accountIds.length) return [];
-  const { data, error } = await sb.from('reports').select('*').in('account_id', accountIds).order('created_at', { ascending:false });
+  let aq = sb.from('reports').select('*').in('account_id', accountIds);
+  if(reportsOwnOnly()){ aq = aq.eq('technician_id', state.profile.id); }
+  const { data, error } = await aq.order('created_at', { ascending:false });
   if(error){ console.error('listReportsForAccountIds failed', error); throw error; }
   return data;
 }
 async function listReportsForAccount(accountId){
-  const { data, error } = await sb.from('reports').select('*').eq('account_id', accountId).order('created_at', { ascending:false });
+  let aq = sb.from('reports').select('*').eq('account_id', accountId);
+  if(reportsOwnOnly()){ aq = aq.eq('technician_id', state.profile.id); }
+  const { data, error } = await aq.order('created_at', { ascending:false });
   if(error){ console.error('listReportsForAccount failed', error); throw error; }
   return data;
 }
@@ -5573,7 +5583,7 @@ async function publicLogoUrl(){
    new tab, where the admin checks it and presses Send. There is no sign-in popup and nothing expires. The script cannot send anything. */
 const MAILER_URL_KEY = 'gepestcon_mailer_url', MAILER_SECRET_KEY = 'gepestcon_mailer_secret';
 const MAILER_SQL = 'alter table public.app_settings\n  add column if not exists mailer_url text,\n  add column if not exists mailer_secret text;\n\nnotify pgrst, \'reload schema\';';
-const MAILER_SCRIPT = "// Gepestcon Co. - Gmail draft maker.\n// This script ONLY creates a DRAFT in this Gmail account. It cannot send anything - a person must open the draft and press Send.\n// Do not share the web app link or the password below.\nvar SECRET = '__SECRET__';\n\nfunction doPost(e) {\n  try {\n    var p = JSON.parse(e.postData.contents);\n    if (p.key !== SECRET) {\n      return reply({ ok: false, error: 'Wrong password, or an older version of the script is still deployed.' });\n    }\n    if (!p.to || String(p.to).indexOf('@') < 1) {\n      return reply({ ok: false, error: 'The client email address is not valid.' });\n    }\n    var opts = { htmlBody: p.html, name: p.fromName || 'Gepestcon Co.' };\n    if (p.cc) { opts.cc = p.cc; }\n    if (p.pdfBase64) {\n      opts.attachments = [Utilities.newBlob(Utilities.base64Decode(p.pdfBase64), 'application/pdf', p.pdfName || 'report.pdf')];\n    }\n    if (p.logoBase64) {\n      opts.inlineImages = { 'gepestcon-logo': Utilities.newBlob(Utilities.base64Decode(p.logoBase64), 'image/png', 'gepestcon-logo.png') };\n    }\n    var draft = GmailApp.createDraft(p.to, p.subject, p.text, opts);\n    return reply({ ok: true, version: 2, from: Session.getEffectiveUser().getEmail(), messageId: draft.getMessageId() });\n  } catch (err) {\n    return reply({ ok: false, error: String(err) });\n  }\n}\n\n// Run this ONCE from the editor so Google asks for permission to use Gmail.\nfunction authorize() {\n  GmailApp.getDrafts();\n}\n\nfunction doGet() {\n  return reply({ ok: true, version: 2, info: 'Gepestcon Gmail draft maker is running.' });\n}\n\nfunction reply(o) {\n  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);\n}\n";
+const MAILER_SCRIPT = "// Gepestcon Co. - report mailer (version 3).\n// It sends the report email from THIS Gmail account, but ONLY when the app asks for it after a person pressed Send.\n// Do not share the web app link or the password below.\nvar SECRET = '__SECRET__';\n\nfunction doPost(e) {\n  try {\n    var p = JSON.parse(e.postData.contents);\n    if (p.token !== SECRET) {\n      return reply({ ok: false, error: 'Wrong password, or an older version of the script is still deployed.' });\n    }\n    var to = String(p.to || '').trim();\n    if (!to || to.indexOf('@') < 1) {\n      return reply({ ok: false, error: 'The client email address is not valid.' });\n    }\n    var opts = { htmlBody: p.html, name: p.fromName || 'Gepestcon Co.' };\n    if (p.cc) { opts.cc = p.cc; }\n    if (p.pdfBase64) {\n      opts.attachments = [Utilities.newBlob(Utilities.base64Decode(p.pdfBase64), 'application/pdf', p.pdfName || 'report.pdf')];\n    }\n    if (p.logoBase64) {\n      opts.inlineImages = { 'gepestcon-logo': Utilities.newBlob(Utilities.base64Decode(p.logoBase64), 'image/png', 'gepestcon-logo.png') };\n    }\n    var from = Session.getEffectiveUser().getEmail();\n    if (p.mode === 'send') {\n      GmailApp.sendEmail(to, p.subject, p.text, opts);\n      return reply({ ok: true, version: 3, mode: 'sent', from: from });\n    }\n    if (p.mode === 'draft') {\n      var draft = GmailApp.createDraft(to, p.subject, p.text, opts);\n      return reply({ ok: true, version: 3, mode: 'draft', from: from, messageId: draft.getMessageId() });\n    }\n    return reply({ ok: false, error: 'Unknown request.' });\n  } catch (err) {\n    return reply({ ok: false, error: String(err) });\n  }\n}\n\n// Run this ONCE from the editor so Google asks for permission to use Gmail.\nfunction authorize() {\n  GmailApp.getDrafts();\n}\n\nfunction doGet() {\n  return reply({ ok: true, version: 3, info: 'Gepestcon report mailer is running.' });\n}\n\nfunction reply(o) {\n  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);\n}\n";
 function mailerUrl(){ if(CONFIG.mailerUrl) return String(CONFIG.mailerUrl).trim(); try{ return (localStorage.getItem(MAILER_URL_KEY) || '').trim(); }catch(e){ return ''; } }
 function mailerSecret(){ if(CONFIG.mailerSecret) return String(CONFIG.mailerSecret).trim(); try{ return (localStorage.getItem(MAILER_SECRET_KEY) || '').trim(); }catch(e){ return ''; } }
 function mailerConfigured(){ return !!(mailerUrl() && mailerSecret()); }
@@ -5582,30 +5592,21 @@ function randomSecret(){
   const chars = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789', a = new Uint32Array(24); crypto.getRandomValues(a);
   let s = ''; for(let i = 0; i < a.length; i++) s += chars[a[i] % chars.length]; return s;
 }
-/* A tab opened straight from the click (so it is not blocked) that says what is happening while the draft is made. */
-function isMobileDevice(){ return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || ''); }
-function openPreparingTab(){
-  let w = null;
-  if(isMobileDevice()) return null;   // phones: no extra tab; a 'Draft ready' button is shown instead
-  try{
-    w = window.open('about:blank', '_blank');
-    if(w){ w.document.title = 'Preparing your Gmail draft'; w.document.body.innerHTML = '<p style="font-family:Arial,sans-serif;font-size:18px;margin:40px;color:#333;">Preparing your Gmail draft&hellip; this takes a few seconds.</p>'; }
-  }catch(e){}
-  return w;
-}
-/* Makes the draft in the sending Gmail. pdfBlob is required (the email says "attached", so a draft without the PDF is never made). Returns { from, messageId }. */
-async function createDraftViaMailer(d, pdfBlob, opts){
-  opts = opts || {};
-  if(!mailerConfigured()) throw new Error('Gmail drafts are not set up yet. Open Settings and follow the steps under \u201cOpen Gmail automatically\u201d.');
+/* Calls the mailer in the sending Gmail. o = { mode:'send', to, cc, subject, test }. pdfBlob is required (the email says "attached"). Returns { from }. */
+async function callMailer(d, pdfBlob, o){
+  o = o || {};
+  if(!mailerConfigured()) throw new Error('Sending is not set up yet. Open Settings and follow the steps under “Send emails from your Gmail”.');
   const c = d.client || {};
-  if(!c.email) throw new Error('This report has no client email.');
-  if(!pdfBlob) throw new Error('The report PDF could not be found, so no draft was made. Use Download PDF and check the report.');
+  const to = String(o.to !== undefined ? o.to : (c.email || '')).trim();
+  if(!to) throw new Error('Type the client’s email address in the To box.');
+  if(!pdfBlob) throw new Error('The report PDF could not be found, so nothing was sent. Use Download PDF and check the report.');
   const m = approvalEmailContent(d);
   const logoUrl = await publicLogoUrl();
   const pdfB64 = (await blobToDataURL(pdfBlob)).split(',')[1] || '';
   const payload = {
-    key: mailerSecret(), to: c.email, cc: c.ccEmail || '',
-    subject: (opts.test ? '[TEST] ' : '') + m.subject, text: m.body,
+    token: mailerSecret(), mode: 'send', to: to,
+    cc: String(o.cc !== undefined ? o.cc : (c.ccEmail || '')).trim(),
+    subject: String(o.subject || ((o.test ? '[TEST] ' : '') + m.subject)), text: m.body,
     html: designedEmailDocument(d, logoUrl || 'cid:gepestcon-logo'),
     fromName: CONFIG.companyName || 'Gepestcon Co.',
     pdfBase64: pdfB64, pdfName: reportPdfFilename(d),
@@ -5619,33 +5620,140 @@ async function createDraftViaMailer(d, pdfBlob, opts){
     throw new Error('Could not reach your Gmail. Check your internet connection and the web app link in Settings.');
   }
   try{ data = await res.json(); }
-  catch(err){ throw new Error('The web app link did not answer correctly. In Apps Script, deploy it as a Web app with \u201cWho has access: Anyone\u201d, then paste the link ending in /exec.'); }
+  catch(err){ throw new Error('The web app link did not answer correctly. In Apps Script, deploy it as a Web app with “Who has access: Anyone”, then paste the link ending in /exec.'); }
   if(!data || !data.ok){
     let msg = (data && data.error) || 'Gmail reported an error.';
-    if(/does not have permission|authorization is required|Required permissions/i.test(msg)) msg = 'Google has not given your script permission to use Gmail yet. In the Apps Script editor: pick \u201cauthorize\u201d in the function list at the top, press Run, then Review permissions \u2192 your account \u2192 Advanced \u2192 Go to project (unsafe) \u2192 Allow. Then try again.';
-    if(/wrong password/i.test(msg)) msg += ' If you set this up earlier, paste the NEW script over the old one, then Deploy \u2192 Manage deployments \u2192 pencil \u2192 Version: New version \u2192 Deploy.';
+    if(/does not have permission|authorization is required|Required permissions/i.test(msg)) msg = 'Google has not given your script permission to use Gmail yet. In the Apps Script editor: pick “authorize” in the function list at the top, press Run, then Review permissions → your account → Advanced → Go to project (unsafe) → Allow. Then try again.';
+    if(/wrong password/i.test(msg)) msg += ' If you set this up earlier, paste the NEW script over the old one, then Deploy → Manage deployments → pencil → Version: New version → Deploy.';
     throw new Error(msg);
   }
-  if(!data.messageId) throw new Error('The script did not return the draft. Paste the NEW script over the old one and deploy a new version.');
-  return { from: data.from || '', messageId: data.messageId };
+  if(data.mode !== 'sent') throw new Error('The script did not confirm the send. Paste the NEW script over the old one and deploy a new version.');
+  return { from: data.from || '' };
 }
-/* Creates the draft and shows it in Gmail (in `pre`, the tab opened by the click, or a new tab; a link button if the browser blocks it). */
-async function openMailerDraft(d, pdfBlob, opts, pre){
-  const r = await createDraftViaMailer(d, pdfBlob, opts);
-  const url = gmailDraftUrl(r.from, r.messageId);
-  if(isMobileDevice()){
-    if(pre && !pre.closed) pre.close();
-    openModal('<p style="margin-bottom:14px;">Your draft is ready in Gmail, with the report PDF attached.</p>' +
-      '<a class="btn btn-primary btn-block btn-lg" target="_blank" rel="noopener" href="' + escapeHTML(url) + '">' + icon('mail') + ' Open the draft in Gmail</a>' +
-      '<p class="small-muted" style="margin-top:14px;">If Gmail opens your inbox instead, tap <strong>Drafts</strong> &mdash; the newest draft is this report. Check the To, Cc and message, then tap Send.</p>', { title: 'Draft ready' });
-    return r;
+async function sendMailerTest(toEmail){
+  const sample = sampleReportForTest(toEmail);
+  return callMailer(sample, buildPDF(sample).output('blob'), { mode:'send', to: toEmail, cc:'', test:true });
+}
+
+/* ---- REVIEW & SEND SCREEN ----
+   Shows the email the way the client will get it: To, Cc, Subject (all editable), the message, and the PDF. The admin checks it, ticks the
+   box and presses Send. Nothing is sent before that. */
+function emailListOk(s){
+  const parts = String(s || '').split(/[;,]/).map(function(x){ return x.trim(); }).filter(Boolean);
+  return parts.length > 0 && parts.every(function(x){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x); });
+}
+function normalizeEmailList(s){ return String(s || '').split(/[;,]/).map(function(x){ return x.trim(); }).filter(Boolean).join(', '); }
+/* To / Cc boxes that take one or more addresses. Each address becomes a chip; type or paste, then press Enter, comma, semicolon or space. */
+function ensureChipCss(){
+  if(document.getElementById('chipsCss')) return;
+  const st = document.createElement('style'); st.id = 'chipsCss';
+  st.textContent =
+    '.chips-box{display:flex;flex-wrap:wrap;gap:6px;align-items:center;border:1px solid var(--control-border);border-radius:12px;background:var(--field-bg);padding:7px 8px;min-height:48px;cursor:text}' +
+    '.chips-box:focus-within{border-color:var(--focus);box-shadow:0 0 0 3px rgba(29,78,216,.18)}' +
+    '.mchip{display:inline-flex;align-items:center;gap:2px;max-width:100%;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:999px;padding:3px 3px 3px 11px;font-size:14px;line-height:20px;color:var(--text);word-break:break-all}' +
+    '.mchip.bad{background:var(--danger-tint);border-color:var(--danger);color:var(--danger-text)}' +
+    '.mchip button{border:0;background:transparent;width:24px;height:24px;border-radius:50%;font-size:18px;line-height:22px;color:inherit;cursor:pointer;padding:0}' +
+    '.chips-box input{flex:1;min-width:160px;border:0;outline:0;background:transparent;font:inherit;font-size:16px;color:var(--text);padding:6px 4px}';
+  document.head.appendChild(st);
+}
+function chipsFieldHTML(id, label, hint){
+  return '<div class="field"><label for="' + id + '_in">' + label + '</label><div class="chips-box" id="' + id + '">' +
+    '<input id="' + id + '_in" type="text" inputmode="email" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="' + hint + '"></div></div>';
+}
+function chipsField(box, initial){
+  const input = box.querySelector('input'); let items = [];
+  const split = function(s){ return String(s || '').split(/[\s,;]+/).map(function(x){ return x.trim(); }).filter(Boolean); };
+  const ok = function(s){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s); };
+  function render(){
+    box.querySelectorAll('.mchip').forEach(function(n){ n.remove(); });
+    items.forEach(function(v, i){
+      const chip = document.createElement('span'); chip.className = 'mchip' + (ok(v) ? '' : ' bad');
+      chip.appendChild(document.createTextNode(v));
+      const x = document.createElement('button'); x.type = 'button'; x.setAttribute('aria-label', 'Remove ' + v); x.textContent = '×';
+      x.addEventListener('click', function(e){ e.stopPropagation(); items.splice(i, 1); render(); input.focus(); });
+      chip.appendChild(x); box.insertBefore(chip, input);
+    });
   }
-  if(pre && !pre.closed){ pre.location.href = url; }
-  else {
-    const w = window.open(url, '_blank');
-    if(!w) openModal('<p style="margin-bottom:14px;">Your draft is ready in Gmail.</p><a class="btn btn-primary btn-block btn-lg" target="_blank" rel="noopener" href="' + escapeHTML(url) + '">' + icon('mail') + ' Open the draft in Gmail</a>', { title: 'Draft ready' });
-  }
-  return r;
+  function add(text){ split(text).forEach(function(v){ if(!items.some(function(y){ return y.toLowerCase() === v.toLowerCase(); })) items.push(v); }); render(); }
+  function commit(){ if(input.value.trim()){ add(input.value); } input.value = ''; }
+  input.addEventListener('keydown', function(e){
+    if(e.key === 'Enter' || e.key === ',' || e.key === ';' || e.key === ' '){ e.preventDefault(); commit(); }
+    else if(e.key === 'Backspace' && !input.value && items.length){ items.pop(); render(); }
+  });
+  input.addEventListener('input', function(){ if(/[,;\s]$/.test(input.value) && input.value.trim()) commit(); });   // phone keyboards that type the comma or space
+  input.addEventListener('paste', function(e){
+    const t = ((e.clipboardData || window.clipboardData).getData('text') || '').trim();
+    if(/[\s,;]/.test(t)){ e.preventDefault(); add(t); }
+  });
+  input.addEventListener('blur', commit);
+  box.addEventListener('click', function(){ input.focus(); });
+  add(initial);
+  return {
+    values: function(){ commit(); return items.slice(); },
+    bad: function(){ commit(); return items.filter(function(v){ return !ok(v); }); }
+  };
+}
+function openSendReview(d, onSent){
+  const c = d.client || {};
+  const m = approvalEmailContent(d);
+  ensureChipCss();
+  const body = openModal(
+    (d.emailStatus === 'sent' ? '<div class="helper-banner amber">'+icon('alert')+'<span>This report was already emailed. Sending again emails the client a second time.</span></div>' : '') +
+    chipsFieldHTML('sr_to', 'To', 'Type an email, then press Enter') +
+    chipsFieldHTML('sr_cc', 'Cc (optional)', 'Add more with Enter') +
+    '<p class="small-muted" style="margin:-4px 0 14px;">You can add <strong>more than one</strong> address in To and in Cc. Press Enter, comma or space after each one. Tap <strong>&times;</strong> to remove one.</p>' +
+    field('Subject', 'sr_subject', 'text', m.subject, {}) +
+    '<div class="field"><label>Message (what the client will see)</label>' +
+      '<iframe id="sr_preview" title="Email preview" sandbox style="width:100%;height:440px;border:1px solid var(--border);border-radius:10px;background:#fff;"></iframe></div>' +
+    '<div class="field"><label>Attachment</label><div id="sr_att" class="small-muted">Loading the PDF…</div></div>' +
+    '<label class="check-row" for="sr_ok"><input type="checkbox" id="sr_ok"><span>I checked the To, Cc and the attached PDF.</span></label>' +
+    '<div style="display:flex;gap:10px;margin-top:14px;"><button class="btn btn-secondary btn-block" id="sr_cancel" type="button">Cancel</button>' +
+    '<button class="btn btn-primary btn-block" id="sr_send" type="button" disabled>'+icon('mail')+' Send to client</button></div>',
+    { title: 'Review and send' });
+  const sheet = qs('.modal-sheet'); if(sheet) sheet.style.maxWidth = '720px';
+  const toF = chipsField(qs('#sr_to', body), c.email), ccF = chipsField(qs('#sr_cc', body), c.ccEmail);
+  qs('#sr_preview', body).srcdoc = designedEmailDocument(d, EMAIL_LOGO_DATAURI);   // the preview always shows the logo
+  let pdfBlob = null, pdfUrl = '';
+  const sendBtn = qs('#sr_send', body), ok = qs('#sr_ok', body), att = qs('#sr_att', body);
+  function refresh(){ sendBtn.disabled = !(ok.checked && pdfBlob); }
+  ok.addEventListener('change', refresh);
+  qs('#sr_cancel', body).addEventListener('click', function(){ if(pdfUrl) URL.revokeObjectURL(pdfUrl); closeModal(); });
+  (async function(){
+    try{ pdfBlob = d.pdfPath ? await fetchStoredPdf(d.pdfPath) : null; }catch(e){ pdfBlob = null; }
+    if(pdfBlob){
+      pdfUrl = URL.createObjectURL(pdfBlob);
+      att.innerHTML = '<a href="' + pdfUrl + '" target="_blank" rel="noopener" style="font-weight:700;color:var(--brand);">' + escapeHTML(reportPdfFilename(d)) + '</a> (' + Math.max(1, Math.round(pdfBlob.size / 1024)) + ' KB) &mdash; tap it to open and check the PDF.';
+    } else {
+      att.innerHTML = '<span style="color:var(--danger-text);font-weight:600;">The PDF could not be found, so this email cannot be sent. Close this and use Download PDF to check the report.</span>';
+    }
+    refresh();
+  })();
+  sendBtn.addEventListener('click', async function(){
+    const toList = toF.values();
+    const toLower = toList.map(function(x){ return x.toLowerCase(); });
+    const ccList = ccF.values().filter(function(x){ return toLower.indexOf(x.toLowerCase()) === -1; });   // an address already in To is not repeated in Cc
+    const bad = toF.bad().concat(ccF.bad());
+    const subject = qs('#sr_subject', body).value.trim();
+    if(!toList.length){ toast('Add at least one email address in the To box.', 'error'); return; }
+    if(bad.length){ toast('Check this address: ' + bad[0] + (bad.length > 1 ? ' (and ' + (bad.length - 1) + ' more)' : '') + '. Fix it or tap × to remove it.', 'error'); return; }
+    if(!subject){ toast('The subject cannot be empty.', 'error'); return; }
+    const to = toList.join(', '), cc = ccList.join(', ');
+    sendBtn.disabled = true; ok.disabled = true; sendBtn.textContent = 'Sending…';
+    try{
+      await callMailer(d, pdfBlob, { mode:'send', to: to, cc: cc, subject: subject });
+    } catch(err){
+      console.error('Send failed', err);
+      toast(err.message || 'Could not send the email.', 'error');
+      sendBtn.disabled = false; ok.disabled = false; sendBtn.innerHTML = icon('mail') + ' Send to client';
+      return;
+    }
+    if(pdfUrl) URL.revokeObjectURL(pdfUrl);
+    closeModal();
+    let marked = true;
+    try{ await updateReport(d.id, { email_status: 'sent' }); }catch(err){ marked = false; console.error('Could not mark as emailed', err); }
+    toast('Email sent to ' + to + (marked ? '.' : '. (It could not be marked as emailed in the list.)'), 'success');
+    if(onSent) onSent();
+  });
 }
 /* Full flow behind the "Open in Gmail" button when a Client ID is saved. `pre` is a tab opened inside the click (or null). */
 async function openDesignedGmailDraft(d, token, pre){
@@ -7354,21 +7462,24 @@ function applyAccountToDraft(account, draft){
   }
 }
 function startReportFromAccount(account){
+  if(!canCreateType(account.type)){ toast('Your position cannot create this type of report.', 'error'); return false; }
   state.reportType = account.type;
   state.draft = emptyDraft(account.type);
   state.draft.area = currentAreaCode() || '';
   applyAccountToDraft(account, state.draft);
   state.step = 0;
   navigate('wizard');
+  return true;
 }
 let pendingVisitId = null; // set by startReportFromVisit, consumed and cleared in submitReport
 function startReportFromVisit(account, visit){
-  startReportFromAccount(account);
+  if(startReportFromAccount(account) === false) return;
   state.draft.schedule.serviceDate = visit.scheduled_date;
   if(visit.scheduled_time) state.draft.schedule.timeStarted = visit.scheduled_time;
   pendingVisitId = visit.id;
 }
 function startNewReport(type){
+  if(!canCreateType(type)){ toast('Your position cannot create this type of report.', 'error'); return; }
   state.reportType = type;
   state.draft = emptyDraft(type);
   state.draft.area = currentAreaCode() || '';
@@ -8569,7 +8680,7 @@ function renderSuccess(){
   const wrap = document.createElement('div');
   const d = lastSubmittedReport;
   if(!d){ navigate('home'); return wrap; }
-  const isAdmin = state.profile && state.profile.role === 'admin';
+  const isAdmin = can('reports.approve');
 
   let html = '<div class="success-wrap">';
   html += '<div class="stamp">'+icon('checkSeal')+'</div>';
@@ -8579,13 +8690,14 @@ function renderSuccess(){
 
   html += '<div class="card stack-14">';
   if(isAdmin){ html += '<button class="btn btn-primary btn-block btn-lg" id="reviewApproveBtn">'+icon('checkSeal')+' Review &amp; approve</button>'; }
-  html += '<button class="btn btn-secondary btn-block btn-lg" id="downloadPdfBtn">'+icon('download')+' Download PDF report</button>';
+  if(can('reports.download_pdf')){ html += '<button class="btn btn-secondary btn-block btn-lg" id="downloadPdfBtn">'+icon('download')+' Download PDF report</button>'; }
   html += '<button class="btn btn-ghost btn-block" id="newReportBtn">Start another report</button>';
   html += '</div>';
 
   wrap.innerHTML = html;
 
-  qs('#downloadPdfBtn', wrap).addEventListener('click', function(){
+  const sDl = qs('#downloadPdfBtn', wrap);
+  if(sDl) sDl.addEventListener('click', function(){
     const a = document.createElement('a');
     a.href = lastSubmittedPdfBlobUrl;
     a.download = 'JAR-' + d.controlDisplay + '.pdf';
@@ -8670,6 +8782,7 @@ const QUICK_ACCESS_TILES = [
   { key:'areatechs', label:'Area Technicians', sub:'Fixed team per area', icon:'users' },
   { key:'analytics', label:'Analytics', sub:'View insights', icon:'barChart' },
   { key:'notifications', label:'Notifications', sub:'System alerts', icon:'bell' },
+  { key:'usermgmt', label:'User Management', sub:'Positions & permissions', icon:'shield' },
   { key:'settings', label:'Settings', sub:'App preferences', icon:'gear' }
 ];
 function renderHome(){
@@ -8684,8 +8797,9 @@ function renderHome(){
   html += '<div class="dash-hero-badge desktop-only">'+heroBadgeHTML(140)+'</div>';
   html += '</div>';
 
+  if(!canCreateAnyReport()){ html += '<div class="helper-banner">'+icon('info')+'<span>Your position does not create job reports. Use the menu to open the pages you have access to.</span></div>'; }
   html += '<div class="type-grid">';
-  Object.keys(TYPE_META).forEach(function(key){
+  Object.keys(TYPE_META).filter(function(key){ return canCreateType(key); }).forEach(function(key){
     const m = TYPE_META[key];
     html += '<button class="type-card" data-type="'+key+'">'+
       '<span class="type-icon">'+icon(m.icon)+'</span>'+
@@ -8698,15 +8812,19 @@ function renderHome(){
 
   html += '<div data-outbox-host></div>';
 
+  if(canSeeReports()){
   html += '<div class="panel-with-label">';
-  html += '<div class="divider-label">Recent reports</div>';
+  html += '<div class="divider-label">' + (can('reports.view_all') ? 'Recent reports' : 'Your recent reports') + '</div>';
   html += '<div class="card" id="homeRecentWrap" style="padding:6px 16px;"><p class="small-muted center" style="padding:20px 0;">Loading\u2026</p></div>';
   html += '</div>';
+  }
 
+  const qaTiles = QUICK_ACCESS_TILES.filter(function(t){ return navItemAllowed(t.key); });
+  if(qaTiles.length){
   html += '<div class="mobile-only" style="display:block;">';
   html += '<div class="divider-label">Quick access</div>';
   html += '<div class="quick-access-grid">';
-  QUICK_ACCESS_TILES.forEach(function(t){
+  qaTiles.forEach(function(t){
     html += '<button class="qa-tile" data-nav-key="'+t.key+'">'+
       '<span class="qa-icon">'+icon(t.icon)+'</span>'+
       '<span class="qa-text"><span class="qa-label">'+escapeHTML(t.label)+'</span><span class="qa-sub">'+escapeHTML(t.sub)+'</span></span>'+
@@ -8714,6 +8832,7 @@ function renderHome(){
     '</button>';
   });
   html += '</div></div>';
+  }
 
   html += '<div class="card status-card mobile-only" id="homeStatusCard" style="margin-top:22px;">'+syncStatusInnerHTML()+'</div>';
 
@@ -9039,7 +9158,7 @@ async function loadAndRenderDetail(wrap, id){
   html += reviewSignoffBlock(d, null);
   html += '</div>';
 
-  const isAdminViewer = !!(state.profile && state.profile.role === 'admin');
+  const canApprove = can('reports.approve'), canSend = can('reports.send_email');
   const approved = d.emailStatus === 'manual' || d.emailStatus === 'sent';
   html += '<div class="card stack-14" id="detailActions">';
   if(d.signOff && d.signOff.editedAt){
@@ -9048,23 +9167,26 @@ async function loadAndRenderDetail(wrap, id){
   if(d.emailStatus === 'sent'){
     html += '<div class="helper-banner">'+icon('info')+'<span>This report was already emailed to the client.</span></div>';
   } else if(approved){
-    html += '<div class="helper-banner">'+icon('checkSeal')+'<span>Approved by admin. '+(isAdminViewer ? 'Download the PDF, open the email below and attach the PDF before you send it.' : 'The admin will email it to the client.')+'</span></div>';
+    html += '<div class="helper-banner">'+icon('checkSeal')+'<span>Approved by admin. '+(canSend ? 'Download the PDF, open the email below and attach the PDF before you send it.' : 'The admin will email it to the client.')+'</span></div>';
   } else {
-    html += '<div class="helper-banner amber">'+icon('info')+'<span>'+(isAdminViewer ? 'This report is waiting for your approval. Approving it does not email the client by itself.' : 'Waiting for an admin to approve this report.')+'</span></div>';
+    html += '<div class="helper-banner amber">'+icon('info')+'<span>'+(canApprove ? 'This report is waiting for your approval. Approving it does not email the client by itself.' : 'Waiting for an admin to approve this report.')+'</span></div>';
   }
-  html += '<button class="btn btn-secondary btn-block btn-lg" id="detailDownload">'+icon('download')+' Download PDF</button>';
-  if(isAdminViewer){
+  if(can('reports.download_pdf')){ html += '<button class="btn btn-secondary btn-block btn-lg" id="detailDownload">'+icon('download')+' Download PDF</button>'; }
+  if(can('reports.delete')){
     html += '<button class="btn btn-danger btn-block" id="detailDelete">'+icon('trash')+' Delete report</button>';
   }
-  if(isAdminViewer && !approved){
-    html += '<button class="btn btn-secondary btn-block btn-lg" id="detailEdit">'+icon('pencil')+' Edit report</button>';
-    html += '<button class="btn btn-primary btn-block btn-lg" id="detailApprove">'+icon('checkSeal')+' Approve report</button>';
+  if(!approved){
+    if(can('reports.edit')) html += '<button class="btn btn-secondary btn-block btn-lg" id="detailEdit">'+icon('pencil')+' Edit report</button>';
+    if(canApprove) html += '<button class="btn btn-primary btn-block btn-lg" id="detailApprove">'+icon('checkSeal')+' Approve report</button>';
   }
-  if(isAdminViewer && approved){
-    html += '<button class="btn btn-primary btn-block btn-lg" id="detailGmail" type="button">'+icon('mail')+' Open in Gmail (designed email)</button>';
-    html += '<button class="btn btn-secondary btn-block" id="detailMailApp">'+icon('mail')+' Open email to client (plain text)</button>';
-    if(!mailerConfigured()){
-      html += '<p class="small-muted" style="text-align:center;">To get the finished draft in one click, with the PDF already attached, set up <strong>Open Gmail automatically</strong> in Settings.</p>';
+  if(canSend && approved){
+    if(mailerConfigured()){
+      html += '<button class="btn btn-primary btn-block btn-lg" id="detailReview" type="button">'+icon('mail')+(d.emailStatus === 'sent' ? ' Review and send again' : ' Review and send email')+'</button>';
+      html += '<button class="btn btn-secondary btn-block" id="detailMailApp">'+icon('mail')+' Open email to client (plain text)</button>';
+    } else {
+      html += '<button class="btn btn-primary btn-block btn-lg" id="detailGmail" type="button">'+icon('mail')+' Open in Gmail (designed email)</button>';
+      html += '<button class="btn btn-secondary btn-block" id="detailMailApp">'+icon('mail')+' Open email to client (plain text)</button>';
+      html += '<p class="small-muted" style="text-align:center;">To send the designed email from the app in one click, set up <strong>Send emails from your Gmail</strong> in Settings.</p>';
     }
     html += '<p class="small-muted" style="text-align:center;">To: '+escapeHTML(d.client.email || 'no client email on file')+(d.client.email ? '' : ' \u2014 add the client\u2019s email first.')+'</p>';
   }
@@ -9078,7 +9200,8 @@ async function loadAndRenderDetail(wrap, id){
   if(viewAccountBtn){
     viewAccountBtn.addEventListener('click', function(){ navigate('accountDetail', { viewingAccountId: d.accountId }); });
   }
-  qs('#detailDownload', wrap).addEventListener('click', async function(){
+  const dlBtn = qs('#detailDownload', wrap);
+  if(dlBtn) dlBtn.addEventListener('click', async function(){
     const btn = qs('#detailDownload', wrap);
     btn.disabled = true; btn.innerHTML = 'Preparing\u2026';
     let ok = await saveStoredPdf(d);
@@ -9132,27 +9255,13 @@ async function loadAndRenderDetail(wrap, id){
       loadAndRenderDetail(wrap, id);           // redraw: the email buttons appear
     });
   }
+  const reviewBtn = qs('#detailReview', wrap);
+  if(reviewBtn){ reviewBtn.addEventListener('click', function(){ openSendReview(d, function(){ loadAndRenderDetail(wrap, id); }); }); }
   const gmailBtn = qs('#detailGmail', wrap);
   if(gmailBtn){
     if(gmailClientId()) loadGoogleIdentity().catch(function(){});   // preload so the sign-in popup opens instantly on click
     gmailBtn.addEventListener('click', async function(){
       if(!d.client.email){ toast('This report has no client email. Add the client’s email first.', 'error'); return; }
-      if(mailerConfigured()){
-        const label = gmailBtn.innerHTML;
-        gmailBtn.disabled = true; gmailBtn.innerHTML = 'Preparing your Gmail draft\u2026';
-        const pre = openPreparingTab();
-        try{
-          const blob = d.pdfPath ? await fetchStoredPdf(d.pdfPath) : null;
-          await openMailerDraft(d, blob, {}, pre);
-          toast('Your Gmail draft is ready with the PDF attached. Check the To, Cc and message, then press Send.', 'success');
-        } catch(err){
-          console.error('Gmail draft failed', err);
-          if(pre && !pre.closed) pre.close();
-          toast(err.message || 'Could not make the Gmail draft.', 'error');
-        }
-        gmailBtn.disabled = false; gmailBtn.innerHTML = label;
-        return;
-      }
       const clientId = gmailClientId();
       if(!clientId){
         // No Google connection saved yet: copy the design so it can be pasted into a blank Gmail message.
@@ -9216,7 +9325,8 @@ function renderSettings(){
   const wrap = document.createElement('div');
   const s = state.settings;
   const emailJsLoaded = (typeof emailjs !== 'undefined');
-  const isAdmin = state.profile && state.profile.role === 'admin';
+  const canCompany = can('settings.company'), canEmail = can('settings.email');
+  const isAdmin = canEmail;   // the email cards below
   const prefs = (state.profile && state.profile.notification_prefs) || { report_submitted:true, email_manual_fallback:true, low_stock:true };
 
   let html = '<div class="wizard-top"><span class="eyebrow">Settings</span></div>';
@@ -9225,22 +9335,22 @@ function renderSettings(){
   html += '<div class="card" style="margin-bottom:16px;">';
   html += '<h3 class="section-title" style="font-size:15px;margin-bottom:2px;">Company info</h3>';
   html += '<p class="section-hint">Used on the PDF letterhead and in the welcome email sent with every report.</p>';
-  if(!isAdmin){ html += '<div class="helper-banner">'+icon('info')+'<span>Only an admin can change these.</span></div>'; }
+  if(!canCompany){ html += '<div class="helper-banner">'+icon('info')+'<span>Only an admin can change these.</span></div>'; }
   html += field('Company name', 'set_companyName', 'text', CONFIG.companyName, {});
   html += field('Address', 'set_companyAddress', 'text', CONFIG.companyAddress, {});
   html += '<div class="row-2">'+field('Phone', 'set_companyPhone', 'tel', CONFIG.companyPhone, {})+field('Email', 'set_companyEmail', 'email', CONFIG.companyEmail, {})+'</div>';
-  if(isAdmin){ html += '<button class="btn btn-secondary btn-block" id="saveCompanyBtn">Save company info</button>'; }
+  if(canCompany){ html += '<button class="btn btn-secondary btn-block" id="saveCompanyBtn">Save company info</button>'; }
   html += '</div>';
 
   html += '<div class="card" style="margin-bottom:16px;">'; // fix: P3.5-1, see build prompt
   html += '<h3 class="section-title" style="font-size:15px;margin-bottom:2px;">Pest control compliance</h3>';
   html += '<p class="section-hint">Optional \u2014 printed on the report letterhead only when filled in. Confirm the exact wording your license requires with your compliance contact before relying on this.</p>';
-  if(!isAdmin){ html += '<div class="helper-banner">'+icon('info')+'<span>Only an admin can change these.</span></div>'; }
+  if(!canCompany){ html += '<div class="helper-banner">'+icon('info')+'<span>Only an admin can change these.</span></div>'; }
   html += field('License to Operate (LTO) number', 'set_ltoNumber', 'text', CONFIG.ltoNumber, {placeholder:'Optional'});
   html += field('LTO expiry date', 'set_ltoExpiry', 'date', CONFIG.ltoExpiry, {});
   html += field('Supervising Pesticide Handler name', 'set_handlerName', 'text', CONFIG.supervisingHandlerName, {placeholder:'Optional'});
   html += field('Handler certificate number', 'set_handlerCertNo', 'text', CONFIG.supervisingHandlerCertNo, {placeholder:'Optional'});
-  if(isAdmin){ html += '<button class="btn btn-secondary btn-block" id="saveComplianceBtn">Save compliance info</button>'; }
+  if(canCompany){ html += '<button class="btn btn-secondary btn-block" id="saveComplianceBtn">Save compliance info</button>'; }
   html += '</div>';
 
   html += '<div class="card" style="margin-bottom:16px;">';
@@ -9256,13 +9366,13 @@ function renderSettings(){
   if(isAdmin){
     const gid = gmailClientId();
     const mUrl = mailerUrl(), mSecret = mailerSecret() || randomSecret();
-    html += '<h2 style="font-size:21px;margin-bottom:16px;">Open Gmail automatically</h2>';
+    html += '<h2 style="font-size:21px;margin-bottom:16px;">Send emails from your Gmail</h2>';
     html += '<div class="card" style="margin-bottom:16px;">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">';
     html += '<h3 class="section-title" style="font-size:15px;">One Gmail account, no signing in</h3>';
     html += '<span id="mailerPill">' + (mailerConfigured() ? '<span class="status-pill ok">'+icon('check')+' Connected</span>' : '<span class="status-pill off">'+icon('info')+' Not connected</span>') + '</span>';
     html += '</div>';
-    html += '<p class="section-hint">On an approved report, <strong>Open in Gmail</strong> opens your Gmail with the <strong>finished draft</strong>: the designed email, the report PDF attached, and the To, Cc and subject filled in. <strong>Nothing is sent automatically</strong> &mdash; you check it and press Send yourself. It never asks you to sign in again.</p>';
+    html += '<p class="section-hint">On an approved report, <strong>Review and send email</strong> shows the email exactly as the client will get it &mdash; To, Cc, subject, the message and the PDF. You check it, tick the box and press <strong>Send</strong>. It is sent from your Gmail with <strong>no signing in</strong>. <strong>Nothing is sent until you press Send.</strong></p>';
     html += '<h3 class="section-title" style="font-size:15px;margin:14px 0 8px;">Set it up (about 5 minutes, once)</h3>';
     html += '<ol style="margin:0 0 14px;padding-left:18px;font-size:13.5px;color:var(--ink-soft);line-height:1.8;">'+
       '<li>Press <strong>Copy the script</strong> below.</li>'+
@@ -9270,9 +9380,9 @@ function renderSettings(){
       '<li>Select all the sample code in the editor, delete it, and <strong>paste</strong> the copied script. Press the save icon.</li>'+
       '<li>Press <strong>Deploy &rarr; New deployment</strong>. Click the gear and choose <strong>Web app</strong>. Set <strong>Execute as: Me</strong> and <strong>Who has access: Anyone</strong>. Press <strong>Deploy</strong>.</li>'+
       '<li><strong>Give it permission:</strong> in the toolbar above the code, pick <span class="pill-mono">authorize</span> in the function list and press <strong>Run</strong>. Choose <strong>Review permissions</strong> &rarr; your account &rarr; <strong>Advanced &rarr; Go to project (unsafe) &rarr; Allow</strong>. This is your own script. It only creates drafts &mdash; it has no way to send email. (Do this before step 4 if Google has not already asked you.)</li>'+
-      '<li>Copy the <strong>Web app URL</strong> (it ends with <span class="pill-mono">/exec</span>), paste it below, and press <strong>Save</strong>. Then press <strong>Create a test draft</strong>.</li>'+
+      '<li>Copy the <strong>Web app URL</strong> (it ends with <span class="pill-mono">/exec</span>), paste it below, and press <strong>Save</strong>. Then press <strong>Send a test email</strong>.</li>'+
     '</ol>';
-    html += '<p class="small-muted" style="margin-bottom:14px;"><strong>Already pasted an earlier script?</strong> Paste this new one over it, save, then <strong>Deploy &rarr; Manage deployments &rarr; pencil icon &rarr; Version: New version &rarr; Deploy</strong>. Keep the same link.</p>';
+    html += '<p class="small-muted" style="margin-bottom:14px;"><strong>Already pasted an earlier script?</strong> The script changed &mdash; it can now send. Press <strong>Copy the script</strong>, paste it over the old one, save, then <strong>Deploy &rarr; Manage deployments &rarr; pencil icon &rarr; Version: New version &rarr; Deploy</strong>. Keep the same link. If Google asks for permission again, allow it.</p>';
     html += field('Password (already filled in, and already inside the copied script)', 'set_mailerSecret', 'text', mSecret, {});
     html += '<button class="btn btn-secondary btn-block" id="copyMailerScriptBtn" style="margin-bottom:14px;">Copy the script</button>';
     html += field('Web app URL', 'set_mailerUrl', 'text', mUrl, {placeholder:'https://script.google.com/macros/s/.../exec'});
@@ -9280,10 +9390,10 @@ function renderSettings(){
     html += '<div class="helper-banner" style="margin-top:14px;">'+icon('info')+'<span><strong>Works on every phone and computer.</strong> Saving here shares the Gmail link with all devices that log in &mdash; no setup on each phone. The first time only, run the database command below once: open <strong>Supabase &rarr; SQL Editor &rarr; New query</strong>, paste, and press <strong>Run</strong>. Then press Save again.</span></div>';
     html += '<button class="btn btn-secondary btn-block" id="copySqlBtn" type="button" style="margin-top:10px;">Copy the database command</button>';
     html += '<hr class="hairline">';
-    html += '<h3 class="section-title" style="font-size:15px;margin-bottom:2px;">Create a test draft</h3>';
-    html += '<p class="section-hint">Makes a draft with a sample PDF addressed to the email below and opens it in Gmail. Nothing is sent. Save first.</p>';
-    html += field('Address for the test draft', 'set_mailerTestTo', 'email', '', {placeholder:'you@example.com'});
-    html += '<button class="btn btn-secondary btn-block" id="mailerTestBtn">'+icon('mail')+' Create a test draft</button>';
+    html += '<h3 class="section-title" style="font-size:15px;margin-bottom:2px;">Send a test email</h3>';
+    html += '<p class="section-hint">Sends the designed email with a sample PDF to the address below, so you can see exactly what a client gets. This really sends, so use your own address. Save first.</p>';
+    html += field('Send the test to', 'set_mailerTestTo', 'email', '', {placeholder:'you@example.com'});
+    html += '<button class="btn btn-secondary btn-block" id="mailerTestBtn">'+icon('mail')+' Send a test email</button>';
     html += '<p class="small-muted" style="margin-top:12px;">Keep the web app link and the password private. Save them on each device you use as admin. To change the Gmail account later, repeat these steps signed in with the other Gmail and save its new link.</p>';
     html += '</div>';
 
@@ -9310,6 +9420,7 @@ function renderSettings(){
     }
   }
 
+  if(canEmail){
   html += '<h2 style="font-size:21px;margin-bottom:16px;">Email automation</h2>';
 
   html += '<div class="card" style="margin-bottom:16px;">';
@@ -9353,6 +9464,7 @@ function renderSettings(){
   html += '<p class="small-muted" style="margin-top:12px;">Other values the app sends, if you want them in the template: <span class="pill-mono">{{report_id}}</span> <span class="pill-mono">{{client_name}}</span> <span class="pill-mono">{{technician_name}}</span> <span class="pill-mono">{{service_date}}</span> <span class="pill-mono">{{company_name}}</span> <span class="pill-mono">{{company_phone}}</span> <span class="pill-mono">{{company_email}}</span> <span class="pill-mono">{{company_address}}</span>.</p>';
   html += '<p class="small-muted" style="margin-top:14px;">Note: these values sit in the page\u2019s own code, the same as on any website using EmailJS \u2014 that\u2019s how the service is designed to work, so this is normal and expected, not a security gap specific to this app.</p>';
   html += '</div>';
+  }
 
   wrap.innerHTML = html;
 
@@ -9397,19 +9509,12 @@ function renderSettings(){
     });
     qs('#mailerTestBtn', wrap).addEventListener('click', async function(){
       const to = qs('#set_mailerTestTo', wrap).value.trim();
-      if(!to){ toast('Type the address for the test draft.', 'error'); return; }
+      if(!emailListOk(to)){ toast('Type a valid email address for the test.', 'error'); return; }
       if(!mailerConfigured()){ toast('Save the web app link first.', 'error'); return; }
       const btn = qs('#mailerTestBtn', wrap); const label = btn.innerHTML;
-      btn.disabled = true; btn.textContent = 'Preparing…';
-      const pre = openPreparingTab();
-      try{
-        const sample = sampleReportForTest(to);
-        await openMailerDraft(sample, buildPDF(sample).output('blob'), { test:true }, pre);
-        toast('Test draft ready in Gmail. Nothing was sent.', 'success');
-      } catch(err){
-        console.error(err); if(pre && !pre.closed) pre.close();
-        toast(err.message || 'The test draft failed.', 'error');
-      }
+      btn.disabled = true; btn.textContent = 'Sending…';
+      try{ const r = await sendMailerTest(to); toast('Test email sent to ' + to + (r.from ? ' from ' + r.from : '') + '.', 'success'); }
+      catch(err){ console.error(err); toast(err.message || 'The test email failed.', 'error'); }
       btn.disabled = false; btn.innerHTML = label;
     });
     const oldSaveBtn = qs('#saveGmailBtn', wrap);
@@ -9423,7 +9528,7 @@ function renderSettings(){
     });
   }
 
-  if(isAdmin){
+  if(canCompany){
     qs('#saveCompanyBtn', wrap).addEventListener('click', async function(){
       const btn = qs('#saveCompanyBtn', wrap);
       btn.disabled = true; btn.textContent = 'Saving\u2026';
@@ -9551,7 +9656,7 @@ function renderProfile(){
   const wrap = document.createElement('div');
   const p = state.profile || {};
   const arInfo = areaSessionInfo();
-  const roleLabel = arInfo ? 'Area access' : (p.role === 'admin' ? 'Administrator' : 'Technician');
+  const roleLabel = arInfo ? 'Area access' : accessPositionLabel();
   const currentTheme = p.theme_preference || 'system';
 
   let html = '<div class="profile-hero">';
@@ -9581,6 +9686,7 @@ function renderProfile(){
     '<button type="button" class="btn btn-secondary btn-sm" id="checkUpdateBtn">Check for updates</button></div>';
   html += '</div>';
 
+  if(!arInfo){ html += '<div class="card" style="margin-top:14px;padding:4px 20px;"><button class="profile-row" id="changePwBtn" style="width:100%;background:none;border:none;text-align:left;cursor:pointer;"><span><span class="pr-label">Change password</span><span class="pr-sub" style="display:block;">Choose a new password for this account</span></span>'+icon('chevronRight')+'</button></div>'; }
   html += '<button class="btn btn-secondary btn-block btn-lg" id="profileSignOutBtn" style="margin-top:18px;">'+icon('logout')+(arInfo ? ' Change area' : ' Sign out')+'</button>';
 
   wrap.innerHTML = html;
@@ -9597,7 +9703,9 @@ function renderProfile(){
       } catch(err){ toast('Could not save theme preference: ' + (err.message||'unknown error'), 'error'); }
     });
   });
-  qs('#goToSettingsBtn', wrap).addEventListener('click', function(){ navigate('settings'); });
+  const cpw = qs('#changePwBtn', wrap); if(cpw) cpw.addEventListener('click', changeOwnPasswordModal);
+  const goSet = qs('#goToSettingsBtn', wrap);
+  if(goSet){ if(!can('settings.view')){ const gc = goSet.closest('.card'); if(gc) gc.remove(); } else goSet.addEventListener('click', function(){ navigate('settings'); }); }
   qs('#checkUpdateBtn', wrap).addEventListener('click', async function(){
     const btn = qs('#checkUpdateBtn', wrap);
     btn.disabled = true; btn.textContent = 'Checking...';
@@ -9637,7 +9745,7 @@ function clientRowHTML(c){
 }
 function renderClientsList(){
   const wrap = document.createElement('div');
-  const isAdmin = state.profile && state.profile.role === 'admin';
+  const isAdmin = can('clients.add');
   let html = '<div class="wizard-top"><span class="eyebrow">Clients</span></div>';
   html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;">';
   html += '<h2 style="font-size:21px;">Clients</h2>';
@@ -9718,7 +9826,8 @@ function renderClientDetail(){
   return wrap;
 }
 async function loadClientDetail(wrap){
-  const isAdmin = state.profile && state.profile.role === 'admin';
+  const canEditClient = can('clients.edit'), canAddAccount = can('accounts.add');
+  const isAdmin = canEditClient || canAddAccount;
   const client = await getClientById(state.viewingClientId);
   if(!client){
     wrap.innerHTML = '<div class="empty-state">'+icon('alert')+'<h3>Client not found</h3></div>';
@@ -9738,7 +9847,7 @@ async function loadClientDetail(wrap){
   html += '<div class="card" style="margin-bottom:16px;">';
   html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">';
   html += '<div><h2 class="section-title">'+escapeHTML(client.name)+'</h2><p class="section-hint">'+escapeHTML(client.contact_person||'No contact set')+'</p></div>';
-  if(isAdmin){
+  if(canEditClient){
     html += '<div style="display:flex;gap:8px;flex-shrink:0;">'+
       '<button class="btn btn-secondary btn-sm" id="editClientBtn">'+icon('pencil')+' Edit</button>'+
       '<button class="btn btn-secondary btn-sm" id="archiveClientBtn">'+icon('box')+' Archive</button>'+
@@ -9754,7 +9863,7 @@ async function loadClientDetail(wrap){
   html += '<div style="display:flex;align-items:center;justify-content:space-between;margin:22px 0 10px;">';
   html += '<div class="divider-label" style="margin:0;flex:1;">Accounts (' + accounts.length + ')</div>';
   html += '</div>';
-  if(isAdmin){ html += '<button class="btn btn-secondary btn-block btn-sm" id="addAccountBtn" style="margin-bottom:10px;">'+icon('plus')+' Add account under this client</button>'; }
+  if(canAddAccount){ html += '<button class="btn btn-secondary btn-block btn-sm" id="addAccountBtn" style="margin-bottom:10px;">'+icon('plus')+' Add account under this client</button>'; }
   if(accounts.length===0){
     html += '<div class="empty-state" style="padding:24px 10px;">'+icon('briefcase')+'<p style="font-size:13px;">No accounts under this client yet.</p></div>';
   } else {
@@ -9777,8 +9886,11 @@ async function loadClientDetail(wrap){
   wrap.innerHTML = html;
   qs('#cdBack2', wrap).addEventListener('click', function(){ navigate('clients'); });
   if(isAdmin){
+    const addAcctBtn = qs('#addAccountBtn', wrap);
+    if(addAcctBtn) addAcctBtn.addEventListener('click', function(){ openAccountForm(null, client, function(){ loadClientDetail(wrap); }); });
+  }
+  if(canEditClient){
     qs('#editClientBtn', wrap).addEventListener('click', function(){ openClientForm(client, function(){ loadClientDetail(wrap); }); });
-    qs('#addAccountBtn', wrap).addEventListener('click', function(){ openAccountForm(null, client, function(){ loadClientDetail(wrap); }); });
     qs('#archiveClientBtn', wrap).addEventListener('click', function(){ // fix: P1-2, see build prompt
       openModal(
         '<p style="font-size:14px;color:var(--ink-soft);margin-bottom:18px;line-height:1.5;">Archiving hides '+escapeHTML(client.name)+' from the active Clients list. Its accounts and report history are kept and can still be reached from existing links.</p>'+
@@ -9836,7 +9948,7 @@ function accountRowHTML(a){
 }
 function renderAccountsList(){
   const wrap = document.createElement('div');
-  const isAdmin = state.profile && state.profile.role === 'admin';
+  const isAdmin = can('accounts.add');
   let html = '<div class="wizard-top"><span class="eyebrow">Accounts</span></div>';
   html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;">';
   html += '<h2 style="font-size:21px;">Accounts</h2>';
@@ -9974,7 +10086,7 @@ function renderAccountDetail(){
   return wrap;
 }
 async function loadAccountDetail(wrap){
-  const isAdmin = state.profile && state.profile.role === 'admin';
+  const isAdmin = can('accounts.edit');
   const account = await getAccountById(state.viewingAccountId);
   if(!account){
     wrap.innerHTML = '<div class="empty-state">'+icon('alert')+'<h3>Account not found</h3></div>';
@@ -10001,7 +10113,7 @@ async function loadAccountDetail(wrap){
     html += '<div class="ad-actions" style="display:flex;gap:8px;flex-shrink:0;">'+
       '<button class="btn btn-secondary btn-sm" id="editAccountBtn">'+icon('pencil')+' Edit</button>'+
       '<button class="btn btn-secondary btn-sm" id="archiveAccountBtn">'+icon('box')+' Archive</button>'+
-      (account.type==='seven11' ? '<button class="btn btn-danger btn-sm" id="deleteStoreBtn">'+icon('trash')+' Delete</button>' : '')+
+      (account.type==='seven11' && can('stores.manage') ? '<button class="btn btn-danger btn-sm" id="deleteStoreBtn">'+icon('trash')+' Delete</button>' : '')+
     '</div>';
   }
   html += '</div>';
@@ -10012,7 +10124,7 @@ async function loadAccountDetail(wrap){
   html += '<dl class="kv" style="margin-top:14px;">' + kvRows.map(function(r){ return '<dt>'+r[0]+'</dt><dd class="'+(r[1]?'':'empty')+'">'+(escapeHTML(r[1])||'Not provided')+'</dd>'; }).join('') + '</dl>';
   html += '</div>';
 
-  html += '<button class="btn btn-primary btn-block btn-lg" id="startReportFromAccountBtn" style="margin-bottom:22px;">'+icon('send')+' Start report for this account</button>';
+  if(canCreateType(account.type)) html += '<button class="btn btn-primary btn-block btn-lg" id="startReportFromAccountBtn" style="margin-bottom:22px;">'+icon('send')+' Start report for this account</button>';
 
   html += '<div class="divider-label">Report history (' + reports.length + ')</div>';
   if(reports.length===0){
@@ -10067,7 +10179,8 @@ async function loadAccountDetail(wrap){
       });
     });
   }
-  qs('#startReportFromAccountBtn', wrap).addEventListener('click', function(){ startReportFromAccount(account); });
+  const startAcct = qs('#startReportFromAccountBtn', wrap);
+  if(startAcct) startAcct.addEventListener('click', function(){ startReportFromAccount(account); });
   qsa('#acctReportHistory .hist-item', wrap).forEach(function(el){
     el.addEventListener('click', function(){ navigate('reportDetail', { viewingReportId: el.dataset.id }); });
   });
@@ -10131,7 +10244,7 @@ function storeWithTimeout(promise, ms){
     promise.then(function(v){ clearTimeout(t); resolve(v); }, function(e){ clearTimeout(t); reject(e); });
   });
 }
-function storeIsAdmin(){ return !!(state.profile && state.profile.role === 'admin'); }
+function storeIsAdmin(){ return can('stores.manage'); }
 // A phone that knows it has no connection fails at once instead of waiting for the database library to give up (it retries for about 7 seconds).
 function storeNeedOnline(){ if(typeof navigator !== 'undefined' && navigator.onLine === false) throw new Error('There is no internet connection.'); }
 function storeCountText(n){ return n === 1 ? '1 store' : n + ' stores'; }
@@ -11318,7 +11431,7 @@ function wireStoreLookup(container, d){
    honestly rather than implying it's real access control.
    ============================================================ */
 function techRowHTML(p){
-  const roleLabel = p.role==='admin' ? 'Admin' : 'Technician';
+  const roleLabel = p.role==='admin' ? 'Admin' : roleDisplay(p.role);
   return '<button class="hist-item" data-id="'+escapeHTML(p.id)+'">'+
     '<span class="hi-icon">'+icon('user')+'</span>'+
     '<span class="hi-main">'+
@@ -11333,7 +11446,7 @@ function renderTechniciansList(){
   let html = '<div class="wizard-top"><span class="eyebrow">Technicians</span></div>';
   html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;">'; // feat: ROLES-2
   html += '<h2 style="font-size:21px;">Technicians</h2>';
-  if(viewerRank >= ROLE_RANK.supervisor){ html += '<button class="btn btn-primary btn-sm" id="addStaffBtn">'+icon('plus')+' Add staff</button>'; } // feat: ROLES-2 — replaces the old Supabase-dashboard-only banner; hidden entirely for Technician
+  if(viewerRank >= ROLE_RANK.supervisor && can('staff.invite')){ html += '<button class="btn btn-primary btn-sm" id="addStaffBtn">'+icon('plus')+' Add staff</button>'; } // feat: ROLES-2 — replaces the old Supabase-dashboard-only banner; hidden entirely for Technician
   html += '</div>';
   html += '<input class="input" id="techSearch" placeholder="Search technicians" style="margin-bottom:16px;">';
   html += '<div id="techListWrap"><p class="small-muted center" style="padding:30px 0;">Loading\u2026</p></div>';
@@ -11358,7 +11471,7 @@ function renderTechniciansList(){
     });
   }
   qs('#techSearch', wrap).addEventListener('input', debounce(load, 250));
-  if(viewerRank >= ROLE_RANK.supervisor){ // feat: ROLES-2
+  if(viewerRank >= ROLE_RANK.supervisor && can('staff.invite')){ // feat: ROLES-2
     qs('#addStaffBtn', wrap).addEventListener('click', function(){ openAddStaffForm(load); });
   }
   load();
@@ -11445,12 +11558,12 @@ async function loadTechnicianDetail(wrap){
   }
   const viewerRank = roleRank(state.profile.role); // feat: ROLES-4
   const targetRank = roleRank(person.role); // feat: ROLES-4
-  const canManage = !isSelf && viewerRank > targetRank; // feat: ROLES-4
+  const canManage = !isSelf && viewerRank > targetRank && can('staff.manage'); // feat: ROLES-4
   let html = '<div class="wizard-top"><button class="back-link" id="tdBack2">'+icon('chevronLeft')+' Technicians</button></div>';
   html += '<div class="profile-hero" style="padding-top:10px;">';
   html += '<div class="ph-avatar">'+escapeHTML(initials(person.full_name))+'</div>';
   html += '<h2>'+escapeHTML(person.full_name||'(no name set)')+'</h2>';
-  html += '<span class="role-tag">'+(person.role==='admin'?'Administrator':'Technician')+(person.active?'':' \u00B7 Inactive')+'</span>';
+  html += '<span class="role-tag">'+roleDisplay(person.role)+(person.active?'':' \u00B7 Inactive')+'</span>';
   html += '</div>';
 
   html += '<div class="card" style="margin-top:8px;">';
@@ -11546,7 +11659,7 @@ function serviceRowHTML(s){
 }
 function renderServicesList(){
   const wrap = document.createElement('div');
-  const isAdmin = state.profile && state.profile.role === 'admin';
+  const isAdmin = can('services.manage');
   let html = '<div class="wizard-top"><span class="eyebrow">Services</span></div>';
   html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px;">';
   html += '<h2 style="font-size:21px;">Services</h2>';
@@ -11692,7 +11805,7 @@ function visitRowHTML(v){
 }
 function renderScheduleList(){
   const wrap = document.createElement('div');
-  const isAdmin = state.profile && state.profile.role === 'admin';
+  const isAdmin = can('schedule.manage');
   let html = '<div class="wizard-top"><span class="eyebrow">Schedule</span></div>';
   html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;">';
   html += '<h2 style="font-size:21px;">Schedule</h2>';
@@ -11826,7 +11939,7 @@ function inventoryRowHTML(item){
 }
 function renderInventoryList(){
   const wrap = document.createElement('div');
-  const isAdmin = state.profile && state.profile.role === 'admin';
+  const isAdmin = can('inventory.manage');
   let html = '<div class="wizard-top"><span class="eyebrow">Inventory</span></div>';
   html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;">';
   html += '<h2 style="font-size:21px;">Inventory</h2>';
@@ -12131,7 +12244,7 @@ function updateHeaderUserChip(){
   const el = qs('#headerUserBtn');
   if(!el || !state.profile) return;
   const arInfo = areaSessionInfo();
-  const roleLabel = arInfo ? 'Area access' : (state.profile.role === 'admin' ? 'Administrator' : 'Technician');
+  const roleLabel = arInfo ? 'Area access' : accessPositionLabel();
   const shownName = arInfo ? arInfo.title : (state.profile.full_name||'(no name set)');
   el.innerHTML = '<span class="hu-avatar">'+escapeHTML(arInfo ? arInfo.letter : initials(state.profile.full_name))+'</span>'+
     '<span class="hu-name">'+escapeHTML(shownName)+'<span class="hu-role">'+roleLabel+'</span></span>'+
@@ -12157,6 +12270,8 @@ function showApp(){
   qs('#authRoot').style.display = 'none';
   qs('#authRoot').innerHTML = '';
   qs('#appRoot').style.display = '';
+  accessCacheLoad();   // User Management: the saved permissions of this phone, so the right menu shows at once
+  try{ buildShellNav(); applyHeaderAccess(); }catch(e){ console.error(e); }
   updateHeaderUserChip();
   render();
   refreshNotificationBadge();
@@ -12166,11 +12281,921 @@ function showApp(){
   atStart();   // the fixed technicians of each area are kept on this phone too
 }
 
+
+/* ============================================================
+   USER MANAGEMENT — positions, and what each position can see and do
+   ------------------------------------------------------------
+   * Everyone has a POSITION. The built-in ones are Technician, Supervisor and Manager (they follow the person's role in the
+     database). An admin can add more (for example "Driver" or "Office staff") and give each one its own permissions.
+   * Settings are PER POSITION, not per person. Administrators always have full access: it cannot be switched off, so
+     nobody can ever lock the admin out.
+   * Only an admin opens this screen and changes these settings.
+   * Enforced inside the app (menus, pages and buttons). The database keeps its own rules as the real floor: a permission
+     granted here can still be refused by the database for actions that the database limits to admins (marked "Database may
+     limit this to admins" below).
+   * The settings live in two tables (ACCESS_SQL below). Until that one-time SQL is run, the built-in recommended settings
+     are used, so the app works the same on every phone.
+   ============================================================ */
+const PERM_GROUPS = [
+  { key:'reports', label:'Job reports', perms:[
+    { k:'reports.create_seven11',    label:'Create 7-Eleven reports', hint:'Start and submit a 7-Eleven store report.' },
+    { k:'reports.create_private',    label:'Create Private / Residential reports', hint:'Start and submit a private or residential report.' },
+    { k:'reports.create_government', label:'Create Government / Commercial reports', hint:'Start and submit a government or commercial report.' },
+    { k:'reports.view_own',   label:'See their own reports', hint:'Opens the Job Reports list, showing only the reports they submitted.' },
+    { k:'reports.view_all',   label:'See everyone’s reports', hint:'Every report from every technician and area.', needs:'reports.view_own' },
+    { k:'reports.download_pdf', label:'Download report PDFs', hint:'Save or print the PDF of a report they can see.', needs:'reports.view_own' },
+    { k:'reports.edit',       label:'Edit a report that is waiting for approval', hint:'Change the details of a report before it is approved.', needs:'reports.view_own', db:true },
+    { k:'reports.approve',    label:'Approve reports', hint:'Mark a report as approved so it can be emailed to the client.', needs:'reports.view_own', db:true },
+    { k:'reports.send_email', label:'Email approved reports to clients', hint:'Use Review and send email on an approved report.', needs:'reports.view_own', db:true },
+    { k:'reports.delete',     label:'Delete reports', hint:'Permanently removes the report, its photos and its PDF.', needs:'reports.view_own', db:true, danger:true }
+  ]},
+  { key:'dashboard', label:'Dashboard', perms:[
+    { k:'dashboard.view', label:'Open the Dashboard', hint:'The full home page with quick links. Without it, the home page is only the New Report screen.' }
+  ]},
+  { key:'clients', label:'Clients', perms:[
+    { k:'clients.view', label:'See clients', hint:'Open the Clients list and each client’s page.' },
+    { k:'clients.add',  label:'Add clients', hint:'', needs:'clients.view', db:true },
+    { k:'clients.edit', label:'Edit and archive clients', hint:'', needs:'clients.view', db:true }
+  ]},
+  { key:'accounts', label:'Accounts', perms:[
+    { k:'accounts.view', label:'See accounts', hint:'Open the Accounts list and each account’s page, including its report history.' },
+    { k:'accounts.add',  label:'Add accounts', hint:'', needs:'accounts.view', db:true },
+    { k:'accounts.edit', label:'Edit and archive accounts', hint:'', needs:'accounts.view', db:true }
+  ]},
+  { key:'stores', label:'7-Eleven stores', perms:[
+    { k:'stores.view',   label:'See the store list', hint:'Open the 7-Eleven Stores screen.' },
+    { k:'stores.manage', label:'Add, edit, import and delete stores', hint:'', needs:'stores.view', db:true }
+  ]},
+  { key:'staff', label:'Staff', perms:[
+    { k:'staff.view',   label:'See the staff list', hint:'Open the Technicians screen and each person’s page.' },
+    { k:'staff.invite', label:'Invite new staff', hint:'The database also needs the person to be a Supervisor or higher.', needs:'staff.view', rank:true },
+    { k:'staff.manage', label:'Change someone’s role or active status', hint:'The database also only allows changing people ranked below you.', needs:'staff.view', rank:true }
+  ]},
+  { key:'areatechs', label:'Area technicians', perms:[
+    { k:'areatechs.view',   label:'See the area technicians', hint:'Open the Area Technicians screen.' },
+    { k:'areatechs.manage', label:'Change the area technicians', hint:'The database allows this for Supervisor and higher.', needs:'areatechs.view', rank:true }
+  ]},
+  { key:'schedule', label:'Schedule', perms:[
+    { k:'schedule.view',   label:'See the schedule', hint:'Open the Schedule and its visits.' },
+    { k:'schedule.manage', label:'Add and cancel visits', hint:'', needs:'schedule.view', db:true }
+  ]},
+  { key:'services', label:'Services', perms:[
+    { k:'services.view',   label:'See services', hint:'Open the Services screen.' },
+    { k:'services.manage', label:'Add and edit services', hint:'', needs:'services.view', db:true }
+  ]},
+  { key:'inventory', label:'Inventory', perms:[
+    { k:'inventory.view',   label:'See inventory', hint:'Open the Inventory screen.' },
+    { k:'inventory.manage', label:'Add and edit inventory items', hint:'', needs:'inventory.view', db:true }
+  ]},
+  { key:'insights', label:'Analytics and notifications', perms:[
+    { k:'analytics.view',     label:'See analytics', hint:'Open the Analytics screen.' },
+    { k:'notifications.view', label:'See notifications', hint:'Open the bell and the Notifications screen.' }
+  ]},
+  { key:'settings', label:'Settings', perms:[
+    { k:'settings.view',    label:'Open Settings', hint:'Their own notification choices and the company details (read only).' },
+    { k:'settings.company', label:'Change company and compliance details', hint:'The letterhead, address, license numbers.', needs:'settings.view', db:true },
+    { k:'settings.email',   label:'Manage the email setup', hint:'The Gmail sending link and EmailJS keys. Anyone with this can see the sending password.', needs:'settings.view', db:true, danger:true }
+  ]}
+];
+const PERM_LIST = (function(){ const a = []; PERM_GROUPS.forEach(function(g){ g.perms.forEach(function(p){ a.push(p); }); }); return a; })();
+const PERM_INDEX = (function(){ const m = {}; PERM_LIST.forEach(function(p){ m[p.k] = p; }); return m; })();
+
+/* What each built-in position gets when nothing is saved, and what the "Recommended settings" button applies.
+   Technician = only does job reports (and sees the ones they submitted). The others add viewing and the things the database already
+   lets those ranks do; the admin-only actions are left off on purpose, so everything recommended also works. */
+const PERM_PRESET_TECH = ['reports.create_seven11','reports.create_private','reports.create_government','reports.view_own','reports.download_pdf'];
+const PERM_PRESET_SUP = PERM_PRESET_TECH.concat(['reports.view_all','dashboard.view','clients.view','accounts.view','stores.view','staff.view','staff.invite','areatechs.view','areatechs.manage','schedule.view','services.view','inventory.view','notifications.view','settings.view']);
+const PERM_PRESET_MGR = PERM_PRESET_SUP.concat(['analytics.view','staff.manage']);
+const BUILTIN_POSITIONS = {
+  technician: { label:'Technician', sort:10, rec:PERM_PRESET_TECH, description:'Field staff. Recommended: only does job reports and sees their own.' },
+  supervisor: { label:'Supervisor', sort:20, rec:PERM_PRESET_SUP, description:'Oversees the field team. Recommended: sees all reports and lists, and manages the area technicians.' },
+  manager:    { label:'Manager',    sort:30, rec:PERM_PRESET_MGR, description:'Runs the office. Recommended: like Supervisor, plus analytics and managing staff.' }
+};
+const ACCESS_CACHE_KEY = 'gepestcon_access_v1';
+const access = { positions:{}, userPos:{}, missing:false, loaded:false };   // positions: key -> {key,label,description,permissions,builtin,sort}
+
+const ACCESS_SQL = [
+  '-- User Management: positions and what each position can do.',
+  'create table if not exists public.access_positions (',
+  '  key         text primary key,',
+  '  label       text not null,',
+  '  description text not null default \'\',',
+  '  permissions jsonb not null default \'{}\'::jsonb,',
+  '  is_builtin  boolean not null default false,',
+  '  sort_order  integer not null default 100,',
+  '  updated_at  timestamptz not null default now()',
+  ');',
+  '',
+  'create table if not exists public.user_positions (',
+  '  user_id      uuid primary key references auth.users(id) on delete cascade,',
+  '  position_key text not null references public.access_positions(key) on update cascade on delete cascade,',
+  '  updated_at   timestamptz not null default now()',
+  ');',
+  '',
+  'alter table public.access_positions enable row level security;',
+  'alter table public.user_positions   enable row level security;',
+  '',
+  'drop policy if exists access_positions_read  on public.access_positions;',
+  'drop policy if exists access_positions_admin on public.access_positions;',
+  'drop policy if exists user_positions_read    on public.user_positions;',
+  'drop policy if exists user_positions_admin   on public.user_positions;',
+  '',
+  '-- everyone signed in can read the positions (the app needs them to know what to show)',
+  'create policy access_positions_read on public.access_positions for select to authenticated using (true);',
+  '-- only an admin can add, change or remove positions',
+  'create policy access_positions_admin on public.access_positions for all to authenticated',
+  '  using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = \'admin\'))',
+  '  with check (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = \'admin\'));',
+  '',
+  '-- a person can read their own assignment; an admin can read and change everyone\'s',
+  'create policy user_positions_read on public.user_positions for select to authenticated',
+  '  using (user_id = auth.uid() or exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = \'admin\'));',
+  'create policy user_positions_admin on public.user_positions for all to authenticated',
+  '  using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = \'admin\'))',
+  '  with check (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = \'admin\'));',
+  '',
+  'grant select, insert, update, delete on public.access_positions to authenticated;',
+  'grant select, insert, update, delete on public.user_positions   to authenticated;',
+  '',
+  'notify pgrst, \'reload schema\';'
+].join('\n');
+
+function permMapFromList(list){ const m = {}; PERM_LIST.forEach(function(p){ m[p.k] = list.indexOf(p.k) !== -1; }); return m; }
+/* A position can only use an action if the page it lives on is also allowed, so settings are always tidied this way. */
+function permTidy(map){
+  const out = {};
+  PERM_LIST.forEach(function(p){ out[p.k] = !!map[p.k]; });
+  for(let i = 0; i < 3; i++){ PERM_LIST.forEach(function(p){ if(p.needs && !out[p.needs]) out[p.k] = false; }); }
+  return out;
+}
+function permCount(map){ let n = 0; PERM_LIST.forEach(function(p){ if(map[p.k]) n++; }); return n; }
+function accessIsAdmin(){ return !!(state.profile && state.profile.role === 'admin'); }
+function accessPositionKey(){
+  if(!state.profile) return null;
+  if(state.profile.role === 'admin') return 'admin';
+  const own = access.userPos[state.profile.id];
+  if(own && access.positions[own]) return own;
+  return BUILTIN_POSITIONS[state.profile.role] ? state.profile.role : 'technician';
+}
+/* the full list of positions for display: the three built-in ones (saved or not) plus any custom ones */
+function accessAllPositions(){
+  const list = [];
+  Object.keys(BUILTIN_POSITIONS).forEach(function(k){
+    const b = BUILTIN_POSITIONS[k], saved = access.positions[k];
+    list.push({ key:k, label:b.label, description:(saved && saved.description) || b.description, builtin:true, sort:b.sort, saved:!!saved,
+      permissions: permTidy(saved && saved.permissions ? Object.assign(permMapFromList(b.rec), saved.permissions) : permMapFromList(b.rec)) });
+  });
+  Object.keys(access.positions).forEach(function(k){
+    if(BUILTIN_POSITIONS[k]) return;
+    const r = access.positions[k];
+    list.push({ key:k, label:r.label || k, description:r.description || '', builtin:false, sort:r.sort || 100, saved:true, permissions: permTidy(r.permissions || {}) });
+  });
+  list.sort(function(a, b){ return (a.sort - b.sort) || String(a.label).localeCompare(String(b.label)); });
+  return list;
+}
+function accessPosition(key){ const l = accessAllPositions(); for(let i = 0; i < l.length; i++){ if(l[i].key === key) return l[i]; } return null; }
+let __permMemo = { sig:'', map:null };
+function myPerms(){
+  const key = accessPositionKey();
+  if(key === 'admin') return null;   // null = everything
+  const sig = key + '|' + JSON.stringify(access.positions[key] || 0) + '|' + (state.profile && state.profile.role);
+  if(__permMemo.sig === sig && __permMemo.map) return __permMemo.map;
+  const pos = accessPosition(key) || accessPosition('technician');
+  __permMemo = { sig: sig, map: pos.permissions };
+  return __permMemo.map;
+}
+function can(k){
+  if(!state.profile) return false;
+  const m = myPerms();
+  if(m === null) return true;
+  return !!m[k];
+}
+function canSeeReports(){ return can('reports.view_own') || can('reports.view_all'); }
+function canCreateType(type){ return can('reports.create_' + type); }
+function canCreateAnyReport(){ return can('reports.create_seven11') || can('reports.create_private') || can('reports.create_government'); }
+/* when this person may only see their own reports, every report query adds this */
+function reportsOwnOnly(){ return !!state.profile && !can('reports.view_all'); }
+function roleDisplay(r){ return r === 'admin' ? 'Administrator' : (r ? String(r).charAt(0).toUpperCase() + String(r).slice(1) : 'Technician'); }
+function accessPositionLabel(){
+  if(!state.profile) return '';
+  if(state.profile.role === 'admin') return 'Administrator';
+  const p = accessPosition(accessPositionKey());
+  return p ? p.label : 'Technician';
+}
+
+/* ---- which screen needs which permission ---- */
+function screenAllowed(screen){
+  if(!state.profile) return true;
+  if(accessIsAdmin()) return true;
+  switch(screen){
+    case 'home': return can('dashboard.view') || canCreateAnyReport();
+    case 'wizard': return state.reportType ? canCreateType(state.reportType) : canCreateAnyReport();
+    case 'review': case 'success': case 'queued': return canCreateAnyReport();
+    case 'history': case 'reportDetail': return canSeeReports();
+    case 'clients': case 'clientDetail': return can('clients.view');
+    case 'accounts': return can('accounts.view');
+    case 'accountDetail': return state.backTo === 'stores' ? can('stores.view') : (can('accounts.view') || can('clients.view'));
+    case 'stores': return can('stores.view');
+    case 'technicians': case 'technicianDetail': return can('staff.view');
+    case 'areatechs': return can('areatechs.view');
+    case 'schedule': return can('schedule.view');
+    case 'services': return can('services.view');
+    case 'inventory': return can('inventory.view');
+    case 'analytics': return can('analytics.view');
+    case 'notifications': return can('notifications.view');
+    case 'settings': return can('settings.view');
+    case 'usermgmt': return false;
+    case 'profile': return true;
+    default: return true;
+  }
+}
+function firstAllowedScreen(){
+  const order = ['home','history','clients','accounts','stores','technicians','areatechs','schedule','services','inventory','analytics','notifications','settings','profile'];
+  for(let i = 0; i < order.length; i++){ if(screenAllowed(order[i])) return order[i]; }
+  return 'profile';
+}
+function navItemAllowed(key){
+  if(!state.profile) return false;
+  if(key === 'usermgmt') return accessIsAdmin();
+  if(accessIsAdmin()) return true;
+  switch(key){
+    case 'dashboard': return can('dashboard.view') || canCreateAnyReport();
+    case 'new-report': return canCreateAnyReport();
+    case 'history': return canSeeReports();
+    case 'clients': return can('clients.view');
+    case 'accounts': return can('accounts.view');
+    case 'stores': return can('stores.view');
+    case 'technicians': return can('staff.view');
+    case 'areatechs': return can('areatechs.view');
+    case 'schedule': return can('schedule.view');
+    case 'services': return can('services.view');
+    case 'inventory': return can('inventory.view');
+    case 'analytics': return can('analytics.view');
+    case 'notifications': return can('notifications.view');
+    case 'settings': return can('settings.view');
+    case 'profile': return true;
+    default: return true;
+  }
+}
+/* the Dashboard menu item becomes "New Report" for someone who can only create reports */
+function navLabelFor(item){
+  if(item.key === 'dashboard' && !accessIsAdmin() && !can('dashboard.view')) return 'New Report';
+  return item.label;
+}
+function applyHeaderAccess(){
+  const set = function(sel, show){ const el = qs(sel); if(el) el.style.display = show ? '' : 'none'; };
+  set('#navHistoryBtn', navItemAllowed('history'));
+  set('#navSettingsBtn', navItemAllowed('settings'));
+  set('#navBellBtn', navItemAllowed('notifications'));
+}
+
+/* ---- loading, saving, remembering ---- */
+function accessIsMissingTable(err){
+  const m = String((err && (err.message || err.details || err.hint)) || '').toLowerCase(), c = String((err && err.code) || '');
+  return c === '42P01' || c === 'PGRST205' || c === 'PGRST200' || m.indexOf('does not exist') !== -1 || m.indexOf('schema cache') !== -1 || m.indexOf('could not find the table') !== -1;
+}
+function accessSignature(){ return JSON.stringify([accessPositionKey(), myPerms()]); }
+function accessCacheSave(){
+  try{ localStorage.setItem(ACCESS_CACHE_KEY, JSON.stringify({ uid: state.profile && state.profile.id, positions: access.positions, userPos: access.userPos, missing: access.missing })); }catch(e){}
+}
+/* before the first screen is drawn: use what this phone saved last time, so the right menu shows with no internet and no flash */
+function accessCacheLoad(){
+  access.userPos = {};
+  try{
+    const c = JSON.parse(localStorage.getItem(ACCESS_CACHE_KEY) || 'null');
+    if(c && state.profile && c.uid === state.profile.id){
+      access.positions = c.positions || {}; access.userPos = c.userPos || {}; access.missing = !!c.missing;
+    } else if(c && state.profile){
+      access.positions = c.positions || {}; access.userPos = {}; access.missing = !!c.missing;   // positions are the same for everyone; the person's own assignment is not
+    }
+  }catch(e){}
+}
+function accessRowToPosition(r){
+  return { key:r.key, label:r.label, description:r.description || '', permissions:(r.permissions && typeof r.permissions === 'object') ? r.permissions : {}, builtin:!!r.is_builtin, sort:r.sort_order || 100 };
+}
+async function accessLoad(){
+  if(!state.profile) return;
+  const before = accessSignature();
+  try{
+    const pr = await sb.from('access_positions').select('*');
+    if(pr.error) throw pr.error;
+    const up = await sb.from('user_positions').select('*').eq('user_id', state.profile.id);
+    if(up.error) throw up.error;
+    const pos = {}; (pr.data || []).forEach(function(r){ pos[r.key] = accessRowToPosition(r); });
+    const mine = {}; (up.data || []).forEach(function(r){ mine[r.user_id] = r.position_key; });
+    access.positions = pos; access.userPos = mine; access.missing = false; access.loaded = true;
+  }catch(err){
+    if(accessIsMissingTable(err)){ access.positions = {}; access.userPos = {}; access.missing = true; access.loaded = true; }
+    else { console.warn('accessLoad: keeping the saved settings', err); return; }   // offline or a hiccup: keep what this phone already has
+  }
+  accessCacheSave();
+  if(accessSignature() !== before) accessApplyUi();
+}
+/* the menu, the header buttons and the open page all follow the person's permissions; called whenever they may have changed */
+function accessApplyUi(){
+  if(!state.profile || qs('#appRoot').style.display === 'none') return;
+  try{ buildShellNav(); applyHeaderAccess(); updateHeaderUserChip(); }catch(e){ console.error(e); }
+  if(!screenAllowed(state.screen)) render(); else updateNavActiveStates();
+}
+async function accessSavePosition(rec){
+  const row = { key:rec.key, label:rec.label, description:rec.description || '', permissions:permTidy(rec.permissions || {}), is_builtin:!!rec.builtin, sort_order:rec.sort || 100, updated_at:new Date().toISOString() };
+  const r = await sb.from('access_positions').upsert(row, { onConflict:'key' });
+  if(r.error) throw r.error;
+  access.positions[rec.key] = { key:row.key, label:row.label, description:row.description, permissions:row.permissions, builtin:row.is_builtin, sort:row.sort_order };
+  access.missing = false;
+  accessCacheSave();
+}
+async function accessDeletePosition(key){
+  const r = await sb.from('access_positions').delete().eq('key', key);
+  if(r.error) throw r.error;
+  delete access.positions[key];
+  Object.keys(access.userPos).forEach(function(u){ if(access.userPos[u] === key) delete access.userPos[u]; });
+  accessCacheSave();
+}
+async function accessAssign(userId, positionKey){   // positionKey null = back to the normal role
+  if(positionKey){
+    const r = await sb.from('user_positions').upsert({ user_id:userId, position_key:positionKey, updated_at:new Date().toISOString() }, { onConflict:'user_id' });
+    if(r.error) throw r.error;
+  } else {
+    const r = await sb.from('user_positions').delete().eq('user_id', userId);
+    if(r.error && !accessIsMissingTable(r.error)) throw r.error;
+  }
+}
+function accessSlug(name){
+  const s = String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+  return s || ('position-' + Date.now().toString(36));
+}
+function showAccessSql(){
+  const body = openModal(
+    '<p class="small-muted" style="margin-bottom:10px;">One time only: copy this, open <strong>Supabase → SQL Editor → New query</strong>, paste it and press <strong>Run</strong>. Then come back here and press Save again. It is safe to run twice.</p>' +
+    '<textarea id="accessSqlBox" readonly style="width:100%;height:220px;font-family:var(--font-mono);font-size:12px;border:1px solid var(--control-border);border-radius:10px;padding:10px;background:var(--field-bg);color:inherit;"></textarea>' +
+    '<button class="btn btn-primary btn-block" id="accessSqlCopy" style="margin-top:10px;">Copy the database command</button>',
+    { title:'One-time database setup' });
+  const box = qs('#accessSqlBox', body); box.value = ACCESS_SQL;
+  qs('#accessSqlCopy', body).addEventListener('click', async function(){
+    try{ await navigator.clipboard.writeText(ACCESS_SQL); toast('Copied. Paste it in Supabase → SQL Editor and press Run.', 'success'); }
+    catch(e){ box.focus(); box.select(); toast('Select all and copy the text.', 'error'); }
+  });
+}
+
+/* ---- the User Management screen (admin only) ---- */
+function ensureUserMgmtCss(){
+  if(document.getElementById('umCss')) return;
+  const st = document.createElement('style'); st.id = 'umCss';
+  st.textContent =
+    '.um-tabs{display:flex;gap:6px;background:var(--surface-2);border-radius:12px;padding:4px;margin:0 0 16px}' +
+    '.um-tab{flex:1;border:0;background:transparent;border-radius:9px;padding:10px 8px;font:inherit;font-size:14px;font-weight:700;color:var(--ink-soft);cursor:pointer;min-height:44px}' +
+    '.um-tab.is-on{background:var(--surface);color:var(--brand);box-shadow:0 1px 3px rgba(0,0,0,.12)}' +
+    '.um-row{display:flex;align-items:flex-start;gap:12px;padding:12px 4px;border-top:1px solid var(--border);cursor:pointer;min-height:48px}' +
+    '.um-row:first-of-type{border-top:0}' +
+    '.um-row input{width:20px;height:20px;accent-color:var(--brand);flex:0 0 auto;margin-top:2px}' +
+    '.um-txt{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}' +
+    '.um-txt b{font-size:14.5px;font-weight:650;line-height:1.3}' +
+    '.um-txt small{font-size:12.5px;color:var(--ink-soft);line-height:1.4}' +
+    '.um-pill{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:2px 8px;background:var(--surface-2);color:var(--ink-soft);margin-top:4px;align-self:flex-start}' +
+    '.um-pill.warn{background:rgba(217,119,6,.14);color:#b45309}' +
+    '.um-grp-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px}' +
+    '.um-mini{border:0;background:transparent;color:var(--brand);font:inherit;font-size:13px;font-weight:700;cursor:pointer;padding:8px 6px;min-height:36px}' +
+    '.um-actions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}' +
+    '.um-actions .btn{flex:1 1 180px}' +
+    '.um-dirty{display:inline-block;font-size:12px;font-weight:700;color:#b45309;background:rgba(217,119,6,.14);border-radius:999px;padding:3px 10px}' +
+    '.um-person{display:flex;align-items:center;gap:12px;padding:12px 4px;border-top:1px solid var(--border);flex-wrap:wrap}' +
+    '.um-person:first-child{border-top:0}' +
+    '.um-person .um-who{flex:1 1 160px;min-width:0}' +
+    '.um-person .um-who b{display:block;font-size:14.5px}' +
+    '.um-person .um-who small{color:var(--ink-soft);font-size:12.5px}' +
+    '.um-person select{flex:0 1 200px;min-width:150px}' +
+    '.um-lock{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--ink-soft)}' +
+    '.um-lock svg{width:18px;height:18px}' +
+    '.um-avatar{width:38px;height:38px;border-radius:50%;background:var(--brand-pale);color:var(--brand);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex:0 0 auto}';
+  document.head.appendChild(st);
+}
+/* ---- staff accounts: a username and a password, no email (email accounts stay for administrators / IT) ----
+   Supabase signs people in with an email, so a username is kept as a made-up login address that is never emailed:
+   <username>.staff@<STAFF_EMAIL_DOMAIN>. The person only ever types the username. Creating accounts and resetting passwords
+   needs the "staff-accounts" Edge Function (STAFF_FN_CODE), deployed once in Supabase. */
+const STAFF_EMAIL_DOMAIN = 'gepestcon.co';
+function staffEmailFor(username){ return String(username || '').trim().toLowerCase() + '.staff@' + STAFF_EMAIL_DOMAIN; }
+function loginIdentifierToEmail(v){ v = String(v || '').trim(); return v.indexOf('@') !== -1 ? v : staffEmailFor(v); }
+function friendlyPassword(){
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789', a = new Uint32Array(10); crypto.getRandomValues(a);
+  let s = ''; for(let i = 0; i < a.length; i++) s += chars[a[i] % chars.length]; return s;
+}
+async function staffFn(body){
+  const res = await sb.functions.invoke('staff-accounts', { body: Object.assign({ email_domain: STAFF_EMAIL_DOMAIN }, body) });
+  let msg = res.data && res.data.error;
+  if(!msg && res.error && res.error.context && typeof res.error.context.json === 'function'){
+    try{ const j = await res.error.context.json(); msg = j && j.error; }catch(e){}
+  }
+  if(msg || res.error){
+    const err = new Error(msg || 'Could not reach the account service.');
+    err.notDeployed = !msg;   // no answer from the function itself = it has not been deployed yet (or there is no internet)
+    throw err;
+  }
+  return res.data;
+}
+function showStaffFnSetup(){
+  const body = openModal(
+    '<p class="small-muted" style="margin-bottom:8px;">One time only. Creating accounts with a username needs a small helper in Supabase:</p>' +
+    '<ol style="margin:0 0 12px;padding-left:18px;font-size:13.5px;line-height:1.7;color:var(--ink-soft);">' +
+      '<li>Press <strong>Copy the code</strong> below.</li>' +
+      '<li>In Supabase open <strong>Edge Functions → Deploy a new function</strong> (or <em>Create a function</em> in the editor).</li>' +
+      '<li>Name it exactly <span class="pill-mono">staff-accounts</span>, delete the sample code, <strong>paste</strong> the copied code and press <strong>Deploy</strong>.</li>' +
+      '<li>Come back here and press <strong>Create account</strong> again.</li></ol>' +
+    '<textarea id="staffFnBox" readonly style="width:100%;height:160px;font-family:var(--font-mono);font-size:11.5px;border:1px solid var(--control-border);border-radius:10px;padding:10px;background:var(--field-bg);color:inherit;"></textarea>' +
+    '<button class="btn btn-primary btn-block" id="staffFnCopy" style="margin-top:10px;">Copy the code</button>',
+    { title:'One-time setup for accounts' });
+  const box = qs('#staffFnBox', body); box.value = STAFF_FN_CODE;
+  qs('#staffFnCopy', body).addEventListener('click', async function(){
+    try{ await navigator.clipboard.writeText(STAFF_FN_CODE); toast('Copied. Paste it in the Supabase function editor.', 'success'); }
+    catch(e){ box.focus(); box.select(); toast('Select all and copy the text.', 'error'); }
+  });
+}
+function showCredentials(title, name, username, password){
+  const text = 'Gepestcon Job Reports\nName: ' + name + '\nUsername: ' + username + '\nPassword: ' + password;
+  const body = openModal(
+    '<div class="helper-banner">'+icon('checkSeal')+'<span>Give these to <strong>'+escapeHTML(name)+'</strong> now. The password cannot be shown again; if it is lost, reset it from People.</span></div>' +
+    '<dl class="kv" style="margin:12px 0 16px;"><dt>Username</dt><dd style="font-family:var(--font-mono);font-size:16px;font-weight:700;">'+escapeHTML(username)+'</dd><dt>Password</dt><dd style="font-family:var(--font-mono);font-size:16px;font-weight:700;">'+escapeHTML(password)+'</dd></dl>' +
+    '<button class="btn btn-primary btn-block" id="credCopy">Copy username and password</button>' +
+    '<button class="btn btn-secondary btn-block" id="credDone" style="margin-top:8px;">Done</button>',
+    { title:title });
+  qs('#credCopy', body).addEventListener('click', async function(){
+    try{ await navigator.clipboard.writeText(text); toast('Copied.', 'success'); }catch(e){ toast('Could not copy. Write them down instead.', 'error'); }
+  });
+  qs('#credDone', body).addEventListener('click', closeModal);
+}
+function passwordField(id, label){
+  return '<div class="field"><label for="'+id+'">'+escapeHTML(label)+'<span class="req">*</span></label><div style="display:flex;gap:8px;">' +
+    '<input class="input" type="text" id="'+id+'" autocomplete="off" autocapitalize="off" spellcheck="false" style="flex:1;min-width:0;">' +
+    '<button type="button" class="btn btn-secondary" data-gen="'+id+'">Generate</button></div><span class="err"></span></div>';
+}
+function wireGenerate(body){
+  qsa('[data-gen]', body).forEach(function(b){ b.addEventListener('click', function(){ const i = qs('#'+b.dataset.gen, body); i.value = friendlyPassword(); i.focus(); }); });
+}
+/* a person changes their own password (Profile) */
+function changeOwnPasswordModal(){
+  const body = openModal(
+    field('New password', 'cp_new', 'password', '', {required:true, placeholder:'At least 8 characters'}) +
+    field('Type it again', 'cp_new2', 'password', '', {required:true}) +
+    '<button class="btn btn-primary btn-block btn-lg" id="cpSave">Change password</button>', { title:'Change password' });
+  qs('#cpSave', body).addEventListener('click', async function(){
+    const a = qs('#cp_new', body).value, c = qs('#cp_new2', body).value;
+    if(a.length < 8){ markFieldError('cp_new', 'Use at least 8 characters.'); return; }
+    if(a !== c){ markFieldError('cp_new2', 'The two passwords are not the same.'); return; }
+    const btn = qs('#cpSave', body); btn.disabled = true; btn.textContent = 'Saving…';
+    try{ const r = await updatePassword(a); if(r && r.error) throw r.error; closeModal(); toast('Password changed.', 'success'); }
+    catch(err){ btn.disabled = false; btn.textContent = 'Change password'; toast('Could not change the password: ' + (err.message || 'unknown error'), 'error'); }
+  });
+}
+const STAFF_FN_CODE = "// Gepestcon Co. - staff accounts with a username and password (no email needed).\n// Deploy this as an Edge Function named:  staff-accounts\n// Only a signed-in administrator can use it.\nimport { createClient } from \"https://esm.sh/@supabase/supabase-js@2\";\n\nconst cors = {\n  \"Access-Control-Allow-Origin\": \"*\",\n  \"Access-Control-Allow-Headers\": \"authorization, x-client-info, apikey, content-type\",\n};\nconst json = (body: unknown, status = 200) =>\n  new Response(JSON.stringify(body), { status, headers: { ...cors, \"Content-Type\": \"application/json\" } });\n\nDeno.serve(async (req) => {\n  if (req.method === \"OPTIONS\") return new Response(\"ok\", { headers: cors });\n  try {\n    const url = Deno.env.get(\"SUPABASE_URL\")!;\n    const anon = Deno.env.get(\"SUPABASE_ANON_KEY\")!;\n    const service = Deno.env.get(\"SUPABASE_SERVICE_ROLE_KEY\")!;\n\n    // who is asking? must be a signed-in, active administrator\n    const caller = createClient(url, anon, { global: { headers: { Authorization: req.headers.get(\"Authorization\") ?? \"\" } } });\n    const { data: who } = await caller.auth.getUser();\n    if (!who?.user) return json({ error: \"Please sign in again.\" }, 401);\n    const admin = createClient(url, service, { auth: { persistSession: false } });\n    const { data: me } = await admin.from(\"profiles\").select(\"role, active\").eq(\"id\", who.user.id).single();\n    if (!me || me.role !== \"admin\" || me.active === false) return json({ error: \"Only an administrator can do this.\" }, 403);\n\n    const b = await req.json();\n    const domain = String(b.email_domain ?? \"\").trim().toLowerCase();\n    if (!/^[a-z0-9-]+(\\.[a-z0-9-]+)*\\.[a-z]{2,}$/.test(domain)) return json({ error: \"The sign-in domain is not valid.\" }, 400);\n\n    if (b.action === \"create\") {\n      const username = String(b.username ?? \"\").trim().toLowerCase();\n      const password = String(b.password ?? \"\");\n      const fullName = String(b.full_name ?? \"\").trim();\n      if (!/^[a-z0-9][a-z0-9._-]{1,29}$/.test(username)) return json({ error: \"The username must be 2 to 30 characters: letters, numbers, dot, dash or underscore.\" }, 400);\n      if (password.length < 8) return json({ error: \"The password must be at least 8 characters.\" }, 400);\n      if (!fullName) return json({ error: \"Enter the person's full name.\" }, 400);\n      const email = `${username}.staff@${domain}`;\n      const { data: created, error } = await admin.auth.admin.createUser({\n        email, password, email_confirm: true, user_metadata: { full_name: fullName, username },\n      });\n      if (error) {\n        const m = error.message || \"\";\n        if (/already|registered|exists/i.test(m)) return json({ error: \"That username is already taken.\" }, 409);\n        return json({ error: m || \"Could not create the account.\" }, 400);\n      }\n      const id = created.user!.id;\n      // make sure the profile exists and carries the name (the role is set by the app afterwards)\n      const up = await admin.from(\"profiles\").upsert({ id, full_name: fullName, active: true }, { onConflict: \"id\" });\n      if (up.error) {\n        const u2 = await admin.from(\"profiles\").update({ full_name: fullName }).eq(\"id\", id);\n        if (u2.error) return json({ id, username, email, warning: \"The login was created, but the name could not be saved: \" + u2.error.message });\n      }\n      return json({ id, username, email });\n    }\n\n    if (b.action === \"resetPassword\") {\n      const target = String(b.target_id ?? \"\");\n      const password = String(b.password ?? \"\");\n      if (password.length < 8) return json({ error: \"The password must be at least 8 characters.\" }, 400);\n      const { data: t } = await admin.from(\"profiles\").select(\"role\").eq(\"id\", target).single();\n      if (!t) return json({ error: \"That person was not found.\" }, 404);\n      if (t.role === \"admin\") return json({ error: \"Administrator passwords are changed by the administrator themselves.\" }, 403);\n      const { error } = await admin.auth.admin.updateUserById(target, { password });\n      if (error) return json({ error: error.message }, 400);\n      return json({ ok: true });\n    }\n\n    if (b.action === \"update\") {\n      const target = String(b.target_id ?? \"\");\n      const { data: t } = await admin.from(\"profiles\").select(\"role\").eq(\"id\", target).single();\n      if (!t) return json({ error: \"That person was not found.\" }, 404);\n      if (t.role === \"admin\") return json({ error: \"Administrator accounts are changed by the administrator themselves.\" }, 403);\n      const { data: cur, error: ce } = await admin.auth.admin.getUserById(target);\n      if (ce || !cur?.user) return json({ error: \"That account was not found.\" }, 404);\n      const suffix = `.staff@${domain}`;\n      const isStaff = (cur.user.email ?? \"\").toLowerCase().endsWith(suffix);\n      const patch: Record<string, unknown> = {};\n      const meta: Record<string, unknown> = { ...(cur.user.user_metadata ?? {}) };\n      if (b.username !== undefined) {\n        if (!isStaff) return json({ error: \"Only username accounts can change their username.\" }, 400);\n        const username = String(b.username).trim().toLowerCase();\n        if (!/^[a-z0-9][a-z0-9._-]{1,29}$/.test(username)) return json({ error: \"The username must be 2 to 30 characters: letters, numbers, dot, dash or underscore.\" }, 400);\n        patch.email = `${username}${suffix}`;\n        patch.email_confirm = true;\n        meta.username = username;\n      }\n      if (b.password !== undefined && String(b.password) !== \"\") {\n        if (String(b.password).length < 8) return json({ error: \"The password must be at least 8 characters.\" }, 400);\n        patch.password = String(b.password);\n      }\n      let fullName: string | undefined;\n      if (b.full_name !== undefined) {\n        fullName = String(b.full_name).trim();\n        if (!fullName) return json({ error: \"Enter the person's full name.\" }, 400);\n        meta.full_name = fullName;\n      }\n      patch.user_metadata = meta;\n      const { error } = await admin.auth.admin.updateUserById(target, patch);\n      if (error) {\n        if (/already|registered|exists/i.test(error.message || \"\")) return json({ error: \"That username is already taken.\" }, 409);\n        return json({ error: error.message || \"Could not save the changes.\" }, 400);\n      }\n      if (fullName !== undefined) await admin.from(\"profiles\").update({ full_name: fullName }).eq(\"id\", target);\n      return json({ ok: true });\n    }\n\n    if (b.action === \"list\") {\n      const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });\n      if (error) return json({ error: error.message }, 400);\n      const suffix = `.staff@${domain}`;\n      const users = (data.users ?? []).map((u) => {\n        const e = (u.email ?? \"\").toLowerCase();\n        return { id: u.id, email: e, username: e.endsWith(suffix) ? e.slice(0, -suffix.length) : \"\" };\n      });\n      return json({ users });\n    }\n\n    return json({ error: \"Unknown action.\" }, 400);\n  } catch (e) {\n    return json({ error: String((e as Error)?.message ?? e) }, 500);\n  }\n});\n";
+function renderUserMgmt(){
+  ensureUserMgmtCss();
+  const wrap = document.createElement('div');
+  const um = { tab:'positions', editing:null, draft:null, dirty:false, people:null, assign:{}, search:'', loading:true };
+
+  async function loadAdminData(){
+    um.loading = true;
+    let missing = false;
+    try{
+      const pr = await sb.from('access_positions').select('*');
+      if(pr.error) throw pr.error;
+      const up = await sb.from('user_positions').select('*');
+      if(up.error) throw up.error;
+      const pos = {}; (pr.data || []).forEach(function(r){ pos[r.key] = accessRowToPosition(r); });
+      access.positions = pos; access.missing = false;
+      um.assign = {}; (up.data || []).forEach(function(r){ um.assign[r.user_id] = r.position_key; });
+      accessCacheSave();
+    }catch(err){
+      if(accessIsMissingTable(err)){ missing = true; access.positions = {}; access.missing = true; um.assign = {}; }
+      else { um.loadError = err.message || 'Could not load the settings.'; }
+    }
+    try{ um.people = await listProfiles(); }catch(e){ um.people = []; um.loadError = um.loadError || (e && e.message) || 'Could not load the people.'; }
+    try{ const r = await staffFn({ action:'list' }); um.usernames = {}; (r.users || []).forEach(function(u){ if(u.username) um.usernames[u.id] = u.username; }); }catch(e){ um.usernames = {}; }
+    um.loading = false;
+    draw();
+  }
+  function peopleOn(key){
+    let n = 0;
+    (um.people || []).forEach(function(p){
+      if(p.role === 'admin') return;
+      const a = um.assign[p.id];
+      const k = (a && accessPosition(a)) ? a : (BUILTIN_POSITIONS[p.role] ? p.role : 'technician');
+      if(k === key) n++;
+    });
+    return n;
+  }
+  function setupBanner(){
+    if(!access.missing) return '';
+    return '<div class="helper-banner amber">'+icon('info')+'<span><strong>One-time setup needed to save changes.</strong> Until then everyone gets the recommended settings below. ' +
+      '<button type="button" class="um-mini" id="umShowSql" style="padding:0 2px;min-height:0;text-decoration:underline;">Show the database command</button></span></div>';
+  }
+  function wireSetup(){ const b = qs('#umShowSql', wrap); if(b) b.addEventListener('click', showAccessSql); }
+
+  function draw(){
+    if(um.loading){ wrap.innerHTML = '<div class="wizard-top"><span class="eyebrow">User Management</span></div><p class="small-muted center" style="padding:40px 0;">Loading…</p>'; return; }
+    if(um.editing) drawEditor(); else drawMain();
+  }
+
+  /* ---------- main: positions / people ---------- */
+  function drawMain(){
+    let html = '<div class="wizard-top"><span class="eyebrow">User Management</span></div>';
+    html += '<h2 style="font-size:21px;margin-bottom:6px;">User Management</h2>';
+    html += '<p class="section-hint" style="margin-bottom:14px;">Choose what each position can see and do. Administrators always have full access. Changes apply to everyone in that position the next time their app opens or refreshes.</p>';
+    if(um.loadError) html += '<div class="helper-banner amber">'+icon('alert')+'<span>'+escapeHTML(um.loadError)+'</span></div>';
+    html += setupBanner();
+    html += '<div class="um-tabs" role="tablist"><button type="button" class="um-tab'+(um.tab==='positions'?' is-on':'')+'" data-tab="positions" role="tab">Positions</button><button type="button" class="um-tab'+(um.tab==='people'?' is-on':'')+'" data-tab="people" role="tab">People</button></div>';
+    if(um.tab === 'positions') html += positionsHTML(); else html += peopleHTML();
+    wrap.innerHTML = html + '<div style="height:84px" aria-hidden="true"></div>';
+    wireSetup();
+    qsa('.um-tab', wrap).forEach(function(b){ b.addEventListener('click', function(){ um.tab = b.dataset.tab; drawMain(); }); });
+    if(um.tab === 'positions') wirePositions(); else wirePeople();
+  }
+  function positionsHTML(){
+    const total = PERM_LIST.length;
+    let h = '<div class="card" style="padding:4px 14px;margin-bottom:14px;">';
+    h += '<div class="hist-item" style="cursor:default;"><span class="hi-icon">'+icon('shield')+'</span><span class="hi-main"><span class="hi-title">Administrator</span><span class="hi-sub">Full access to everything · cannot be changed</span></span><span class="hi-status st-sent">Locked</span></div>';
+    accessAllPositions().forEach(function(p){
+      const n = permCount(p.permissions), pe = peopleOn(p.key);
+      h += '<button type="button" class="hist-item" data-pos="'+escapeHTML(p.key)+'"><span class="hi-icon">'+icon('users')+'</span><span class="hi-main"><span class="hi-title">'+escapeHTML(p.label)+(p.builtin?'':' <span class="um-pill">Custom</span>')+'</span>' +
+        '<span class="hi-sub">'+pe+(pe===1?' person':' people')+' · '+n+' of '+total+' permissions on'+((p.builtin && !p.saved)?' · recommended':'')+'</span></span>'+icon('chevronRight')+'</button>';
+    });
+    h += '</div>';
+    h += '<div class="um-actions"><button type="button" class="btn btn-primary" id="umAddPos">'+icon('plus')+' Add a position</button>' +
+         '<button type="button" class="btn btn-secondary" id="umRecAll">'+icon('checkSeal')+' Recommended settings for everyone</button></div>';
+    h += '<p class="small-muted">Not sure what to choose? <strong>Recommended settings</strong> gives technicians only the job report forms, and gives supervisors and managers what they normally need. You can change anything afterwards.</p>';
+    return h;
+  }
+  function wirePositions(){
+    qsa('[data-pos]', wrap).forEach(function(b){ b.addEventListener('click', function(){ openEditor(b.dataset.pos); }); });
+    qs('#umAddPos', wrap).addEventListener('click', addPositionModal);
+    qs('#umRecAll', wrap).addEventListener('click', recommendedAllModal);
+  }
+  function isAreaPhone(p){ return p.role !== 'admin' && !String(p.full_name || '').trim() && !(um.usernames && um.usernames[p.id]); }
+  function peopleHTML(){
+    const q = um.search.trim().toLowerCase();
+    const all = um.people || [];
+    const phones = all.filter(isAreaPhone);
+    const shown = all.filter(function(p){ return um.showPhones ? true : !isAreaPhone(p); });
+    const rows = shown.filter(function(p){ return !q || String(p.full_name || '').toLowerCase().indexOf(q) !== -1 || String((um.usernames && um.usernames[p.id]) || '').toLowerCase().indexOf(q) !== -1; });
+    let h = '<div class="um-actions"><button type="button" class="btn btn-primary" id="umCreate">'+icon('plus')+' Create account</button></div>';
+    h += '<p class="small-muted" style="margin-bottom:12px;">Staff sign in with a <strong>username and password</strong>. Email accounts are for administrators and IT. Pick each person’s position below; Technician, Supervisor and Manager also set their role in the database, custom positions keep their current database role.</p>';
+    h += '<input class="input" id="umSearch" placeholder="Search people" value="'+escapeHTML(um.search)+'" style="margin-bottom:12px;">';
+    if(phones.length){
+      h += '<div class="helper-banner">'+icon('info')+'<span><strong>'+phones.length+' area '+(phones.length === 1 ? 'phone' : 'phones')+'</strong> (North, South, VRBU, Central) sign in automatically without a name, so they are hidden here. They always follow the Technician position. ' +
+        '<button type="button" class="um-mini" id="umTogglePhones" style="padding:0 2px;min-height:0;text-decoration:underline;">'+(um.showPhones ? 'Hide them' : 'Show them')+'</button></span></div>';
+    }
+    if(!rows.length) return h + '<div class="empty-state">'+icon('inbox')+'<h3>No one found</h3></div>';
+    h += '<div class="card" style="padding:4px 14px;">';
+    const customs = accessAllPositions().filter(function(p){ return !p.builtin; });
+    rows.forEach(function(p){
+      const isAdm = p.role === 'admin', phone = isAreaPhone(p);
+      const a = um.assign[p.id];
+      const cur = isAdm ? 'admin' : ((a && accessPosition(a)) ? a : (BUILTIN_POSITIONS[p.role] ? p.role : 'technician'));
+      const uname = um.usernames && um.usernames[p.id];
+      const sub = (uname ? 'Username: ' + uname : (isAdm ? 'Email account' : (phone ? 'Area phone' : 'Email account'))) + (p.active === false ? ' · Inactive' : '');
+      h += '<div class="um-person"><span class="um-avatar">'+escapeHTML(phone ? 'A' : initials(p.full_name))+'</span><span class="um-who"><b>'+escapeHTML(p.full_name || (phone ? '(area phone)' : '(no name set)'))+'</b><small>'+escapeHTML(sub)+'</small></span>';
+      if(isAdm){ h += '<span class="um-lock">'+icon('shield')+' Administrator (locked)</span>'; }
+      else {
+        if(uname) h += '<button type="button" class="btn btn-secondary btn-sm" data-edit="'+escapeHTML(p.id)+'">'+icon('pencil')+' Edit</button>';
+        h += '<select class="input" data-person="'+escapeHTML(p.id)+'" aria-label="Position for '+escapeHTML(p.full_name || 'this person')+'">';
+        Object.keys(BUILTIN_POSITIONS).forEach(function(k){ h += '<option value="'+k+'"'+(cur===k?' selected':'')+'>'+escapeHTML(BUILTIN_POSITIONS[k].label)+'</option>'; });
+        customs.forEach(function(c){ h += '<option value="'+escapeHTML(c.key)+'"'+(cur===c.key?' selected':'')+'>'+escapeHTML(c.label)+'</option>'; });
+        h += '</select>';
+      }
+      h += '</div>';
+    });
+    return h + '</div>';
+  }
+  async function reloadPeople(){
+    try{ um.people = await listProfiles(); }catch(e){}
+    try{ const r = await staffFn({ action:'list' }); um.usernames = {}; (r.users || []).forEach(function(u){ if(u.username) um.usernames[u.id] = u.username; }); }catch(e){ /* the helper is not deployed yet: usernames just are not shown */ }
+  }
+  function createAccountModal(){
+    const positions = accessAllPositions();
+    const labels = positions.map(function(p){ return p.label; });
+    const body = openModal(
+      field('Full name', 'ca_name', 'text', '', {required:true}) +
+      field('Username', 'ca_user', 'text', '', {required:true, placeholder:'e.g. tomas.reyes'}) +
+      '<p class="small-muted" style="margin:-4px 0 12px;">Letters, numbers, dot, dash or underscore, no spaces. This is what they type to sign in.</p>' +
+      passwordField('ca_pass', 'Password') +
+      '<p class="small-muted" style="margin:-4px 0 12px;">At least 8 characters. Press Generate for an easy one.</p>' +
+      selectField('Position', 'ca_pos', 'Technician', labels, {required:true}) +
+      '<button class="btn btn-primary btn-block btn-lg" id="caGo">Create account</button>',
+      { title:'Create account' });
+    wireGenerate(body);
+    qs('#ca_pass', body).value = friendlyPassword();
+    qs('#caGo', body).addEventListener('click', async function(){
+      const name = qs('#ca_name', body).value.trim(), user = qs('#ca_user', body).value.trim().toLowerCase(), pass = qs('#ca_pass', body).value, posLabel = qs('#ca_pos', body).value;
+      if(!name){ markFieldError('ca_name', 'Enter the full name.'); return; }
+      if(!/^[a-z0-9][a-z0-9._-]{1,29}$/.test(user)){ markFieldError('ca_user', 'Use 2 to 30 letters, numbers, dot, dash or underscore. No spaces.'); return; }
+      if(pass.length < 8){ markFieldError('ca_pass', 'Use at least 8 characters.'); return; }
+      const pos = positions.find(function(p){ return p.label === posLabel; });
+      if(!pos){ markFieldError('ca_pos', 'Choose a position.'); return; }
+      if(!pos.builtin && access.missing){ markFieldError('ca_pos', 'Custom positions need the one-time database setup first.'); return; }
+      const btn = qs('#caGo', body); btn.disabled = true; btn.textContent = 'Creating…';
+      let created;
+      try{ created = await staffFn({ action:'create', username:user, password:pass, full_name:name }); }
+      catch(err){
+        btn.disabled = false; btn.textContent = 'Create account';
+        if(err.notDeployed){ closeModal(); showStaffFnSetup(); return; }
+        if(/username/i.test(err.message)) markFieldError('ca_user', err.message); else toast(err.message, 'error');
+        return;
+      }
+      let note = '';
+      try{
+        if(pos.builtin){ if(pos.key !== 'technician') await updateProfileAdmin(created.id, { role:pos.key }); }
+        else { await accessAssign(created.id, pos.key); }
+      }catch(err){ note = ' The account was created, but the position could not be set (' + (err.message || 'error') + '). Set it from the list.'; }
+      closeModal();
+      await reloadPeople(); drawMain();
+      showCredentials('Account created', name, user, pass);
+      if(note || created.warning) toast((created.warning || '') + note, 'error');
+    });
+  }
+  async function applyPosition(person, key){
+    const builtin = !!BUILTIN_POSITIONS[key];
+    if(builtin){
+      if(person.role !== key) await updateProfileAdmin(person.id, { role:key });
+      person.role = key;
+      if(um.assign[person.id]){ await accessAssign(person.id, null); delete um.assign[person.id]; }
+    } else {
+      if(access.missing) throw new Error('Run the one-time database setup first (Positions tab).');
+      await accessAssign(person.id, key); um.assign[person.id] = key;
+    }
+  }
+  function editAccountModal(person){
+    const uname = (um.usernames && um.usernames[person.id]) || '';
+    const positions = accessAllPositions();
+    const a = um.assign[person.id];
+    const curKey = (a && accessPosition(a)) ? a : (BUILTIN_POSITIONS[person.role] ? person.role : 'technician');
+    const curPos = positions.find(function(p){ return p.key === curKey; });
+    const body = openModal(
+      field('Full name', 'ea_name', 'text', person.full_name || '', {required:true}) +
+      field('Username', 'ea_user', 'text', uname, {required:true}) +
+      '<div class="field"><label for="ea_pass">New password <small style="font-weight:500;color:var(--ink-soft);">(leave empty to keep the current one)</small></label><div style="display:flex;gap:8px;">' +
+        '<input class="input" type="text" id="ea_pass" autocomplete="off" autocapitalize="off" spellcheck="false" style="flex:1;min-width:0;"><button type="button" class="btn btn-secondary" data-gen="ea_pass">Generate</button></div><span class="err"></span></div>' +
+      selectField('Position', 'ea_pos', curPos ? curPos.label : 'Technician', positions.map(function(p){ return p.label; }), {required:true}) +
+      '<button class="btn btn-primary btn-block btn-lg" id="eaGo">Save changes</button>',
+      { title:'Edit account' });
+    wireGenerate(body);
+    qs('#eaGo', body).addEventListener('click', async function(){
+      const name = qs('#ea_name', body).value.trim(), user = qs('#ea_user', body).value.trim().toLowerCase(), pass = qs('#ea_pass', body).value;
+      const pos = positions.find(function(p){ return p.label === qs('#ea_pos', body).value; });
+      if(!name){ markFieldError('ea_name', 'Enter the full name.'); return; }
+      if(!/^[a-z0-9][a-z0-9._-]{1,29}$/.test(user)){ markFieldError('ea_user', 'Use 2 to 30 letters, numbers, dot, dash or underscore. No spaces.'); return; }
+      if(pass && pass.length < 8){ markFieldError('ea_pass', 'Use at least 8 characters, or leave it empty.'); return; }
+      if(!pos){ markFieldError('ea_pos', 'Choose a position.'); return; }
+      const patch = {};
+      if(name !== (person.full_name || '')) patch.full_name = name;
+      if(user !== uname) patch.username = user;
+      if(pass) patch.password = pass;
+      const posChanged = pos.key !== curKey;
+      if(!Object.keys(patch).length && !posChanged){ closeModal(); return; }
+      const btn = qs('#eaGo', body); btn.disabled = true; btn.textContent = 'Saving\u2026';
+      if(Object.keys(patch).length){
+        try{ await staffFn(Object.assign({ action:'update', target_id:person.id }, patch)); }
+        catch(err){
+          btn.disabled = false; btn.textContent = 'Save changes';
+          if(err.notDeployed){ closeModal(); showStaffFnSetup(); return; }
+          if(/username/i.test(err.message)) markFieldError('ea_user', err.message); else if(/password/i.test(err.message)) markFieldError('ea_pass', err.message); else toast(err.message, 'error');
+          return;
+        }
+        if(patch.full_name) person.full_name = patch.full_name;
+      }
+      let note = '';
+      if(posChanged){ try{ await applyPosition(person, pos.key); }catch(err){ note = 'Saved, but the position could not be changed: ' + (err.message || 'error'); } }
+      closeModal();
+      await reloadPeople(); drawMain();
+      if(pass) showCredentials('Account updated', name, user, pass);
+      else toast(note || (patch.username ? 'Saved. They must now sign in with the username ' + user + '.' : 'Saved.'), note ? 'error' : 'success');
+      if(note && pass) toast(note, 'error');
+    });
+  }
+  function wirePeople(){
+    const s = qs('#umSearch', wrap);
+    if(s) s.addEventListener('input', debounce(function(){ um.search = s.value; const pos = s.selectionStart; drawMain(); const n = qs('#umSearch', wrap); if(n){ n.focus(); try{ n.setSelectionRange(pos, pos); }catch(e){} } }, 200));
+    const cb = qs('#umCreate', wrap); if(cb) cb.addEventListener('click', createAccountModal);
+    const tp = qs('#umTogglePhones', wrap); if(tp) tp.addEventListener('click', function(){ um.showPhones = !um.showPhones; drawMain(); });
+    qsa('[data-edit]', wrap).forEach(function(b){ b.addEventListener('click', function(){ const person = (um.people || []).find(function(p){ return p.id === b.dataset.edit; }); if(person) editAccountModal(person); }); });
+    qsa('select[data-person]', wrap).forEach(function(sel){
+      sel.addEventListener('change', async function(){
+        const person = (um.people || []).find(function(p){ return p.id === sel.dataset.person; });
+        if(!person) return;
+        const key = sel.value, builtin = !!BUILTIN_POSITIONS[key];
+        const prev = um.assign[person.id] || (BUILTIN_POSITIONS[person.role] ? person.role : 'technician');
+        sel.disabled = true;
+        try{
+          if(builtin){
+            if(person.role !== key) await updateProfileAdmin(person.id, { role:key });
+            person.role = key;
+            if(um.assign[person.id]){ await accessAssign(person.id, null); delete um.assign[person.id]; }
+          } else {
+            if(access.missing) throw new Error('Run the one-time database setup first (Positions tab).');
+            await accessAssign(person.id, key); um.assign[person.id] = key;
+          }
+          toast((person.full_name || 'This person') + ' is now ' + (accessPosition(key) ? accessPosition(key).label : key) + '.', 'success');
+        }catch(err){
+          toast('Could not change the position: ' + (err.message || 'unknown error'), 'error');
+          sel.value = prev;
+        }
+        sel.disabled = false;
+        drawMain();
+      });
+    });
+  }
+
+  /* ---------- the editor for one position ---------- */
+  function openEditor(key){
+    const p = accessPosition(key); if(!p) return;
+    um.editing = key; um.dirty = false;
+    um.draft = { key:p.key, label:p.label, description:p.description, builtin:p.builtin, sort:p.sort, permissions:Object.assign({}, p.permissions) };
+    draw(); window.scrollTo(0, 0);
+  }
+  function leaveEditor(force){
+    if(um.dirty && !force){
+      const body = openModal('<p style="margin-bottom:16px;">You have changes that are not saved. Leave without saving them?</p><div style="display:flex;gap:10px;"><button class="btn btn-secondary btn-block" id="umStay">Keep editing</button><button class="btn btn-danger btn-block" id="umLeave">Leave</button></div>', { title:'Unsaved changes' });
+      qs('#umStay', body).addEventListener('click', closeModal);
+      qs('#umLeave', body).addEventListener('click', function(){ closeModal(); leaveEditor(true); });
+      return;
+    }
+    um.editing = null; um.draft = null; um.dirty = false; draw(); window.scrollTo(0, 0);
+  }
+  function markDirty(){
+    um.dirty = true;
+    const d = qs('#umDirty', wrap); if(d) d.hidden = false;
+    const c = qs('#umCount', wrap); if(c) c.textContent = permCount(um.draft.permissions) + ' of ' + PERM_LIST.length + ' permissions on';
+  }
+  function syncChecks(){
+    qsa('input[data-perm]', wrap).forEach(function(cb){ cb.checked = !!um.draft.permissions[cb.dataset.perm]; cb.closest('.um-row').style.opacity = ''; });
+    const c = qs('#umCount', wrap); if(c) c.textContent = permCount(um.draft.permissions) + ' of ' + PERM_LIST.length + ' permissions on';
+    PERM_GROUPS.forEach(function(g){ const el = qs('[data-gcount="'+g.key+'"]', wrap); if(el) el.textContent = g.perms.filter(function(x){ return um.draft.permissions[x.k]; }).length + '/' + g.perms.length; });
+  }
+  function setPerm(k, on){
+    const perms = um.draft.permissions;
+    perms[k] = on;
+    if(on){ const need = PERM_INDEX[k].needs; if(need && !perms[need]) setPerm(need, true); }
+    else { PERM_LIST.forEach(function(p){ if(p.needs === k && perms[p.k]) setPerm(p.k, false); }); }
+  }
+  function drawEditor(){
+    const d = um.draft;
+    let html = '<div class="wizard-top"><button class="back-link" id="umBack">'+icon('chevronLeft')+' Positions</button></div>';
+    html += '<h2 style="font-size:21px;margin-bottom:4px;">'+escapeHTML(d.label)+(d.builtin?'':' <span class="um-pill">Custom</span>')+'</h2>';
+    html += '<p class="section-hint" style="margin-bottom:12px;">'+escapeHTML(d.description || 'Choose what this position can see and do.')+'</p>';
+    html += setupBanner();
+    if(!d.builtin){
+      html += '<div class="card" style="margin-bottom:14px;">' + field('Position name', 'um_label', 'text', d.label, {required:true}) + field('Short description (optional)', 'um_desc', 'text', d.description, {}) + '</div>';
+    }
+    html += '<div class="helper-banner">'+icon('info')+'<span>Switch on only what this position needs. Tip: adding, editing and deleting things is normally for admins, so only switch those on for people you fully trust.</span></div>';
+    html += '<div class="um-actions"><button type="button" class="btn btn-secondary" id="umRec">'+icon('checkSeal')+' Recommended settings</button><button type="button" class="btn btn-secondary" id="umNone">Turn everything off</button></div>';
+    html += '<p class="small-muted" style="margin:0 0 12px;"><span id="umCount">'+permCount(d.permissions)+' of '+PERM_LIST.length+' permissions on</span> &nbsp; <span class="um-dirty" id="umDirty" '+(um.dirty?'':'hidden')+'>Not saved yet</span></p>';
+    PERM_GROUPS.forEach(function(g){
+      html += '<div class="card" style="margin-bottom:14px;padding:12px 14px;">';
+      html += '<div class="um-grp-head"><h3 class="section-title" style="font-size:15px;margin:0;">'+escapeHTML(g.label)+' <small style="font-weight:600;color:var(--ink-soft);font-size:12px;" data-gcount="'+g.key+'">'+g.perms.filter(function(x){ return d.permissions[x.k]; }).length+'/'+g.perms.length+'</small></h3>' +
+        '<span><button type="button" class="um-mini" data-gon="'+g.key+'">All on</button><button type="button" class="um-mini" data-goff="'+g.key+'">All off</button></span></div>';
+      g.perms.forEach(function(p){
+        html += '<label class="um-row"><input type="checkbox" data-perm="'+p.k+'"'+(d.permissions[p.k]?' checked':'')+'><span class="um-txt"><b>'+escapeHTML(p.label)+'</b>' +
+          (p.hint ? '<small>'+escapeHTML(p.hint)+'</small>' : '') +
+          '</span></label>';
+      });
+      html += '</div>';
+    });
+    html += '<div class="um-actions"><button type="button" class="btn btn-primary btn-lg" id="umSave">Save changes</button><button type="button" class="btn btn-secondary btn-lg" id="umCancel">Cancel</button></div>';
+    if(!d.builtin) html += '<button type="button" class="btn btn-danger btn-block" id="umDelete" style="margin-top:6px;">'+icon('trash')+' Delete this position</button>';
+    wrap.innerHTML = html + '<div style="height:84px" aria-hidden="true"></div>';
+    wireSetup();
+    qs('#umBack', wrap).addEventListener('click', function(){ leaveEditor(false); });
+    qs('#umCancel', wrap).addEventListener('click', function(){ leaveEditor(false); });
+    qsa('input[data-perm]', wrap).forEach(function(cb){
+      cb.addEventListener('change', function(){ setPerm(cb.dataset.perm, cb.checked); syncChecks(); markDirty(); });
+    });
+    qsa('[data-gon]', wrap).forEach(function(b){ b.addEventListener('click', function(){ const g = PERM_GROUPS.find(function(x){ return x.key === b.dataset.gon; }); g.perms.forEach(function(p){ setPerm(p.k, true); }); syncChecks(); markDirty(); }); });
+    qsa('[data-goff]', wrap).forEach(function(b){ b.addEventListener('click', function(){ const g = PERM_GROUPS.find(function(x){ return x.key === b.dataset.goff; }); g.perms.forEach(function(p){ setPerm(p.k, false); }); syncChecks(); markDirty(); }); });
+    qs('#umNone', wrap).addEventListener('click', function(){ PERM_LIST.forEach(function(p){ um.draft.permissions[p.k] = false; }); syncChecks(); markDirty(); });
+    qs('#umRec', wrap).addEventListener('click', recommendedOneModal);
+    const lab = qs('#um_label', wrap), ds = qs('#um_desc', wrap);
+    if(lab) lab.addEventListener('input', function(){ um.draft.label = lab.value; markDirty(); });
+    if(ds) ds.addEventListener('input', function(){ um.draft.description = ds.value; markDirty(); });
+    qs('#umSave', wrap).addEventListener('click', saveEditor);
+    const del = qs('#umDelete', wrap);
+    if(del) del.addEventListener('click', deleteModal);
+  }
+  function recList(key){ return (BUILTIN_POSITIONS[key] ? BUILTIN_POSITIONS[key].rec : PERM_PRESET_TECH); }
+  function listLabels(list){ return list.map(function(k){ return PERM_INDEX[k] ? PERM_INDEX[k].label : k; }); }
+  function recommendedOneModal(){
+    const key = um.draft.key, list = recList(key);
+    const body = openModal(
+      '<p style="margin-bottom:10px;">This sets <strong>'+escapeHTML(um.draft.label)+'</strong> to the recommended settings. It only changes the screen; nothing is saved until you press <strong>Save changes</strong>.</p>' +
+      '<p class="small-muted" style="margin-bottom:6px;">'+(BUILTIN_POSITIONS[key] ? escapeHTML(BUILTIN_POSITIONS[key].description) : 'Recommended for a new position: only the job report forms, the same as a technician.')+' It will allow:</p>' +
+      '<ul style="margin:0 0 16px;padding-left:18px;font-size:13.5px;line-height:1.7;max-height:220px;overflow:auto;">' + listLabels(list).map(function(l){ return '<li>'+escapeHTML(l)+'</li>'; }).join('') + '</ul>' +
+      '<div style="display:flex;gap:10px;"><button class="btn btn-secondary btn-block" id="umRecNo">Cancel</button><button class="btn btn-primary btn-block" id="umRecYes">Use recommended</button></div>',
+      { title:'Recommended settings' });
+    qs('#umRecNo', body).addEventListener('click', closeModal);
+    qs('#umRecYes', body).addEventListener('click', function(){
+      closeModal(); um.draft.permissions = permTidy(permMapFromList(list)); syncChecks(); markDirty();
+      toast('Recommended settings applied. Press Save changes to keep them.', 'success');
+    });
+  }
+  function dbWarn(err){
+    if(accessIsMissingTable(err)){ toast('The one-time database setup has not been run yet.', 'error'); showAccessSql(); return true; }
+    return false;
+  }
+  async function saveEditor(){
+    const d = um.draft;
+    if(!d.builtin && !String(d.label || '').trim()){ markFieldError('um_label', 'Enter a name for this position.'); return; }
+    const btn = qs('#umSave', wrap); btn.disabled = true; btn.textContent = 'Saving…';
+    try{
+      await accessSavePosition({ key:d.key, label:String(d.label).trim(), description:String(d.description || '').trim(), builtin:d.builtin, sort:d.sort, permissions:d.permissions });
+      um.dirty = false;
+      toast('Saved. It applies to everyone in this position.', 'success');
+      um.editing = null; um.draft = null; draw(); window.scrollTo(0, 0);
+    }catch(err){
+      btn.disabled = false; btn.textContent = 'Save changes';
+      if(!dbWarn(err)) toast('Could not save: ' + (err.message || 'unknown error'), 'error');
+    }
+  }
+  function deleteModal(){
+    const d = um.draft, n = peopleOn(d.key);
+    const body = openModal(
+      '<p style="margin-bottom:10px;">Delete the position <strong>'+escapeHTML(d.label)+'</strong>?</p>' +
+      '<p class="small-muted" style="margin-bottom:16px;">'+(n ? n+(n===1?' person is':' people are')+' in this position. They go back to the settings of their normal role (Technician, Supervisor or Manager).' : 'No one is in this position.')+'</p>' +
+      '<div style="display:flex;gap:10px;"><button class="btn btn-secondary btn-block" id="umDelNo">Keep it</button><button class="btn btn-danger btn-block" id="umDelYes">Delete</button></div>',
+      { title:'Delete position' });
+    qs('#umDelNo', body).addEventListener('click', closeModal);
+    qs('#umDelYes', body).addEventListener('click', async function(){
+      const y = qs('#umDelYes', body); y.disabled = true; y.textContent = 'Deleting…';
+      try{
+        await accessDeletePosition(d.key);
+        Object.keys(um.assign).forEach(function(u){ if(um.assign[u] === d.key) delete um.assign[u]; });
+        closeModal(); toast('Position deleted.', 'success'); um.editing = null; um.draft = null; um.dirty = false; accessApplyUi(); draw();
+      }catch(err){ y.disabled = false; y.textContent = 'Delete'; closeModal(); if(!dbWarn(err)) toast('Could not delete: ' + (err.message || 'unknown error'), 'error'); }
+    });
+  }
+
+  /* ---------- add a position / recommended for everyone ---------- */
+  function addPositionModal(){
+    const startOpts = ['Recommended (only job reports)','Copy of Technician','Copy of Supervisor','Copy of Manager','Nothing switched on'];
+    const body = openModal(
+      field('Position name', 'um_new_name', 'text', '', {required:true, placeholder:'e.g. Driver, Office staff, Auditor'}) +
+      field('Short description (optional)', 'um_new_desc', 'text', '', {}) +
+      selectField('Start from', 'um_new_start', startOpts[0], startOpts, {}) +
+      '<p class="small-muted" style="margin:-4px 0 14px;">You can change every permission on the next screen.</p>' +
+      '<button class="btn btn-primary btn-block btn-lg" id="umNewGo">Create position</button>',
+      { title:'Add a position' });
+    qs('#umNewGo', body).addEventListener('click', async function(){
+      const name = qs('#um_new_name', body).value.trim();
+      if(!name){ markFieldError('um_new_name', 'Enter a name.'); return; }
+      const taken = accessAllPositions().some(function(p){ return String(p.label).toLowerCase() === name.toLowerCase(); }) || /^administrator$|^admin$/i.test(name);
+      if(taken){ markFieldError('um_new_name', 'A position with this name already exists.'); return; }
+      const start = qs('#um_new_start', body).value || startOpts[0];
+      let perms;
+      if(start === startOpts[1]) perms = accessPosition('technician').permissions;
+      else if(start === startOpts[2]) perms = accessPosition('supervisor').permissions;
+      else if(start === startOpts[3]) perms = accessPosition('manager').permissions;
+      else if(start === startOpts[4]) perms = permMapFromList([]);
+      else perms = permMapFromList(PERM_PRESET_TECH);
+      let key = accessSlug(name); while(access.positions[key] || BUILTIN_POSITIONS[key] || key === 'admin') key += '-2';
+      const btn = qs('#umNewGo', body); btn.disabled = true; btn.textContent = 'Creating…';
+      try{
+        await accessSavePosition({ key:key, label:name, description:qs('#um_new_desc', body).value.trim(), builtin:false, sort:100 + Object.keys(access.positions).length, permissions:perms });
+        closeModal(); toast('Position created.', 'success'); openEditor(key);
+      }catch(err){ closeModal(); if(!dbWarn(err)) toast('Could not create the position: ' + (err.message || 'unknown error'), 'error'); }
+    });
+  }
+  function recommendedAllModal(){
+    const body = openModal(
+      '<p style="margin-bottom:10px;">Set <strong>Technician, Supervisor and Manager</strong> to the recommended settings and save them now?</p>' +
+      '<ul style="margin:0 0 16px;padding-left:18px;font-size:13.5px;line-height:1.7;">' +
+        '<li><strong>Technician:</strong> only the job report forms, plus seeing and downloading their own reports.</li>' +
+        '<li><strong>Supervisor:</strong> everything above, plus seeing all reports and the lists, and managing area technicians.</li>' +
+        '<li><strong>Manager:</strong> everything a Supervisor has, plus analytics and managing staff.</li></ul>' +
+      '<p class="small-muted" style="margin-bottom:16px;">Custom positions are not touched. Administrators always keep full access.</p>' +
+      '<div style="display:flex;gap:10px;"><button class="btn btn-secondary btn-block" id="umAllNo">Cancel</button><button class="btn btn-primary btn-block" id="umAllYes">Apply and save</button></div>',
+      { title:'Recommended settings for everyone' });
+    qs('#umAllNo', body).addEventListener('click', closeModal);
+    qs('#umAllYes', body).addEventListener('click', async function(){
+      const y = qs('#umAllYes', body); y.disabled = true; y.textContent = 'Saving…';
+      try{
+        const keys = Object.keys(BUILTIN_POSITIONS);
+        for(let i = 0; i < keys.length; i++){
+          const b = BUILTIN_POSITIONS[keys[i]], cur = accessPosition(keys[i]);
+          await accessSavePosition({ key:keys[i], label:b.label, description:(cur && cur.description) || b.description, builtin:true, sort:b.sort, permissions:permMapFromList(b.rec) });
+        }
+        closeModal(); toast('Recommended settings saved for Technician, Supervisor and Manager.', 'success'); accessApplyUi(); draw();
+      }catch(err){ closeModal(); if(!dbWarn(err)) toast('Could not save: ' + (err.message || 'unknown error'), 'error'); }
+    });
+  }
+
+  draw();
+  loadAdminData();
+  return wrap;
+}
+
 /* ============================================================
    ROUTER
    ============================================================ */
 function navKeyForScreen(screen){
   if(screen==='home') return 'dashboard';
+  if(screen==='usermgmt') return 'usermgmt';
   if(screen==='clientDetail') return 'clients';
   if(screen==='accountDetail') return state.backTo === 'stores' ? 'stores' : 'accounts';
   if(screen==='technicianDetail') return 'technicians';
@@ -12188,6 +13213,8 @@ function navigate(screen, params){
   params = params || {};
   state.screen = screen;
   if(params.reportType !== undefined) state.reportType = params.reportType;
+  if(state.profile && !screenAllowed(screen) && !(screen === 'usermgmt' && accessIsAdmin())) toast('Your position does not have access to that page.', 'error');
+  if(params.reportType !== undefined) state.reportType = params.reportType;
   if(params.step !== undefined) state.step = params.step;
   if(params.viewingReportId !== undefined) state.viewingReportId = params.viewingReportId;
   if(params.viewingClientId !== undefined) state.viewingClientId = params.viewingClientId;
@@ -12199,6 +13226,7 @@ function navigate(screen, params){
 }
 function render(){
   const app = qs('#app');
+  if(state.profile && !screenAllowed(state.screen)){ state.screen = firstAllowedScreen(); }   // User Management: never show a page this position may not open
   app.innerHTML = '';
   updateNavActiveStates();
   if(state.screen === 'home'){ app.appendChild(renderHome()); removeFooterBar(); }
@@ -12223,6 +13251,7 @@ function render(){
   else if(state.screen === 'inventory'){ app.appendChild(renderInventoryList()); removeFooterBar(); }
   else if(state.screen === 'notifications'){ app.appendChild(renderNotificationsList()); removeFooterBar(); refreshNotificationBadge(); }
   else if(state.screen === 'analytics'){ app.appendChild(renderAnalytics()); removeFooterBar(); }
+  else if(state.screen === 'usermgmt'){ app.appendChild(renderUserMgmt()); removeFooterBar(); }
   else { app.appendChild(renderHome()); removeFooterBar(); }
   if(typeof outboxChanged === 'function') outboxChanged();   // fills every "Waiting to send" card and the Sync button on the screen that was just drawn
 }
@@ -12231,6 +13260,7 @@ function render(){
    SETTINGS LOAD (app_settings table, replacing sget('emailjs_settings'))
    ============================================================ */
 async function loadSettings(){
+  try{ await accessLoad(); }catch(e){ console.warn('accessLoad failed', e); }   // User Management: positions and permissions
   const s = await getAppSettings();
   if(s){
     state.settings.serviceId = s.service_id || '';
@@ -12259,19 +13289,19 @@ async function loadSettings(){
 function buildShellNav(){
   qs('#brandMarkSidebar').innerHTML = brandMarkHTML();
   const sidebarNav = qs('#sidebarNav');
-  sidebarNav.innerHTML = SIDEBAR_NAV.map(function(item){
-    return '<button class="sidebar-link" data-nav-key="'+item.key+'">'+icon(item.icon)+'<span>'+escapeHTML(item.label)+'</span></button>';
+  sidebarNav.innerHTML = SIDEBAR_NAV.filter(function(item){ return navItemAllowed(item.key); }).map(function(item){
+    return '<button class="sidebar-link" data-nav-key="'+item.key+'">'+icon(item.icon)+'<span>'+escapeHTML(navLabelFor(item))+'</span></button>';
   }).join('');
   qsa('.sidebar-link', sidebarNav).forEach(function(btn){
     btn.addEventListener('click', function(){ goToNavKey(btn.dataset.navKey); });
   });
 
   const tabBar = qs('#bottomTabBar');
-  tabBar.innerHTML = TAB_BAR_NAV.map(function(item){
+  tabBar.innerHTML = TAB_BAR_NAV.filter(function(item){ return item.key === 'dashboard' ? (accessIsAdmin() || can('dashboard.view')) : navItemAllowed(item.key); }).map(function(item){
     if(item.isRaised){
       return '<button class="tab-new-report" data-nav-key="'+item.key+'" aria-label="'+escapeHTML(item.label)+'">'+icon(item.icon)+'</button>';
     }
-    return '<button class="tab-item" data-nav-key="'+item.key+'">'+icon(item.icon)+'<span>'+escapeHTML(item.label)+'</span></button>';
+    return '<button class="tab-item" data-nav-key="'+item.key+'">'+icon(item.icon)+'<span>'+escapeHTML(navLabelFor(item))+'</span></button>';
   }).join('');
   qsa('[data-nav-key]', tabBar).forEach(function(btn){
     btn.addEventListener('click', function(){ goToNavKey(btn.dataset.navKey); });
