@@ -12231,6 +12231,7 @@ function applyThemeFromProfile(){
    sign-out.
    ============================================================ */
 function showAuthScreen(){
+  try{ accessClearPreview(); }catch(e){}
   welcomeCancel();   // a WELCOME animation never stays on top of a sign-in / area screen
   initThemeBeforeAuth();
   removeFooterBar();
@@ -12270,6 +12271,7 @@ function showApp(){
   qs('#authRoot').style.display = 'none';
   qs('#authRoot').innerHTML = '';
   qs('#appRoot').style.display = '';
+  try{ accessClearPreview(); }catch(e){}
   accessCacheLoad();   // User Management: the saved permissions of this phone, so the right menu shows at once
   try{ buildShellNav(); applyHeaderAccess(); }catch(e){ console.error(e); }
   updateHeaderUserChip();
@@ -12372,7 +12374,7 @@ const BUILTIN_POSITIONS = {
   manager:    { label:'Manager',    sort:30, rec:PERM_PRESET_MGR, description:'Runs the office. Recommended: like Supervisor, plus analytics and managing staff.' }
 };
 const ACCESS_CACHE_KEY = 'gepestcon_access_v1';
-const access = { positions:{}, userPos:{}, missing:false, loaded:false };   // positions: key -> {key,label,description,permissions,builtin,sort}
+const access = { positions:{}, userPos:{}, missing:false, loaded:false, preview:null, resume:null };   // preview: {key,label,perms} while an admin is looking at the app as a position   // positions: key -> {key,label,description,permissions,builtin,sort}
 
 const ACCESS_SQL = [
   '-- User Management: positions and what each position can do.',
@@ -12429,9 +12431,10 @@ function permTidy(map){
   return out;
 }
 function permCount(map){ let n = 0; PERM_LIST.forEach(function(p){ if(map[p.k]) n++; }); return n; }
-function accessIsAdmin(){ return !!(state.profile && state.profile.role === 'admin'); }
+function accessIsAdmin(){ return !!(state.profile && state.profile.role === 'admin') && !access.preview; }   // false while previewing, so every check behaves exactly like that position
 function accessPositionKey(){
   if(!state.profile) return null;
+  if(access.preview) return access.preview.key;
   if(state.profile.role === 'admin') return 'admin';
   const own = access.userPos[state.profile.id];
   if(own && access.positions[own]) return own;
@@ -12456,6 +12459,7 @@ function accessAllPositions(){
 function accessPosition(key){ const l = accessAllPositions(); for(let i = 0; i < l.length; i++){ if(l[i].key === key) return l[i]; } return null; }
 let __permMemo = { sig:'', map:null };
 function myPerms(){
+  if(access.preview) return access.preview.perms;
   const key = accessPositionKey();
   if(key === 'admin') return null;   // null = everything
   const sig = key + '|' + JSON.stringify(access.positions[key] || 0) + '|' + (state.profile && state.profile.role);
@@ -12478,6 +12482,7 @@ function reportsOwnOnly(){ return !!state.profile && !can('reports.view_all'); }
 function roleDisplay(r){ return r === 'admin' ? 'Administrator' : (r ? String(r).charAt(0).toUpperCase() + String(r).slice(1) : 'Technician'); }
 function accessPositionLabel(){
   if(!state.profile) return '';
+  if(access.preview) return access.preview.label + ' (preview)';
   if(state.profile.role === 'admin') return 'Administrator';
   const p = accessPosition(accessPositionKey());
   return p ? p.label : 'Technician';
@@ -12667,6 +12672,10 @@ function ensureUserMgmtCss(){
     '.um-person select{flex:0 1 200px;min-width:150px}' +
     '.um-lock{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--ink-soft)}' +
     '.um-lock svg{width:18px;height:18px}' +
+    '#previewBar{position:fixed;z-index:60;left:12px;right:12px;bottom:calc(88px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:10px;background:#1f2937;color:#fff;border-radius:14px;padding:10px 12px;box-shadow:0 8px 24px rgba(0,0,0,.3);font-size:14px}' +
+    '#previewBar svg{width:20px;height:20px;flex:0 0 auto}#previewBar span{flex:1;min-width:0}' +
+    '#previewBar button{border:0;background:#fff;color:#111;font:inherit;font-weight:700;border-radius:10px;padding:8px 12px;min-height:40px;cursor:pointer;flex:0 0 auto}' +
+    '@media(min-width:900px){#previewBar{left:auto;right:24px;bottom:24px;max-width:440px}}' +
     '.um-avatar{width:38px;height:38px;border-radius:50%;background:var(--brand-pale);color:var(--brand);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex:0 0 auto}';
   document.head.appendChild(st);
 }
@@ -12747,6 +12756,36 @@ function changeOwnPasswordModal(){
     catch(err){ btn.disabled = false; btn.textContent = 'Change password'; toast('Could not change the password: ' + (err.message || 'unknown error'), 'error'); }
   });
 }
+/* ---- Preview: an admin sees the app exactly as a position sees it, without signing out ----
+   Only what is SHOWN changes (menus, pages, buttons). The admin is still signed in as the admin, so anything saved during a
+   preview is real, and a position limited to "their own reports" shows the admin's own reports (usually none). Nothing is
+   remembered: closing or refreshing the page ends the preview. */
+function showPreviewBar(){
+  let b = document.getElementById('previewBar');
+  if(!b){ b = document.createElement('div'); b.id = 'previewBar'; document.body.appendChild(b); }
+  b.innerHTML = icon('eye') + '<span>Previewing as <b>' + escapeHTML(access.preview ? access.preview.label : '') + '</b></span><button type="button" id="previewExit">Exit preview</button>';
+  qs('#previewExit', b).addEventListener('click', accessStopPreview);
+}
+function accessClearPreview(){
+  access.preview = null; __permMemo = { sig:'', map:null };
+  const b = document.getElementById('previewBar'); if(b) b.remove();
+}
+function accessStartPreview(key, perms, label){
+  if(!(state.profile && state.profile.role === 'admin')) return;
+  ensureUserMgmtCss();
+  const pos = accessPosition(key);
+  access.preview = { key: key, label: label || (pos && pos.label) || key, perms: permTidy(perms || (pos ? pos.permissions : {})) };
+  showPreviewBar();
+  try{ buildShellNav(); applyHeaderAccess(); updateHeaderUserChip(); }catch(e){ console.error(e); }
+  state.reportType = null; state.screen = 'home'; render(); window.scrollTo(0, 0);
+  const own = access.preview.perms['reports.view_own'] && !access.preview.perms['reports.view_all'];
+  toast('Preview on. You are still the admin, so anything you save is real.' + (own ? ' Report lists show only your own reports, so they may look empty.' : ''), 'success');
+}
+function accessStopPreview(){
+  accessClearPreview();
+  try{ buildShellNav(); applyHeaderAccess(); updateHeaderUserChip(); }catch(e){ console.error(e); }
+  state.screen = 'usermgmt'; render(); window.scrollTo(0, 0);
+}
 const STAFF_FN_CODE = "// Gepestcon Co. - staff accounts with a username and password (no email needed).\n// Deploy this as an Edge Function named:  staff-accounts\n// Only a signed-in administrator can use it.\nimport { createClient } from \"https://esm.sh/@supabase/supabase-js@2\";\n\nconst cors = {\n  \"Access-Control-Allow-Origin\": \"*\",\n  \"Access-Control-Allow-Headers\": \"authorization, x-client-info, apikey, content-type\",\n};\nconst json = (body: unknown, status = 200) =>\n  new Response(JSON.stringify(body), { status, headers: { ...cors, \"Content-Type\": \"application/json\" } });\n\nDeno.serve(async (req) => {\n  if (req.method === \"OPTIONS\") return new Response(\"ok\", { headers: cors });\n  try {\n    const url = Deno.env.get(\"SUPABASE_URL\")!;\n    const anon = Deno.env.get(\"SUPABASE_ANON_KEY\")!;\n    const service = Deno.env.get(\"SUPABASE_SERVICE_ROLE_KEY\")!;\n\n    // who is asking? must be a signed-in, active administrator\n    const caller = createClient(url, anon, { global: { headers: { Authorization: req.headers.get(\"Authorization\") ?? \"\" } } });\n    const { data: who } = await caller.auth.getUser();\n    if (!who?.user) return json({ error: \"Please sign in again.\" }, 401);\n    const admin = createClient(url, service, { auth: { persistSession: false } });\n    const { data: me } = await admin.from(\"profiles\").select(\"role, active\").eq(\"id\", who.user.id).single();\n    if (!me || me.role !== \"admin\" || me.active === false) return json({ error: \"Only an administrator can do this.\" }, 403);\n\n    const b = await req.json();\n    const domain = String(b.email_domain ?? \"\").trim().toLowerCase();\n    if (!/^[a-z0-9-]+(\\.[a-z0-9-]+)*\\.[a-z]{2,}$/.test(domain)) return json({ error: \"The sign-in domain is not valid.\" }, 400);\n\n    if (b.action === \"create\") {\n      const username = String(b.username ?? \"\").trim().toLowerCase();\n      const password = String(b.password ?? \"\");\n      const fullName = String(b.full_name ?? \"\").trim();\n      if (!/^[a-z0-9][a-z0-9._-]{1,29}$/.test(username)) return json({ error: \"The username must be 2 to 30 characters: letters, numbers, dot, dash or underscore.\" }, 400);\n      if (password.length < 8) return json({ error: \"The password must be at least 8 characters.\" }, 400);\n      if (!fullName) return json({ error: \"Enter the person's full name.\" }, 400);\n      const email = `${username}.staff@${domain}`;\n      const { data: created, error } = await admin.auth.admin.createUser({\n        email, password, email_confirm: true, user_metadata: { full_name: fullName, username },\n      });\n      if (error) {\n        const m = error.message || \"\";\n        if (/already|registered|exists/i.test(m)) return json({ error: \"That username is already taken.\" }, 409);\n        return json({ error: m || \"Could not create the account.\" }, 400);\n      }\n      const id = created.user!.id;\n      // make sure the profile exists and carries the name (the role is set by the app afterwards)\n      const up = await admin.from(\"profiles\").upsert({ id, full_name: fullName, active: true }, { onConflict: \"id\" });\n      if (up.error) {\n        const u2 = await admin.from(\"profiles\").update({ full_name: fullName }).eq(\"id\", id);\n        if (u2.error) return json({ id, username, email, warning: \"The login was created, but the name could not be saved: \" + u2.error.message });\n      }\n      return json({ id, username, email });\n    }\n\n    if (b.action === \"resetPassword\") {\n      const target = String(b.target_id ?? \"\");\n      const password = String(b.password ?? \"\");\n      if (password.length < 8) return json({ error: \"The password must be at least 8 characters.\" }, 400);\n      const { data: t } = await admin.from(\"profiles\").select(\"role\").eq(\"id\", target).single();\n      if (!t) return json({ error: \"That person was not found.\" }, 404);\n      if (t.role === \"admin\") return json({ error: \"Administrator passwords are changed by the administrator themselves.\" }, 403);\n      const { error } = await admin.auth.admin.updateUserById(target, { password });\n      if (error) return json({ error: error.message }, 400);\n      return json({ ok: true });\n    }\n\n    if (b.action === \"update\") {\n      const target = String(b.target_id ?? \"\");\n      const { data: t } = await admin.from(\"profiles\").select(\"role\").eq(\"id\", target).single();\n      if (!t) return json({ error: \"That person was not found.\" }, 404);\n      if (t.role === \"admin\") return json({ error: \"Administrator accounts are changed by the administrator themselves.\" }, 403);\n      const { data: cur, error: ce } = await admin.auth.admin.getUserById(target);\n      if (ce || !cur?.user) return json({ error: \"That account was not found.\" }, 404);\n      const suffix = `.staff@${domain}`;\n      const isStaff = (cur.user.email ?? \"\").toLowerCase().endsWith(suffix);\n      const patch: Record<string, unknown> = {};\n      const meta: Record<string, unknown> = { ...(cur.user.user_metadata ?? {}) };\n      if (b.username !== undefined) {\n        if (!isStaff) return json({ error: \"Only username accounts can change their username.\" }, 400);\n        const username = String(b.username).trim().toLowerCase();\n        if (!/^[a-z0-9][a-z0-9._-]{1,29}$/.test(username)) return json({ error: \"The username must be 2 to 30 characters: letters, numbers, dot, dash or underscore.\" }, 400);\n        patch.email = `${username}${suffix}`;\n        patch.email_confirm = true;\n        meta.username = username;\n      }\n      if (b.password !== undefined && String(b.password) !== \"\") {\n        if (String(b.password).length < 8) return json({ error: \"The password must be at least 8 characters.\" }, 400);\n        patch.password = String(b.password);\n      }\n      let fullName: string | undefined;\n      if (b.full_name !== undefined) {\n        fullName = String(b.full_name).trim();\n        if (!fullName) return json({ error: \"Enter the person's full name.\" }, 400);\n        meta.full_name = fullName;\n      }\n      patch.user_metadata = meta;\n      const { error } = await admin.auth.admin.updateUserById(target, patch);\n      if (error) {\n        if (/already|registered|exists/i.test(error.message || \"\")) return json({ error: \"That username is already taken.\" }, 409);\n        return json({ error: error.message || \"Could not save the changes.\" }, 400);\n      }\n      if (fullName !== undefined) await admin.from(\"profiles\").update({ full_name: fullName }).eq(\"id\", target);\n      return json({ ok: true });\n    }\n\n    if (b.action === \"list\") {\n      const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });\n      if (error) return json({ error: error.message }, 400);\n      const suffix = `.staff@${domain}`;\n      const users = (data.users ?? []).map((u) => {\n        const e = (u.email ?? \"\").toLowerCase();\n        return { id: u.id, email: e, username: e.endsWith(suffix) ? e.slice(0, -suffix.length) : \"\" };\n      });\n      return json({ users });\n    }\n\n    return json({ error: \"Unknown action.\" }, 400);\n  } catch (e) {\n    return json({ error: String((e as Error)?.message ?? e) }, 500);\n  }\n});\n";
 function renderUserMgmt(){
   ensureUserMgmtCss();
@@ -12772,7 +12811,12 @@ function renderUserMgmt(){
     try{ um.people = await listProfiles(); }catch(e){ um.people = []; um.loadError = um.loadError || (e && e.message) || 'Could not load the people.'; }
     try{ const r = await staffFn({ action:'list' }); um.usernames = {}; (r.users || []).forEach(function(u){ if(u.username) um.usernames[u.id] = u.username; }); }catch(e){ um.usernames = {}; }
     um.loading = false;
+    if(access.resume){ um.tab = access.resume.tab || 'positions'; if(access.resume.key && access.resume.draft){ um.editing = access.resume.key; um.draft = access.resume.draft; um.dirty = !!access.resume.dirty; } access.resume = null; }   // coming back from a preview: the same page, with unsaved edits kept
     draw();
+  }
+  function previewAs(key, perms, label){
+    access.resume = { tab: um.tab, key: um.editing, draft: um.draft ? JSON.parse(JSON.stringify(um.draft)) : null, dirty: um.dirty };
+    accessStartPreview(key, perms, label);
   }
   function peopleOn(key){
     let n = 0;
@@ -12820,6 +12864,8 @@ function renderUserMgmt(){
         '<span class="hi-sub">'+pe+(pe===1?' person':' people')+' · '+n+' of '+total+' permissions on'+((p.builtin && !p.saved)?' · recommended':'')+'</span></span>'+icon('chevronRight')+'</button>';
     });
     h += '</div>';
+    h += '<div class="card" style="margin-bottom:14px;"><h3 class="section-title" style="font-size:15px;margin-bottom:2px;">Preview as a position</h3><p class="section-hint">See the app exactly as that position sees it, without signing out.</p><div class="chip-group">' +
+      accessAllPositions().map(function(p){ return '<button type="button" class="chip" data-preview="'+escapeHTML(p.key)+'">'+icon('eye')+'<span>'+escapeHTML(p.label)+'</span></button>'; }).join('') + '</div></div>';
     h += '<div class="um-actions"><button type="button" class="btn btn-primary" id="umAddPos">'+icon('plus')+' Add a position</button>' +
          '<button type="button" class="btn btn-secondary" id="umRecAll">'+icon('checkSeal')+' Recommended settings for everyone</button></div>';
     h += '<p class="small-muted">Not sure what to choose? <strong>Recommended settings</strong> gives technicians only the job report forms, and gives supervisors and managers what they normally need. You can change anything afterwards.</p>';
@@ -12827,6 +12873,7 @@ function renderUserMgmt(){
   }
   function wirePositions(){
     qsa('[data-pos]', wrap).forEach(function(b){ b.addEventListener('click', function(){ openEditor(b.dataset.pos); }); });
+    qsa('[data-preview]', wrap).forEach(function(b){ b.addEventListener('click', function(){ previewAs(b.dataset.preview); }); });
     qs('#umAddPos', wrap).addEventListener('click', addPositionModal);
     qs('#umRecAll', wrap).addEventListener('click', recommendedAllModal);
   }
@@ -12856,6 +12903,7 @@ function renderUserMgmt(){
       h += '<div class="um-person"><span class="um-avatar">'+escapeHTML(phone ? 'A' : initials(p.full_name))+'</span><span class="um-who"><b>'+escapeHTML(p.full_name || (phone ? '(area phone)' : '(no name set)'))+'</b><small>'+escapeHTML(sub)+'</small></span>';
       if(isAdm){ h += '<span class="um-lock">'+icon('shield')+' Administrator (locked)</span>'; }
       else {
+        h += '<button type="button" class="btn btn-secondary btn-sm" data-prevperson="'+escapeHTML(p.id)+'" data-prevkey="'+escapeHTML(cur)+'">'+icon('eye')+' Preview</button>';
         if(uname) h += '<button type="button" class="btn btn-secondary btn-sm" data-edit="'+escapeHTML(p.id)+'">'+icon('pencil')+' Edit</button>';
         h += '<select class="input" data-person="'+escapeHTML(p.id)+'" aria-label="Position for '+escapeHTML(p.full_name || 'this person')+'">';
         Object.keys(BUILTIN_POSITIONS).forEach(function(k){ h += '<option value="'+k+'"'+(cur===k?' selected':'')+'>'+escapeHTML(BUILTIN_POSITIONS[k].label)+'</option>'; });
@@ -12976,6 +13024,7 @@ function renderUserMgmt(){
     if(s) s.addEventListener('input', debounce(function(){ um.search = s.value; const pos = s.selectionStart; drawMain(); const n = qs('#umSearch', wrap); if(n){ n.focus(); try{ n.setSelectionRange(pos, pos); }catch(e){} } }, 200));
     const cb = qs('#umCreate', wrap); if(cb) cb.addEventListener('click', createAccountModal);
     const tp = qs('#umTogglePhones', wrap); if(tp) tp.addEventListener('click', function(){ um.showPhones = !um.showPhones; drawMain(); });
+    qsa('[data-prevperson]', wrap).forEach(function(b){ b.addEventListener('click', function(){ previewAs(b.dataset.prevkey); }); });
     qsa('[data-edit]', wrap).forEach(function(b){ b.addEventListener('click', function(){ const person = (um.people || []).find(function(p){ return p.id === b.dataset.edit; }); if(person) editAccountModal(person); }); });
     qsa('select[data-person]', wrap).forEach(function(sel){
       sel.addEventListener('change', async function(){
@@ -13046,7 +13095,7 @@ function renderUserMgmt(){
       html += '<div class="card" style="margin-bottom:14px;">' + field('Position name', 'um_label', 'text', d.label, {required:true}) + field('Short description (optional)', 'um_desc', 'text', d.description, {}) + '</div>';
     }
     html += '<div class="helper-banner">'+icon('info')+'<span>Switch on only what this position needs. Tip: adding, editing and deleting things is normally for admins, so only switch those on for people you fully trust.</span></div>';
-    html += '<div class="um-actions"><button type="button" class="btn btn-secondary" id="umRec">'+icon('checkSeal')+' Recommended settings</button><button type="button" class="btn btn-secondary" id="umNone">Turn everything off</button></div>';
+    html += '<div class="um-actions"><button type="button" class="btn btn-secondary" id="umRec">'+icon('checkSeal')+' Recommended settings</button><button type="button" class="btn btn-secondary" id="umNone">Turn everything off</button><button type="button" class="btn btn-secondary" id="umPrev">'+icon('eye')+' Preview as this position</button></div>';
     html += '<p class="small-muted" style="margin:0 0 12px;"><span id="umCount">'+permCount(d.permissions)+' of '+PERM_LIST.length+' permissions on</span> &nbsp; <span class="um-dirty" id="umDirty" '+(um.dirty?'':'hidden')+'>Not saved yet</span></p>';
     PERM_GROUPS.forEach(function(g){
       html += '<div class="card" style="margin-bottom:14px;padding:12px 14px;">';
@@ -13072,6 +13121,7 @@ function renderUserMgmt(){
     qsa('[data-goff]', wrap).forEach(function(b){ b.addEventListener('click', function(){ const g = PERM_GROUPS.find(function(x){ return x.key === b.dataset.goff; }); g.perms.forEach(function(p){ setPerm(p.k, false); }); syncChecks(); markDirty(); }); });
     qs('#umNone', wrap).addEventListener('click', function(){ PERM_LIST.forEach(function(p){ um.draft.permissions[p.k] = false; }); syncChecks(); markDirty(); });
     qs('#umRec', wrap).addEventListener('click', recommendedOneModal);
+    qs('#umPrev', wrap).addEventListener('click', function(){ previewAs(um.draft.key, um.draft.permissions, um.draft.label + (um.dirty ? ' (not saved yet)' : '')); });
     const lab = qs('#um_label', wrap), ds = qs('#um_desc', wrap);
     if(lab) lab.addEventListener('input', function(){ um.draft.label = lab.value; markDirty(); });
     if(ds) ds.addEventListener('input', function(){ um.draft.description = ds.value; markDirty(); });
