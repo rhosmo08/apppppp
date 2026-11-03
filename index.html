@@ -6,7 +6,7 @@
 <!-- APP VERSION: the update system reads this number. When a NEWER number is deployed, every device that is on an older number is forced to update.
      To release a new version, change ONLY this number (for example 1.0.0 to 2.0.0) and deploy. Keep it as digits and dots.
      The first number is also the label shown next to the company name in the app: 1.x.x shows V1, 2.x.x shows V2 (automatic). -->
-<meta name="app-version" content="2.0.0">
+<meta name="app-version" content="2.1.0">
 <title>GEPESTCON CO — Job Reports</title>
 <meta name="theme-color" content="#F6F5F3" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)">
@@ -648,6 +648,16 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .photo-insert.is-disabled{ cursor:not-allowed; opacity:.65; border-style:solid; }
 .photo-insert.is-disabled:hover{ border-color: var(--line-strong); color: var(--ink-soft); }
 .photos-busy .photo-insert{ opacity:.55; pointer-events:none; }
+.photo-picker{ display:flex; gap:8px; position:relative; }
+.photo-picker .photo-insert{ flex:1 1 0; width:auto; min-width:0; font-family:inherit; }
+.photo-picker .photo-insert:active{ border-color: var(--brand); }
+.cam-overlay{ position:fixed; inset:0; z-index:100000; background:rgba(0,0,0,.88); display:flex; align-items:center; justify-content:center; padding:16px; }
+.cam-box{ position:relative; width:min(720px,100%); max-height:100%; display:flex; flex-direction:column; gap:12px; }
+.cam-video{ width:100%; max-height:70vh; background:#000; border-radius:14px; object-fit:contain; }
+.cam-msg{ position:absolute; top:40%; left:0; right:0; text-align:center; color:#fff; font-weight:600; }
+.cam-bar{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.cam-shutter{ width:68px; height:68px; border-radius:50%; border:4px solid #fff; background:#fff; box-shadow:0 0 0 3px rgba(0,0,0,.35) inset; cursor:pointer; flex:0 0 auto; }
+.cam-shutter:disabled{ opacity:.4; cursor:default; }
 [data-photo-status]:empty{ display:none; }
 .acc-photo-badge{ display:inline-flex; align-items:center; gap:3px; margin-left:8px; font-size:11px; font-weight:700; color: var(--ink-soft); vertical-align:middle; }
 .acc-photo-badge svg{ width:13px; height:13px; }
@@ -2513,7 +2523,175 @@ const SEVEN11_FIXTURE_ITEMS = ['Glue pads','Blue lights','Fixture base/ballast']
 const SEVEN11_POST_PESTS = ['Rat / Mice','Cockroach','Flies','Mosquitoes'];
 const SEVEN11_AREA_PESTS = SEVEN11_POST_PESTS.concat(['Others']);
 const SEVEN11_SERVICES_RENDERED = ['Pest Control','Termite','Inspection','Others'];
-const SEVEN11_WEATHER_OPTIONS = ['Sunny','Cloudy','Light Rain','Heavy Rain','Thunderstorm'];
+const SEVEN11_WEATHER_OPTIONS = ['Sunny','Fair','Cloudy','Light Rain','Heavy Rain','Thunderstorm'];
+/* ---- Chemicals (one or more) and other materials (Glue Trap, Gel Bait, Powder) used on a visit ----
+   Stored on the report as service.chemicals = [{name, dilution, brand}] and service.materials = [{name, qty, unit}].
+   The older single fields (chemicalUsed, dilution, brand) are still filled in (joined) so anything that reads them keeps working,
+   and a report saved before this change shows its single chemical exactly as before. */
+const MATERIAL_OPTIONS = [ { name:'Glue Trap', unit:'pieces' }, { name:'Gel Bait', unit:'grams' }, { name:'Powder', unit:'grams' } ];
+const MATERIAL_UNITS = ['pieces', 'mL', 'grams'];
+const CHEMICALS_MAX = 8;
+function chemListOf(s){
+  s = s || {};
+  if(Array.isArray(s.chemicals)){
+    return s.chemicals.map(function(c){ c = c || {}; return { name:String(c.name || '').trim(), dilution:String(c.dilution || '').trim(), brand:String(c.brand || '').trim() }; })
+      .filter(function(c){ return c.name || c.dilution || c.brand; });
+  }
+  if(s.chemicalUsed || s.dilution || s.brand) return [{ name:String(s.chemicalUsed || '').trim(), dilution:String(s.dilution || '').trim(), brand:String(s.brand || '').trim() }];
+  return [];
+}
+function materialsOf(s){
+  s = s || {};
+  if(!Array.isArray(s.materials)) return [];
+  return s.materials.filter(function(m){ return m && m.name; }).map(function(m){ return { name:String(m.name), qty:String(m.qty || '').trim(), unit:MATERIAL_UNITS.indexOf(m.unit) >= 0 ? m.unit : 'pieces' }; });
+}
+function chemLine(c, withDetails){
+  return [c.name || '(no name)', withDetails && c.dilution ? c.dilution + ' mL/L' : '', withDetails ? c.brand : ''].filter(Boolean).join(' — ');
+}
+function materialLine(m){ return m.name + ' — ' + (m.qty ? m.qty + ' ' + m.unit : '—'); }
+/* rows for the PDF and the review screen. mode: 'seven11' (name, dilution, brand), 'private' or 'government' (name only) */
+function chemKvRows(d, mode, sep){
+  sep = sep || '\n';
+  const list = chemListOf(d.service), seven = mode === 'seven11', rows = [];
+  const label = seven ? 'Chemicals applied' : 'Chemical used';
+  if(list.length <= 1){
+    const c = list[0] || { name:'', dilution:'', brand:'' };
+    rows.push([label, c.name || (mode === 'private' ? '—' : '')]);
+    if(seven){ rows.push(['Dilution (mL/L)', c.dilution]); rows.push(['Brand', c.brand]); }
+  } else {
+    rows.push([label, list.map(function(c, i){ return (i + 1) + '. ' + chemLine(c, seven); }).join(sep)]);
+  }
+  return rows;
+}
+function matKvRows(d, sep){
+  const mats = materialsOf(d.service);
+  return mats.length ? [['Other materials used', mats.map(materialLine).join(sep || '\n')]] : [];
+}
+function ensureChemCss(){
+  if(document.getElementById('chemCss')) return;
+  const st = document.createElement('style'); st.id = 'chemCss';
+  st.textContent =
+    '.chem-row{border:1px solid var(--line);border-radius:12px;padding:10px 12px 2px;margin-bottom:10px;background:var(--paper)}' +
+    '.chem-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}' +
+    '.chem-title{font-size:12.5px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em}' +
+    '.chem-remove{border:0;background:transparent;color:var(--ink-soft);width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}' +
+    '.chem-remove svg{width:18px;height:18px}' +
+    '.chem-add{width:100%;margin:0 0 14px}' +
+    '.mat-row{display:flex;align-items:center;gap:8px;margin-top:10px}' +
+    '.mat-name{flex:1 1 90px;min-width:0;font-weight:650;font-size:14.5px}' +
+    '.mat-row .mat-qty{flex:0 1 110px;min-width:80px}' +
+    '.mat-row .mat-unit{flex:0 1 110px;min-width:90px}';
+  document.head.appendChild(st);
+}
+function chemRowHTML(c, i, withDetails, canRemove){
+  c = c || {};
+  let h = '<div class="chem-row" data-chem><div class="chem-head"><span class="chem-title">Chemical ' + (i + 1) + '</span>' +
+    (canRemove ? '<button type="button" class="chem-remove" data-chem-remove aria-label="Remove chemical ' + (i + 1) + '">' + icon('x') + '</button>' : '') + '</div>' +
+    '<div class="field" style="margin-bottom:10px;"><label>Chemical name</label><input class="input" data-chem-name autocomplete="off" placeholder="e.g. Cypermethrin 10EC" value="' + escapeHTML(c.name || '') + '"></div>';
+  if(withDetails){
+    h += '<div class="row-2"><div class="field" style="margin-bottom:10px;"><label>Dilution (mL/L)</label><input class="input" data-chem-dil autocomplete="off" value="' + escapeHTML(c.dilution || '') + '"></div>' +
+      '<div class="field" style="margin-bottom:10px;"><label>Brand</label><input class="input" data-chem-brand autocomplete="off" value="' + escapeHTML(c.brand || '') + '"></div></div>';
+  }
+  return h + '</div>';
+}
+function chemicalsBlockHTML(d, withDetails){
+  ensureChemCss();
+  const list = chemListOf(d.service);
+  if(!list.length) list.push({ name:'', dilution:'', brand:'' });
+  return '<div id="chemList" data-details="' + (withDetails ? '1' : '0') + '">' + list.map(function(c, i){ return chemRowHTML(c, i, withDetails, list.length > 1); }).join('') + '</div>' +
+    '<button type="button" class="btn btn-secondary btn-sm chem-add" id="chemAdd">' + icon('plus') + ' Add another chemical</button>';
+}
+function materialRowHTML(m){
+  return '<div class="mat-row" data-mat="' + escapeHTML(m.name) + '"><span class="mat-name">' + escapeHTML(m.name) + '</span>' +
+    '<input class="input mat-qty" data-mat-qty inputmode="decimal" autocomplete="off" placeholder="How many" aria-label="' + escapeHTML(m.name) + ' quantity" value="' + escapeHTML(m.qty || '') + '">' +
+    '<select class="input mat-unit" data-mat-unit aria-label="' + escapeHTML(m.name) + ' unit">' + MATERIAL_UNITS.map(function(u){ return '<option value="' + u + '"' + (m.unit === u ? ' selected' : '') + '>' + u + '</option>'; }).join('') + '</select></div>';
+}
+function materialsBlockHTML(d){
+  ensureChemCss();
+  const sel = materialsOf(d.service);
+  return '<div class="group-block" id="matBlock" style="margin-top:6px;"><div class="group-title">Other materials used</div>' +
+    '<p class="small-muted" style="margin:0 0 10px;">Tap what was used, then enter how many.</p>' +
+    '<div class="chip-group" id="matChips">' + MATERIAL_OPTIONS.map(function(o){ return chipHTML(o.name, sel.some(function(m){ return m.name === o.name; })); }).join('') + '</div>' +
+    '<div id="matDetails">' + MATERIAL_OPTIONS.filter(function(o){ return sel.some(function(m){ return m.name === o.name; }); })
+      .map(function(o){ return materialRowHTML(sel.filter(function(m){ return m.name === o.name; })[0]); }).join('') + '</div></div>';
+}
+function wireChemicals(container){
+  const list = qs('#chemList', container);
+  if(list){
+    const withDetails = list.getAttribute('data-details') === '1';
+    const rowsNow = function(){
+      return qsa('[data-chem]', list).map(function(r){
+        return { name: qs('[data-chem-name]', r).value, dilution: withDetails ? qs('[data-chem-dil]', r).value : '', brand: withDetails ? qs('[data-chem-brand]', r).value : '' };
+      });
+    };
+    const redraw = function(rows, focusLast){
+      list.innerHTML = rows.map(function(c, i){ return chemRowHTML(c, i, withDetails, rows.length > 1); }).join('');
+      const add = qs('#chemAdd', container); if(add) add.disabled = rows.length >= CHEMICALS_MAX;
+      if(focusLast){ const els = qsa('[data-chem-name]', list); if(els.length) els[els.length - 1].focus(); }
+      list.dispatchEvent(new Event('input', { bubbles:true }));   // lets the section counter update
+    };
+    list.addEventListener('click', function(e){
+      const b = e.target && e.target.closest ? e.target.closest('[data-chem-remove]') : null;
+      if(!b) return;
+      const rows = rowsNow(), idx = qsa('[data-chem]', list).indexOf(b.closest('[data-chem]'));
+      if(idx >= 0 && rows.length > 1){ rows.splice(idx, 1); redraw(rows, false); }
+    });
+    const add = qs('#chemAdd', container);
+    if(add) add.addEventListener('click', function(){
+      const rows = rowsNow();
+      if(rows.length >= CHEMICALS_MAX) return;
+      rows.push({ name:'', dilution:'', brand:'' }); redraw(rows, true);
+    });
+  }
+  const chips = qs('#matChips', container), details = qs('#matDetails', container);
+  if(chips && details){
+    qsa('.chip', chips).forEach(function(c){
+      c.addEventListener('click', function(){
+        const on = !c.classList.contains('is-on');
+        c.classList.toggle('is-on', on);
+        const name = c.getAttribute('data-val');
+        const old = qsa('.mat-row', details).filter(function(r){ return r.getAttribute('data-mat') === name; })[0];
+        if(!on){ if(old) old.remove(); return; }
+        if(old) return;
+        const opt = MATERIAL_OPTIONS.filter(function(o){ return o.name === name; })[0] || { name:name, unit:'pieces' };
+        const holder = document.createElement('div'); holder.innerHTML = materialRowHTML({ name:name, qty:'', unit:opt.unit });
+        const row = holder.firstChild, order = MATERIAL_OPTIONS.map(function(o){ return o.name; });
+        const after = qsa('.mat-row', details).filter(function(r){ return order.indexOf(r.getAttribute('data-mat')) > order.indexOf(name); })[0];
+        details.insertBefore(row, after || null);
+        qs('[data-mat-qty]', row).focus();
+      });
+    });
+    details.addEventListener('input', function(e){
+      const t = e.target;
+      if(t && t.matches && t.matches('[data-mat-qty]')){
+        let v = t.value.replace(/[^0-9.]/g, ''); const i = v.indexOf('.'); if(i >= 0) v = v.slice(0, i + 1) + v.slice(i + 1).replace(/\./g, '');
+        if(v !== t.value) t.value = v;
+      }
+    });
+  }
+}
+/* reads the chemical rows and the materials from the screen into d.service (and keeps the older single fields filled) */
+function readChemicals(container, d, withDetails){
+  const list = qs('#chemList', container);
+  if(list){
+    const rows = qsa('[data-chem]', list).map(function(r){
+      return { name: qs('[data-chem-name]', r).value.trim(), dilution: withDetails ? qs('[data-chem-dil]', r).value.trim() : '', brand: withDetails ? qs('[data-chem-brand]', r).value.trim() : '' };
+    }).filter(function(c){ return c.name || c.dilution || c.brand; });
+    d.service.chemicals = rows;
+    d.service.chemicalUsed = rows.map(function(c){ return c.name; }).filter(Boolean).join(', ');
+    if(withDetails){
+      d.service.dilution = rows.map(function(c){ return c.dilution; }).filter(Boolean).join(', ');
+      d.service.brand = rows.map(function(c){ return c.brand; }).filter(Boolean).join(', ');
+    }
+  }
+  const details = qs('#matDetails', container);
+  if(details){
+    d.service.materials = qsa('.mat-row', details).map(function(r){
+      return { name: r.getAttribute('data-mat'), qty: qs('[data-mat-qty]', r).value.trim(), unit: qs('[data-mat-unit]', r).value };
+    });
+  }
+}
+
 const SEVEN11_BUSINESS_UNITS = ['L1','L2','L4','L5','VRBU']; // "Business Unit" dropdown choices (still saved in storeCluster / store_cluster)
 // Keeps an older free-text value (e.g. a previously typed "Cluster 4") visible and selected, so saving the form never silently blanks it.
 function businessUnitOptions(current){
@@ -4741,8 +4919,7 @@ function pdfServicePrivate(doc, d, y){
     ['Services performed', d.service.typesOfServices.join(', ') || '\u2014'],
     ['Active pest observed', (d.service.activePests.concat(d.service.activePestOther?[d.service.activePestOther]:[])).join(', ') || '\u2014'],
     ['Degree of infestation', d.service.degreeOfInfestation || '\u2014', 'severity'],
-    ['Chemical used', d.service.chemicalUsed || '\u2014']
-  ]);
+  ].concat(chemKvRows(d, 'private')).concat(matKvRows(d)));
 }
 function pdfServiceSeven11(doc, d, y){
   const rows = SEVEN11_AREAS.map(function(a,i){
@@ -4753,12 +4930,8 @@ function pdfServiceSeven11(doc, d, y){
   });
   if(rows.some(function(r){ return r[1] || r[2]; })) y = gridTable(doc, y, ['Area','Pest spotted','Severity'], rows, {0:{cellWidth:140}, 2:{cellWidth:100}}, { severityCol:2 });   // only reports saved with the old area log have rows
   y = kvTable(doc, y, [
-    ['Services rendered', d.service.servicesRendered],
-    ['Chemicals applied', d.service.chemicalUsed],
-    ['Dilution (mL/L)', d.service.dilution],
-    ['Brand', d.service.brand],
-    ['Weather condition', d.service.weather]
-  ]);
+    ['Services rendered', d.service.servicesRendered]
+  ].concat(chemKvRows(d, 'seven11')).concat([['Weather condition', d.service.weather]]).concat(matKvRows(d)));
   y = sectionHeading(doc, 'Other Parameters of Concern', y);
   const otherRows = SEVEN11_OTHER_PARAMS.map(function(row,i){
     const r = d.service.otherParams['o'+i] || {};
@@ -4783,9 +4956,8 @@ function pdfServiceGovernment(doc, d, y){
     ['Barriers / sealing', d.service.sealing],
     ['Sanitation needs', d.service.sanitationNeeds],
     ['Repair & maintenance', d.service.repairMaintenance],
-    ['Renovation notes', d.service.renovation],
-    ['Chemical used', d.service.chemicalUsed]
-  ]);
+    ['Renovation notes', d.service.renovation]
+  ].concat(chemKvRows(d, 'government')).concat(matKvRows(d)));
   y = sectionHeading(doc, 'Findings \u2014 Degree of Infestation', y);
   const findRows = GOV_FINDINGS_PESTS.map(function(p,i){
     const r = d.findings.byPest['p'+i] || {};
@@ -5911,7 +6083,7 @@ function sampleReportForTest(toEmail){
     id: 'test', type: 'private', controlDisplay: 'TEST-0001', accountId: null,
     client: { name:'Sample Client', contactPerson:'Sample Client', phone:'', address: CONFIG.companyAddress || '', email: toEmail, ccEmail:'' },
     schedule: { serviceDate: todayISO(), actualDate: todayISO(), timeStarted:'', timeFinished:'' },
-    service: { typesOfServices:['Wet Spraying'], activePests:['Cockroaches'], activePestOther:'', degreeOfInfestation:'Light', chemicalUsed:'' },
+    service: { typesOfServices:['Wet Spraying'], activePests:['Cockroaches'], activePestOther:'', degreeOfInfestation:'Light', chemicalUsed:'', chemicals:[], materials:[] },
     findings: {},
     concern: { finding:'This is a test report sent from the Settings screen to check that the email and its PDF attachment work.', recommendation:'', category:'', location:'' },
     signOff: { technicianName:'Test Technician', technicianSig:null, technicianStamp:null, clientRepName:'', clientSig:null, clientStamp:null, satisfaction:'', clientRemarks:'' },
@@ -5943,7 +6115,7 @@ function emptyDraft(type){
     schedule: { serviceDate: todayISO(), actualDate: todayISO(), timeStarted:'', timeFinished:'' },
     service: {
       typesOfServices: [], activePests: [], activePestOther:'', degreeOfInfestation:'',
-      chemicalUsed:'', dilution:'', brand:'', servicesRendered:'', servicesRenderedList:[], servicesRenderedOther:'', scopeRows:{}, otherParams:{}, fixtureItems:{}, weather:'',
+      chemicalUsed:'', dilution:'', brand:'', chemicals:[], materials:[], servicesRendered:'', servicesRenderedList:[], servicesRenderedOther:'', scopeRows:{}, otherParams:{}, fixtureItems:{}, weather:'',
       natureOfWork: [], gpcPests: [], actionTaken: [], areasTreated: [], rodentEntryPoint:'', barriers:'', sealing:'',
       sanitationNeeds:'', repairMaintenance:'', renovation:''
     },
@@ -6222,20 +6394,21 @@ function serviceHTMLPrivate(d){
     PRIVATE_PESTS.map(function(s){ return chipHTML(s, d.service.activePests.indexOf(s)!==-1); }).join('') + '</div></div>';
   b += field('Other pest (if any)', 'f_pestOther', 'text', d.service.activePestOther, {placeholder:'Specify if not listed above'});
   b += '<div class="field"><label>Degree of infestation</label>'+ gaugeHTML('gaugeInfest', d.service.degreeOfInfestation, ['Light','Medium','High']) + '</div>';
-  const c = field('Chemical used', 'f_chemical', 'text', d.service.chemicalUsed, {placeholder:'e.g. Cypermethrin 10EC'});
-  return svcWrap('private', [['services','Services performed',a], ['pests','Pests & infestation',b], ['chemical','Chemical used',c]]);
+  const c = chemicalsBlockHTML(d, false) + materialsBlockHTML(d);
+  return svcWrap('private', [['services','Services performed',a], ['pests','Pests & infestation',b], ['chemical','Chemicals & materials',c]]);
 }
 function wireServicePrivate(container){
   qsa('#svcChips .chip', container).forEach(function(c){ c.addEventListener('click', function(){ c.classList.toggle('is-on'); }); });
   qsa('#pestChips .chip', container).forEach(function(c){ c.addEventListener('click', function(){ c.classList.toggle('is-on'); }); });
   wireGauge(container, 'gaugeInfest');
+  wireChemicals(container);
 }
 function readServicePrivate(container, d){
   d.service.typesOfServices = qsa('#svcChips .chip.is-on', container).map(function(c){ return c.dataset.val; });
   d.service.activePests = qsa('#pestChips .chip.is-on', container).map(function(c){ return c.dataset.val; });
   d.service.activePestOther = qs('#f_pestOther', container).value.trim();
   d.service.degreeOfInfestation = getGaugeValue(container, 'gaugeInfest');
-  d.service.chemicalUsed = qs('#f_chemical', container).value.trim();
+  readChemicals(container, d, false);
 }
 
 function serviceHTMLSeven11(d){
@@ -6246,9 +6419,9 @@ function serviceHTMLSeven11(d){
   '</div></div>';
   a += '<div class="field" id="svcRenderedOtherWrap" style="margin-bottom:'+(svcHasOthers?'16px':'0')+';display:'+(svcHasOthers?'block':'none')+';">'+
     '<label>If Others, specify</label><input class="input" id="f_svcServicesOther" value="'+escapeHTML(d.service.servicesRenderedOther||'')+'"></div>';
-  let b = fieldMini('Chemicals applied', 'f_svcChemicals', d.service.chemicalUsed);
-  b += '<div class="row-2">'+ fieldMini('Dilution (mL/L)', 'f_svcDilution', d.service.dilution) + fieldMini('Brand', 'f_svcBrand', d.service.brand) + '</div>';
+  let b = chemicalsBlockHTML(d, true);
   b += selectField('Weather condition during application', 'f_weather', d.service.weather, SEVEN11_WEATHER_OPTIONS);
+  b += materialsBlockHTML(d);
   const c = SEVEN11_OTHER_PARAMS.map(function(row,i){
     const rec = d.service.otherParams['o'+i] || {};
     return '<div class="group-block"><div class="group-title" style="text-transform:none;letter-spacing:0;font-size:13px;">'+escapeHTML(row)+'</div>'+
@@ -6258,6 +6431,7 @@ function serviceHTMLSeven11(d){
   return svcWrap('seven11', [['services','Services rendered',a], ['chemicals','Chemicals & weather',b], ['other','Other parameters of concern',c]]);
 }
 function wireServiceSeven11(container){
+  wireChemicals(container);
   const chipWrap = qs('#svcRenderedChips', container);
   const otherWrap = qs('#svcRenderedOtherWrap', container);
   if(chipWrap){
@@ -6279,9 +6453,7 @@ function readServiceSeven11(container, d){
   d.service.servicesRenderedList = svcSelected;
   d.service.servicesRenderedOther = svcOtherEl ? svcOtherEl.value.trim() : '';
   d.service.servicesRendered = svcSelected.map(function(s){ return (s==='Others' && d.service.servicesRenderedOther) ? d.service.servicesRenderedOther : s; }).join(', ');
-  d.service.chemicalUsed = qs('#f_svcChemicals', container).value.trim();
-  d.service.dilution = qs('#f_svcDilution', container).value.trim();
-  d.service.brand = qs('#f_svcBrand', container).value.trim();
+  readChemicals(container, d, true);
   d.service.weather = qs('#f_weather', container).value.trim();
   SEVEN11_OTHER_PARAMS.forEach(function(row,i){
     d.service.otherParams['o'+i] = {
@@ -6318,10 +6490,10 @@ function serviceHTMLGovernment(d){
     textareaField('Renovation notes', 'f_renovation', d.service.renovation, {rows:2, placeholder:'Optional'}) +
   '</div>';
 
-  const dd = field('Chemical used', 'f_chemical', 'text', d.service.chemicalUsed, {placeholder:'e.g. Deltamethrin, Bromadiolone'});
+  const dd = chemicalsBlockHTML(d, false) + materialsBlockHTML(d);
   const e = '<p class="small-muted" style="margin:0 0 6px;">Degree of infestation per pest</p>' + pestSeverityListHTML('find', GOV_FINDINGS_PESTS, d.findings.byPest, {labels:['Light','Medium','High'], withLocation:false});
 
-  return svcWrap('government', [['work','Work done',a], ['areas','Areas treated',b], ['entry','Entry points & customer responsibilities',c], ['chemical','Chemical used',dd], ['findings','Findings',e]]);
+  return svcWrap('government', [['work','Work done',a], ['areas','Areas treated',b], ['entry','Entry points & customer responsibilities',c], ['chemical','Chemicals & materials',dd], ['findings','Findings',e]]);
 }
 function wireServiceGovernment(container){
   qsa('#nowChips .chip, #gpcChips .chip, #actChips .chip', container).forEach(function(c){ c.addEventListener('click', function(){ c.classList.toggle('is-on'); }); });
@@ -6329,6 +6501,7 @@ function wireServiceGovernment(container){
     cb.addEventListener('change', function(){ cb.closest('.check-row').classList.toggle('is-on', cb.checked); });
   });
   wirePestSeverityList(container, 'find', GOV_FINDINGS_PESTS);
+  wireChemicals(container);
 }
 function readServiceGovernment(container, d){
   d.service.natureOfWork = qsa('#nowChips .chip.is-on', container).map(function(c){ return c.dataset.val; });
@@ -6340,7 +6513,7 @@ function readServiceGovernment(container, d){
   d.service.sanitationNeeds = qs('#f_sanitation', container).value.trim();
   d.service.repairMaintenance = qs('#f_repair', container).value.trim();
   d.service.renovation = qs('#f_renovation', container).value.trim();
-  d.service.chemicalUsed = qs('#f_chemical', container).value.trim();
+  readChemicals(container, d, false);
   d.findings.byPest = readPestSeverityList(container, 'find', GOV_FINDINGS_PESTS, false);
 }
 
@@ -6503,8 +6676,7 @@ function problemPhotosHTML(d, p){
   if(mine.length >= PROBLEM_MAX_PHOTOS){
     html += '<div class="photo-insert is-disabled" role="note">' + icon('camera') + '<span>Maximum of ' + PROBLEM_MAX_PHOTOS + ' photos for this problem area</span></div>';
   } else {
-    html += '<label class="photo-insert">' + icon('camera') + '<span>' + (mine.length ? 'Add another photo' : 'Take or add a photo') + '</span>' +
-      '<input type="file" accept="image/*" multiple class="sr-only" data-pa-photo-input></label>';
+    html += photoPickerHTML('data-pa-photo-input');
   }
   html += '<div class="small-muted" data-pa-photo-status aria-live="polite" style="margin-top:6px;"></div>';
   if(!mine.length) html += '<p class="pa-photo-tip">A photo helps the client see exactly where the problem is.</p>';
@@ -7062,6 +7234,83 @@ function makeThumbDataUrl(dataUrl, maxDim){
 function areaPhotoQuotaText(n){
   return 'Photo evidence: '+n+(n===1?' photo':' photos')+' added';
 }
+/* ---- Photo pickers: two clear buttons, "Take photo" (the camera) and "Photo library" (saved pictures). Pictures only. ----
+   Phones and tablets open their own camera straight away. A computer opens a live camera window (and falls back to the
+   normal file window when there is no camera or it is blocked). Whatever is chosen goes through the same change event as before. */
+function photoPickerHTML(attr, val){
+  const a = attr + (val !== undefined && val !== null ? '="' + escapeHTML(String(val)) + '"' : '');
+  return '<div class="photo-picker">' +
+    '<button type="button" class="photo-insert" data-photo-take>' + icon('camera') + '<span>Take photo</span></button>' +
+    '<button type="button" class="photo-insert" data-photo-lib>' + icon('image') + '<span>Photo library</span></button>' +
+    '<input type="file" accept="image/*" capture="environment" class="sr-only" tabindex="-1" aria-hidden="true" data-photo-cam ' + a + '>' +
+    '<input type="file" accept="image/*" multiple class="sr-only" tabindex="-1" aria-hidden="true" data-photo-libin ' + a + '>' +
+  '</div>';
+}
+function photoIsTouchDevice(){
+  try{ return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches); }catch(e){ return false; }
+}
+function photoInjectFile(input, file){
+  try{
+    const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files;
+    input.dispatchEvent(new Event('change', { bubbles:true }));
+    return true;
+  }catch(e){ return false; }
+}
+function openCameraWindow(input){
+  if(document.getElementById('camOverlay')) return;
+  const ov = document.createElement('div'); ov.id = 'camOverlay'; ov.className = 'cam-overlay'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', 'Take a photo');
+  ov.innerHTML = '<div class="cam-box"><video class="cam-video" autoplay playsinline muted></video>' +
+    '<div class="cam-msg" id="camMsg">Starting the camera…</div>' +
+    '<div class="cam-bar"><button type="button" class="btn btn-secondary" id="camCancel">Cancel</button>' +
+    '<button type="button" class="cam-shutter" id="camShoot" aria-label="Take the photo" disabled></button>' +
+    '<button type="button" class="btn btn-secondary" id="camFlip" hidden>Switch camera</button></div></div>';
+  document.body.appendChild(ov);
+  const video = ov.querySelector('video'), msg = ov.querySelector('#camMsg');
+  let stream = null, facing = 'environment', closed = false;
+  function stop(){ if(stream){ stream.getTracks().forEach(function(t){ t.stop(); }); stream = null; } }
+  function close(){ if(closed) return; closed = true; stop(); document.removeEventListener('keydown', onKey); ov.remove(); }
+  function onKey(e){ if(e.key === 'Escape') close(); }
+  function fallback(){ close(); input.click(); }
+  async function start(){
+    stop(); msg.hidden = false; msg.textContent = 'Starting the camera…'; ov.querySelector('#camShoot').disabled = true;
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: facing }, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false });
+      if(closed){ stop(); return; }
+      video.srcObject = stream; await video.play().catch(function(){});
+      msg.hidden = true; ov.querySelector('#camShoot').disabled = false;
+      try{ const devs = await navigator.mediaDevices.enumerateDevices(); ov.querySelector('#camFlip').hidden = devs.filter(function(x){ return x.kind === 'videoinput'; }).length < 2; }catch(e){}
+    }catch(err){ if(!closed) fallback(); }
+  }
+  ov.querySelector('#camCancel').addEventListener('click', close);
+  ov.querySelector('#camFlip').addEventListener('click', function(){ facing = facing === 'environment' ? 'user' : 'environment'; start(); });
+  ov.querySelector('#camShoot').addEventListener('click', function(){
+    const w = video.videoWidth, h = video.videoHeight;
+    if(!w || !h) return;
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h; cv.getContext('2d').drawImage(video, 0, 0, w, h);
+    cv.toBlob(function(blob){
+      if(!blob){ toast('Could not take the photo. Please try again.', 'error'); return; }
+      const file = new File([blob], 'photo-' + Date.now() + '.jpg', { type:'image/jpeg' });
+      close();
+      if(!photoInjectFile(input, file)) toast('Could not use that photo. Please use Photo library instead.', 'error');
+    }, 'image/jpeg', 0.92);
+  });
+  document.addEventListener('keydown', onKey);
+  start();
+}
+let photoPickerWired = false;
+function wirePhotoPickers(){
+  if(photoPickerWired) return; photoPickerWired = true;
+  document.addEventListener('click', function(e){
+    const t = e.target && e.target.closest ? e.target.closest('[data-photo-take],[data-photo-lib]') : null;
+    if(!t) return;
+    const box = t.closest('.photo-picker'); if(!box) return;
+    if(t.hasAttribute('data-photo-lib')){ box.querySelector('[data-photo-libin]').click(); return; }
+    const cam = box.querySelector('[data-photo-cam]');
+    if(photoIsTouchDevice() || !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) cam.click();   // phone/tablet: its own camera; no camera support: the normal file window
+    else openCameraWindow(cam);
+  });
+}
+wirePhotoPickers();
 function areaPhotoBodyHTML(key, areaName, all){
   const mine = all.filter(function(p){ return p.areaKey === key; });
   const nm = escapeHTML(areaName);
@@ -7072,7 +7321,7 @@ function areaPhotoBodyHTML(key, areaName, all){
         '<button type="button" class="photo-remove" data-photo-remove="'+escapeHTML(p.id)+'" aria-label="Remove '+nm+' photo '+(i+1)+'">'+icon('x')+'</button></div>';
     }).join('') + '</div>';
   }
-  html += '<label class="photo-insert">'+icon('camera')+'<span>Insert photo evidence</span><input type="file" accept="image/*" multiple class="sr-only" data-photo-input="'+key+'"></label>';
+  html += photoPickerHTML('data-photo-input', key);
   return html + '<div class="small-muted" data-photo-status="'+key+'" aria-live="polite" style="margin-top:6px;"></div>';
 }
 /* Repaints only the photo parts (each area's tiles + button, the header badges, the counter). Never rebuilds the step, so
@@ -7634,15 +7883,14 @@ function serviceKV(d, type){
     rows.push(['Services', d.service.typesOfServices.join(', ')]);
     rows.push(['Pests observed', d.service.activePests.join(', ') + (d.service.activePestOther?(', '+d.service.activePestOther):'')]);
     rows.push(['Degree of infestation', d.service.degreeOfInfestation]);
-    rows.push(['Chemical used', d.service.chemicalUsed]);
+    chemKvRows(d, 'private', ', ').forEach(function(r){ rows.push(r); }); matKvRows(d, ', ').forEach(function(r){ rows.push(r); });
   } else if(type==='seven11'){
     const loggedAreas = Object.keys(d.service.scopeRows).filter(function(k){ const r=d.service.scopeRows[k]; return r && ((r.pests&&r.pests.length)||r.pest||r.severity); }).length;
     if(loggedAreas) rows.push(['Areas logged', loggedAreas + ' of ' + SEVEN11_AREAS.length]);   // only reports saved with the old area log
     rows.push(['Services rendered', d.service.servicesRendered]);
-    rows.push(['Chemicals applied', d.service.chemicalUsed]);
-    rows.push(['Dilution (mL/L)', d.service.dilution]);
-    rows.push(['Brand', d.service.brand]);
+    chemKvRows(d, 'seven11').forEach(function(r){ rows.push(r); });
     rows.push(['Weather', d.service.weather]);
+    matKvRows(d).forEach(function(r){ rows.push(r); });
     SEVEN11_FIXTURE_ITEMS.forEach(function(item,i){
       const r = d.service.fixtureItems ? (d.service.fixtureItems['f'+i]||{}) : {};
       rows.push([item, r.qty ? (r.qty + (r.remarks?(' \u2014 '+r.remarks):'')) : (r.remarks||'')]);
@@ -7652,6 +7900,7 @@ function serviceKV(d, type){
     rows.push(['Pests noted', d.service.gpcPests.join(', ')]);
     rows.push(['Action taken', d.service.actionTaken.join(', ')]);
     rows.push(['Areas treated', d.service.areasTreated.length + ' selected']);
+    chemKvRows(d, 'government', ', ').forEach(function(r){ if(r[1]) rows.push(r); }); matKvRows(d, ', ').forEach(function(r){ rows.push(r); });
     const findSummary = Object.keys(d.findings.byPest||{}).map(function(k){ return d.findings.byPest[k]; }).filter(function(r){return r && r.severity;}).map(function(r){ return r.pest+': '+r.severity; }).join(', ');
     rows.push(['Findings', findSummary]);
   }
@@ -9652,6 +9901,19 @@ function initials(name){
   if(parts.length===1) return parts[0][0].toUpperCase();
   return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
 }
+/* Profile > "Offline use": says whether this phone has saved the app so it opens with no internet */
+async function offlineReadiness(){
+  try{
+    if(!('serviceWorker' in navigator)) return 'This browser cannot keep the app for offline use. Reports still wait on the phone and send later.';
+    if(!/^https?:$/.test(location.protocol)) return 'Open the app from its website address (not a saved file) to use it offline.';
+    const reg = await navigator.serviceWorker.getRegistration();
+    if(!reg || !reg.active) return 'Not ready yet. Stay on this screen with internet for a few seconds, then reopen the app.';
+    let saved = false;
+    try{ const keys = await caches.keys(); for(const k of keys){ if(k.indexOf('gepestcon-') === 0 && await (await caches.open(k)).match('./index.html', { ignoreSearch:true })){ saved = true; break; } } }catch(e){ saved = true; }
+    if(!saved) return 'Not ready yet. Stay on this screen with internet for a few seconds, then reopen the app.';
+    return 'Ready. The app opens with no internet, and reports are saved on this phone and sent when the signal returns.';
+  }catch(e){ return 'Could not check. Reports still wait on the phone and send later.'; }
+}
 function renderProfile(){
   const wrap = document.createElement('div');
   const p = state.profile || {};
@@ -9681,6 +9943,7 @@ function renderProfile(){
   '</button>';
   html += '</div>';
 
+  html += '<div class="card" style="margin-top:14px;padding:4px 20px;"><div class="profile-row"><span><span class="pr-label">Offline use</span><span class="pr-sub" style="display:block;" id="offlineReady">Checking\u2026</span></span></div></div>';
   html += '<div class="card" style="margin-top:14px;padding:4px 20px;">';
   html += '<div class="profile-row"><span><span class="pr-label">App version</span><i class="brand-ver">'+escapeHTML(window.GEPESTCON_EDITION || '')+'</i><span class="pr-sub" style="display:block;">Version '+escapeHTML(window.GEPESTCON_VERSION || '')+'</span></span>'+
     '<button type="button" class="btn btn-secondary btn-sm" id="checkUpdateBtn">Check for updates</button></div>';
@@ -9703,6 +9966,7 @@ function renderProfile(){
       } catch(err){ toast('Could not save theme preference: ' + (err.message||'unknown error'), 'error'); }
     });
   });
+  offlineReadiness().then(function(r){ const el = qs('#offlineReady', wrap); if(el) el.textContent = r; });
   const cpw = qs('#changePwBtn', wrap); if(cpw) cpw.addEventListener('click', changeOwnPasswordModal);
   const goSet = qs('#goToSettingsBtn', wrap);
   if(goSet){ if(!can('settings.view')){ const gc = goSet.closest('.card'); if(gc) gc.remove(); } else goSet.addEventListener('click', function(){ navigate('settings'); }); }
