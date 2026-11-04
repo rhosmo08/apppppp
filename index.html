@@ -6,7 +6,7 @@
 <!-- APP VERSION: the update system reads this number. When a NEWER number is deployed, every device that is on an older number is forced to update.
      To release a new version, change ONLY this number (for example 1.0.0 to 2.0.0) and deploy. Keep it as digits and dots.
      The first number is also the label shown next to the company name in the app: 1.x.x shows V1, 2.x.x shows V2 (automatic). -->
-<meta name="app-version" content="2.1.0">
+<meta name="app-version" content="2.2.0">
 <title>GEPESTCON CO — Job Reports</title>
 <meta name="theme-color" content="#F6F5F3" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)">
@@ -528,11 +528,19 @@ select.input{ appearance:none; background-image: url('data:image/svg+xml;utf8,<s
 :root[data-theme="dark"] select.input{ background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="%23A9ABB2" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>'); }
 select.input.has-value{ border-color: var(--brand); background-color: var(--brand-pale); color: var(--brand-dark); font-weight:700; }
 
-.row-2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-.row-3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
-@media(max-width:520px){ .row-3{ grid-template-columns:1fr 1fr; } }
+.row-2{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; }
+.row-3{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr); gap:12px; }
+@media(max-width:520px){ .row-3{ grid-template-columns:minmax(0,1fr) minmax(0,1fr); } }
+.row-2 > *, .row-3 > *{ min-width:0; }
+/* iPhone/iPad draw date and time boxes with a width of their own, which pushed the second box out of the screen and over the first one. These keep every box inside its column. */
+input[type="date"].input, input[type="time"].input, input[type="datetime-local"].input{
+  display:block; width:100%; min-width:0; max-width:100%; box-sizing:border-box; min-height:48px;
+  -webkit-appearance:none; appearance:none; text-align:left; line-height:1.3;
+}
+input[type="date"].input::-webkit-date-and-time-value, input[type="time"].input::-webkit-date-and-time-value, input[type="datetime-local"].input::-webkit-date-and-time-value{ text-align:left; margin:0; min-height:1.3em; }
+input[type="date"].input::-webkit-datetime-edit, input[type="time"].input::-webkit-datetime-edit{ padding:0; }
 /* Phase 1, old defect: below about 355 px two date fields side by side were wider than the screen (the first report step ran 31 px off the edge at 320 px). On the narrowest phones the pairs stack. */
-@media(max-width:359px){ .row-2, .row-3{ grid-template-columns:1fr; } }
+@media(max-width:359px){ .row-2, .row-3{ grid-template-columns:minmax(0,1fr); } }
 
 .chip-group{ display:flex; flex-wrap:wrap; gap:8px; }
 .chip{
@@ -919,6 +927,33 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .kv dd{ margin:0; font-size:13.5px; }
 .kv dd.empty{ color: var(--ink-faint); font-style:italic; }
 @media(max-width:480px){ .kv{ grid-template-columns:1fr; } .kv dt{ margin-top:6px; } }
+/* Report details (the report page and the review step): large, bold answers so they can be read at a glance */
+.review-block .rb-title{ font-size:15px; letter-spacing:.05em; color: var(--ink); }
+.review-block .kv{ grid-template-columns:minmax(0,1fr); gap:0; }
+.review-block .kv dt{ font-size:14.5px; font-weight:700; color: var(--ink-soft); margin:0; padding:14px 0 2px; }
+.review-block .kv dd{ margin:0; font-size:19px; font-weight:650; line-height:1.4; color: var(--ink); padding:0 0 14px; border-bottom:1px solid var(--line); white-space:pre-line; overflow-wrap:anywhere; }
+.review-block .kv dd:last-child{ border-bottom:0; padding-bottom:4px; }
+.review-block .kv dd.empty{ font-size:15.5px; font-weight:500; color: var(--ink-faint); }
+@media(min-width:700px){
+  .review-block .kv{ grid-template-columns:230px minmax(0,1fr); column-gap:20px; }
+  .review-block .kv dt{ padding:14px 0; border-bottom:1px solid var(--line); }
+  .review-block .kv dd{ padding:12px 0; }
+  .review-block .kv dt:last-of-type, .review-block .kv dd:last-child{ border-bottom:0; }
+}
+/* View PDF */
+.pv-overlay{ position:fixed; inset:0; z-index:100001; display:flex; flex-direction:column; background:#2b2c30; }
+.pv-top{ display:flex; align-items:center; gap:8px; padding:10px 12px; background:#fff; border-bottom:1px solid var(--line); padding-top:max(10px, env(safe-area-inset-top)); }
+.pv-title{ flex:1; min-width:0; text-align:center; font-weight:800; font-size:15px; color:#1a1b1e; line-height:1.2; }
+.pv-title small{ display:block; font-weight:600; font-size:12.5px; color:#55575e; margin-top:2px; }
+.pv-top .btn{ min-height:44px; padding:8px 14px; font-size:14.5px; white-space:nowrap; }
+.pv-scroll{ flex:1; overflow:auto; -webkit-overflow-scrolling:touch; padding:12px; position:relative; text-align:center; }
+.pv-pages{ display:inline-flex; flex-direction:column; align-items:center; gap:12px; min-width:100%; }
+.pv-page{ display:block; background:#fff; box-shadow:0 2px 10px rgba(0,0,0,.45); max-width:none; flex:0 0 auto; }
+.pv-msg{ color:#fff; font-weight:600; padding:40px 16px; font-size:16px; line-height:1.5; }
+.pv-msg a, .pv-msg button{ margin-top:12px; }
+.pv-zoom{ position:absolute; right:14px; bottom:max(16px, env(safe-area-inset-bottom)); display:flex; flex-direction:column; gap:8px; z-index:2; }
+.pv-zoom button{ width:48px; height:48px; border-radius:50%; border:0; background:#fff; color:#1a1b1e; font-size:26px; font-weight:700; box-shadow:0 2px 8px rgba(0,0,0,.4); cursor:pointer; line-height:1; }
+.pv-zoom button:disabled{ opacity:.45; }
 
 /* ---------- Divider label (Recent reports, Quick access, etc.) ---------- */
 .divider-label{
@@ -5958,6 +5993,108 @@ function approvalGmailUrl(d, withBody){
     (withBody === false ? '' : ('&body=' + encodeURIComponent(m.body)));
 }
 /* Saves the stored PDF to the device (named like the report). Returns false when the PDF could not be found. */
+/* ---- View PDF: opens the report PDF inside the app (the reader that is already stored in this page), so it can be checked before it is downloaded ---- */
+let pdfViewerOpen = false;
+function pvSaveBlob(blob, name){
+  const u = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = u; a.download = name || 'report.pdf';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(u); }, 30000);
+}
+async function openPdfViewer(getBlob, filename){
+  if(pdfViewerOpen) return;
+  pdfViewerOpen = true;
+  const prevOverflow = document.body.style.overflow;
+  document.body.style.overflow = 'hidden';
+  const ov = document.createElement('div');
+  ov.className = 'pv-overlay'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-modal', 'true'); ov.setAttribute('aria-label', 'Report PDF');
+  ov.innerHTML =
+    '<div class="pv-top"><button type="button" class="btn btn-secondary" id="pvClose">' + icon('x') + ' Close</button>' +
+    '<div class="pv-title">Report PDF<small id="pvPage">Opening…</small></div>' +
+    '<button type="button" class="btn btn-primary" id="pvDownload" disabled>' + icon('download') + ' Download</button></div>' +
+    '<div class="pv-scroll" id="pvScroll"><div class="pv-pages" id="pvPages"></div><div class="pv-msg" id="pvMsg">Opening the PDF…</div>' +
+    '<div class="pv-zoom" id="pvZoom" hidden><button type="button" id="pvIn" aria-label="Zoom in">+</button><button type="button" id="pvOut" aria-label="Zoom out">−</button></div></div>';
+  document.body.appendChild(ov);
+  const scroll = ov.querySelector('#pvScroll'), pages = ov.querySelector('#pvPages'), msg = ov.querySelector('#pvMsg'), pageLbl = ov.querySelector('#pvPage');
+  const dlBtn = ov.querySelector('#pvDownload'), zoomBox = ov.querySelector('#pvZoom');
+  let blob = null, doc = null, zoom = 1, token = 0, closed = false, total = 0;
+  function close(){
+    if(closed) return; closed = true; token++;
+    try{ if(doc) doc.destroy(); }catch(e){}
+    document.removeEventListener('keydown', onKey);
+    ov.remove(); document.body.style.overflow = prevOverflow; pdfViewerOpen = false;
+  }
+  function onKey(e){ if(e.key === 'Escape') close(); }
+  document.addEventListener('keydown', onKey);
+  ov.querySelector('#pvClose').addEventListener('click', close);
+  dlBtn.addEventListener('click', function(){ if(blob) pvSaveBlob(blob, filename); });
+  function updatePageLabel(){
+    if(!total) return;
+    const mid = scroll.scrollTop + scroll.clientHeight / 3;
+    let cur = 1;
+    Array.prototype.forEach.call(pages.children, function(c, i){ if(c.offsetTop <= mid) cur = i + 1; });
+    pageLbl.textContent = 'Page ' + cur + ' of ' + total;
+  }
+  scroll.addEventListener('scroll', updatePageLabel, { passive:true });
+  function fail(text, withOpen){
+    msg.hidden = false; zoomBox.hidden = true;
+    msg.textContent = text;
+    if(blob){
+      dlBtn.disabled = false;
+      if(withOpen){
+        const br = document.createElement('div');
+        const a = document.createElement('a'); a.className = 'btn btn-secondary'; a.textContent = 'Open the PDF in a new tab'; a.target = '_blank'; a.rel = 'noopener';
+        a.href = URL.createObjectURL(blob); br.appendChild(a); msg.appendChild(br);
+      }
+    }
+    pageLbl.textContent = '';
+  }
+  async function renderAll(){
+    const mine = ++token, ratio = scroll.scrollHeight ? scroll.scrollTop / scroll.scrollHeight : 0;
+    pages.innerHTML = ''; msg.hidden = true;
+    const w = Math.min(Math.max(200, scroll.clientWidth - 24), 900) * zoom;
+    for(let n = 1; n <= doc.numPages; n++){
+      if(mine !== token || closed) return;
+      const page = await doc.getPage(n);
+      const base = page.getViewport({ scale: 1 }), cssScale = w / base.width;
+      let dpr = Math.min(2.5, window.devicePixelRatio || 1);
+      while(base.width * base.height * cssScale * cssScale * dpr * dpr > 16e6 && dpr > 1) dpr -= 0.25;   // protects the phone's memory
+      const vp = page.getViewport({ scale: cssScale * dpr });
+      const cv = document.createElement('canvas');
+      cv.className = 'pv-page'; cv.width = Math.max(1, Math.ceil(vp.width)); cv.height = Math.max(1, Math.ceil(vp.height));
+      cv.style.width = Math.round(w) + 'px'; cv.style.height = Math.round(w * base.height / base.width) + 'px';
+      cv.setAttribute('role', 'img'); cv.setAttribute('aria-label', 'Page ' + n + ' of ' + doc.numPages);
+      pages.appendChild(cv);
+      if(n === 1) updatePageLabel();
+      await page.render({ canvas: cv, viewport: vp, background: '#ffffff' }).promise;
+      if(n === 1 && ratio) scroll.scrollTop = ratio * scroll.scrollHeight;
+    }
+    updatePageLabel();
+  }
+  try{
+    blob = await getBlob();
+    if(closed) return;
+    if(!blob){ fail('The PDF could not be found for this report. Please contact an admin.', false); return; }
+    dlBtn.disabled = false;
+    let lib;
+    try{ lib = await sigpdfTimeout(sigpdfLoadEngine(), 40000, 'The PDF viewer took too long to start.'); }
+    catch(e){ if(!closed) fail('This phone could not show the PDF here. You can still open or download it.', true); return; }
+    if(closed) return;
+    const buf = await blob.arrayBuffer();
+    const task = lib.getDocument({ data: new Uint8Array(buf), useWorkerFetch:false, BinaryDataFactory: SigPdfData, verbosity:0, isEvalSupported:false, maxImageSize: 100 * 1000 * 1000 });
+    doc = await sigpdfTimeout(task.promise, 45000, 'Opening the PDF took too long.');
+    if(closed){ try{ doc.destroy(); }catch(e){} return; }
+    total = doc.numPages;
+    zoomBox.hidden = false;
+    const setZoom = function(z){ zoom = Math.max(0.75, Math.min(3, z)); ov.querySelector('#pvIn').disabled = zoom >= 3; ov.querySelector('#pvOut').disabled = zoom <= 0.75; renderAll().catch(function(){}); };
+    ov.querySelector('#pvIn').addEventListener('click', function(){ setZoom(zoom + 0.25); });
+    ov.querySelector('#pvOut').addEventListener('click', function(){ setZoom(zoom - 0.25); });
+    await renderAll();
+  }catch(e){
+    console.error('View PDF failed', e);
+    if(!closed) fail('The PDF could not be shown here. You can still download it.', !!blob);
+  }
+}
 async function saveStoredPdf(d){
   if(!d.pdfPath) return false;
   try{
@@ -8939,12 +9076,20 @@ function renderSuccess(){
 
   html += '<div class="card stack-14">';
   if(isAdmin){ html += '<button class="btn btn-primary btn-block btn-lg" id="reviewApproveBtn">'+icon('checkSeal')+' Review &amp; approve</button>'; }
-  if(can('reports.download_pdf')){ html += '<button class="btn btn-secondary btn-block btn-lg" id="downloadPdfBtn">'+icon('download')+' Download PDF report</button>'; }
+  if(can('reports.download_pdf')){
+    html += '<button class="btn btn-primary btn-block btn-lg" id="viewPdfBtn" type="button">'+icon('eye')+' View PDF report</button>';
+    html += '<button class="btn btn-secondary btn-block btn-lg" id="downloadPdfBtn">'+icon('download')+' Download PDF report</button>';
+  }
   html += '<button class="btn btn-ghost btn-block" id="newReportBtn">Start another report</button>';
   html += '</div>';
 
   wrap.innerHTML = html;
 
+  const sView = qs('#viewPdfBtn', wrap);
+  if(sView) sView.addEventListener('click', function(){
+    const url = lastSubmittedPdfBlobUrl;
+    openPdfViewer(async function(){ try{ return url ? await (await fetch(url)).blob() : null; }catch(e){ return null; } }, 'JAR-' + d.controlDisplay + '.pdf');
+  });
   const sDl = qs('#downloadPdfBtn', wrap);
   if(sDl) sDl.addEventListener('click', function(){
     const a = document.createElement('a');
@@ -9420,7 +9565,10 @@ async function loadAndRenderDetail(wrap, id){
   } else {
     html += '<div class="helper-banner amber">'+icon('info')+'<span>'+(canApprove ? 'This report is waiting for your approval. Approving it does not email the client by itself.' : 'Waiting for an admin to approve this report.')+'</span></div>';
   }
-  if(can('reports.download_pdf')){ html += '<button class="btn btn-secondary btn-block btn-lg" id="detailDownload">'+icon('download')+' Download PDF</button>'; }
+  if(can('reports.download_pdf')){
+    html += '<button class="btn btn-primary btn-block btn-lg" id="detailView" type="button">'+icon('eye')+' View PDF</button>';
+    html += '<button class="btn btn-secondary btn-block btn-lg" id="detailDownload">'+icon('download')+' Download PDF</button>';
+  }
   if(can('reports.delete')){
     html += '<button class="btn btn-danger btn-block" id="detailDelete">'+icon('trash')+' Delete report</button>';
   }
@@ -9449,6 +9597,10 @@ async function loadAndRenderDetail(wrap, id){
   if(viewAccountBtn){
     viewAccountBtn.addEventListener('click', function(){ navigate('accountDetail', { viewingAccountId: d.accountId }); });
   }
+  const viewBtn = qs('#detailView', wrap);
+  if(viewBtn) viewBtn.addEventListener('click', function(){
+    openPdfViewer(async function(){ return d.pdfPath ? await fetchStoredPdf(d.pdfPath) : null; }, reportPdfFilename(d));
+  });
   const dlBtn = qs('#detailDownload', wrap);
   if(dlBtn) dlBtn.addEventListener('click', async function(){
     const btn = qs('#detailDownload', wrap);
