@@ -1331,6 +1331,10 @@ body, .app-header, .bottom-tab-bar, .app-sidebar, .card{
 
 /* Pagination ("load more") */
 .load-more-wrap{ display:flex; justify-content:center; padding:18px 0 4px; }
+.hist-more-actions{ flex-wrap:wrap; gap:10px; }
+.hist-more-actions .btn{ flex:1 1 220px; max-width:340px; }
+.hist-chip.hist-approved{ display:inline-flex; align-items:center; gap:6px; }
+.hist-chip.hist-approved svg{ width:16px; height:16px; flex:0 0 auto; }
 
 /* Phase 1, old defect: this reset skipped pseudo-elements, so the pulse on the notification bell (an ::after) never stopped for people who asked their phone to reduce motion.
    It now covers ::before and ::after, and the in-app "reduce motion" switch the design system reserves (<html data-motion="reduce">). */
@@ -2750,14 +2754,8 @@ const GOV_FINDINGS_PESTS = ['Flies','Roaches','Mosquito','Rodents','Ants'];
 const SIDEBAR_NAV = [
   { key:'dashboard', label:'Dashboard', icon:'grid' },
   { key:'history', label:'Job Reports', icon:'history' },
-  { key:'clients', label:'Clients', icon:'users' },
-  { key:'accounts', label:'Accounts', icon:'briefcase' },
-  { key:'stores', label:'7-Eleven Stores', icon:'store' },
-  { key:'technicians', label:'Technicians', icon:'user' },
   { key:'areatechs', label:'Area Technicians', icon:'users' },
   { key:'schedule', label:'Schedule', icon:'calendar' },
-  { key:'services', label:'Services', icon:'wrench' },
-  { key:'inventory', label:'Inventory', icon:'box' },
   { key:'analytics', label:'Analytics', icon:'barChart' },
   { key:'notifications', label:'Notifications', icon:'bell' },
   { key:'usermgmt', label:'User Management', icon:'shield' },
@@ -2767,7 +2765,6 @@ const TAB_BAR_NAV = [
   { key:'dashboard', label:'Dashboard', icon:'grid' },
   { key:'history', label:'Reports', icon:'history' },
   { key:'new-report', label:'New Report', icon:'plus', isRaised:true },
-  { key:'clients', label:'Clients', icon:'users' },
   { key:'profile', label:'Profile', icon:'user' }
 ];
 // fix: P2-3, see build prompt — removed the dead COMING_SOON_MODULES table
@@ -4428,13 +4425,15 @@ function reportDateRange(year, month, day){
  *   dateBy  'service' (the date the work was done) or 'submitted' (the day the report was sent in)
  *   year / month / day  narrow the date; sort  one of REPORT_SORTS
  */
-async function listReportsPage({ page, search, type, status, area, dateBy, year, month, day, sort }){
-  const from = page * REPORTS_PAGE_SIZE;
-  const to = from + REPORTS_PAGE_SIZE - 1;
+async function listReportsPage({ page, search, type, status, area, dateBy, year, month, day, sort, offset, pageSize }){
+  const size = pageSize || REPORTS_PAGE_SIZE;                       // "Show all" asks for bigger pieces; everything else uses 20
+  const from = (typeof offset === 'number') ? offset : page * size;  // offset = how many reports are already on the screen
+  const to = from + size - 1;
   let q = sb.from('reports').select('*', { count:'exact' });
   if(reportsOwnOnly()){ q = q.eq('technician_id', state.profile.id); }   // User Management: this position sees only its own reports
   if(type){ q = q.eq('type', type); }
-  if(status){ q = q.eq('email_status', status); }
+  if(status === 'approved'){ q = q.in('email_status', ['manual', 'sent']); }   // "All approved": approved by an admin, whether or not it has been emailed yet
+  else if(status){ q = q.eq('email_status', status); }
   if(area){ q = q.eq('sign_off->>area', area); }   // the area is kept inside the report's sign_off data
   const range = reportDateRange(year, month, day);
   if(range){
@@ -9166,13 +9165,7 @@ function historyItemHTML(r){
 }
 const QUICK_ACCESS_TILES = [
   { key:'history', label:'Job Reports', sub:'Create & view reports', icon:'history' },
-  { key:'clients', label:'Clients', sub:'Manage clients', icon:'users' },
-  { key:'accounts', label:'Accounts', sub:'Manage accounts', icon:'briefcase' }, // fix: P1-6, see build prompt
-  { key:'stores', label:'7-Eleven Stores', sub:'Saved store list', icon:'store' },
   { key:'schedule', label:'Schedule', sub:'View appointments', icon:'calendar' },
-  { key:'services', label:'Services', sub:'Manage services', icon:'wrench' },
-  { key:'inventory', label:'Inventory', sub:'Check inventory', icon:'box' },
-  { key:'technicians', label:'Technicians', sub:'Manage team', icon:'user' },
   { key:'areatechs', label:'Area Technicians', sub:'Fixed team per area', icon:'users' },
   { key:'analytics', label:'Analytics', sub:'View insights', icon:'barChart' },
   { key:'notifications', label:'Notifications', sub:'System alerts', icon:'bell' },
@@ -9275,6 +9268,7 @@ async function loadRecentForHome(wrap){
 const HIST_DEFAULTS = { search:'', type:'', area:'', status:'', dateBy:'service', year:'', month:'', day:'', sort:'newest' };
 let __histFilters = Object.assign({}, HIST_DEFAULTS);   // kept while the person opens a report and comes back, so they do not lose their place
 let __histState = Object.assign({ page: 0, rows: [], count: 0 }, __histFilters);
+let __histSeq = 0;   // goes up every time the list is reloaded, so a slow answer for old filters is never drawn over the new list
 const HIST_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 function histActiveCount(f){
   // how many of "Date, status & sort" are set: year, month and exact day count as one date filter
@@ -9295,7 +9289,7 @@ function histSummaryText(count, f){
   const parts = [count + (count === 1 ? ' report' : ' reports')];
   if(f.type) parts.push(HIST_TYPE_LABEL[f.type]);
   if(f.area && areaInfo(f.area)) parts.push(areaInfo(f.area).label + (f.area === 'MAIN' ? '' : ' area'));
-  if(f.status) parts.push(f.status === 'draft' ? 'Awaiting approval' : f.status === 'manual' ? 'Approved' : 'Emailed');
+  if(f.status) parts.push(f.status === 'draft' ? 'Awaiting approval' : f.status === 'approved' ? 'All approved' : f.status === 'manual' ? 'Approved, not emailed yet' : 'Emailed');
   if(f.day) parts.push(formatDateDisplay(f.day));
   else if(f.year){ parts.push((f.month ? HIST_MONTHS[parseInt(f.month, 10) - 1] + ' ' : '') + f.year); }
   if((f.year || f.day) && f.dateBy === 'submitted') parts.push('by date submitted');
@@ -9319,6 +9313,7 @@ function renderHistory(){
   html += '<p class="section-hint" style="margin-bottom:18px;">Every report submitted with this app, shared with your team.</p>';
   html += '<div data-outbox-host></div>';
   html += '<div class="card hist-filters">' +
+    '<div class="hist-chips" id="histQuick"><button type="button" class="hist-chip hist-approved' + (f.status === 'approved' ? ' is-on' : '') + '" id="histApprovedBtn" aria-pressed="' + (f.status === 'approved' ? 'true' : 'false') + '">' + icon('checkSeal') + ' All approved reports</button></div>' +
     '<input class="input" id="histSearch" placeholder="Search client, control no. or technician" value="' + escapeHTML(f.search) + '">' +
     '<div class="hist-chips" id="histTypes" role="group" aria-label="Report type">' + typeChips + '</div>' +
     '<div class="hist-chips" id="histAreas" role="group" aria-label="Area">' + areaChips + '</div>' +
@@ -9328,7 +9323,7 @@ function renderHistory(){
         '<label class="hist-f"><span>Year</span><select class="input" id="histYear">' + histYearOptions(f.year) + '</select></label>' +
         '<label class="hist-f"><span>Month</span><select class="input" id="histMonth">' + histOptions([['', 'All months']].concat(HIST_MONTHS.map(function(m, i){ return [String(i + 1), m]; })), f.month) + '</select></label>' +
         '<label class="hist-f"><span>Exact day</span><input class="input" type="date" id="histDay" value="' + escapeHTML(f.day) + '"></label>' +
-        '<label class="hist-f"><span>Status</span><select class="input" id="histStatus">' + histOptions([['', 'All statuses'], ['draft', 'Awaiting approval'], ['manual', 'Approved'], ['sent', 'Emailed']], f.status) + '</select></label>' +
+        '<label class="hist-f"><span>Status</span><select class="input" id="histStatus">' + histOptions([['', 'All statuses'], ['draft', 'Awaiting approval'], ['approved', 'All approved (incl. emailed)'], ['manual', 'Approved, not emailed yet'], ['sent', 'Emailed']], f.status) + '</select></label>' +
         '<label class="hist-f"><span>Sort by</span><select class="input" id="histSort">' + histOptions([['newest', 'Newest submitted'], ['oldest', 'Oldest submitted'], ['service_desc', 'Service date, newest'], ['service_asc', 'Service date, oldest']], f.sort) + '</select></label>' +
       '</div>' +
     '</details>' +
@@ -9342,6 +9337,9 @@ function renderHistory(){
     Object.keys(HIST_DEFAULTS).forEach(function(k){ __histFilters[k] = __histState[k]; });
     const n = histActiveCount(__histState), badge = qs('#histBadge', wrap);
     if(badge){ badge.textContent = n; badge.hidden = !n; }
+    const approvedOn = __histState.status === 'approved', approvedBtn = qs('#histApprovedBtn', wrap), statusSel = qs('#histStatus', wrap);   // the button and the Status box always show the same thing
+    if(approvedBtn){ approvedBtn.classList.toggle('is-on', approvedOn); approvedBtn.setAttribute('aria-pressed', approvedOn ? 'true' : 'false'); }
+    if(statusSel) statusSel.value = __histState.status;
     loadHistoryPage(listWrapEl, true);
   }
   qs('#histSearch', wrap).addEventListener('input', debounce(function(){
@@ -9363,6 +9361,7 @@ function renderHistory(){
     });
   });
   qs('#histStatus', wrap).addEventListener('change', function(){ __histState.status = qs('#histStatus', wrap).value; reload(); });
+  qs('#histApprovedBtn', wrap).addEventListener('click', function(){ __histState.status = (__histState.status === 'approved') ? '' : 'approved'; reload(); });   // press again to go back to every report
   qs('#histSort', wrap).addEventListener('change', function(){ __histState.sort = qs('#histSort', wrap).value; reload(); });
   qs('#histDateBy', wrap).addEventListener('change', function(){ __histState.dateBy = qs('#histDateBy', wrap).value; reload(); });
   qs('#histYear', wrap).addEventListener('change', function(){
@@ -9406,14 +9405,17 @@ function renderHistory(){
 }
 
 async function loadHistoryPage(target, reset){
-  if(reset){ __histState.page = 0; __histState.rows = []; }
+  if(reset){ __histState.page = 0; __histState.rows = []; __histSeq++; }
+  const seq = __histSeq;
   let rows, count;
-  try{ ({ rows, count } = await listReportsPage({ page: __histState.page, search: __histState.search, type: __histState.type, area: __histState.area, status: __histState.status, dateBy: __histState.dateBy, year: __histState.year, month: __histState.month, day: __histState.day, sort: __histState.sort })); }
+  try{ ({ rows, count } = await listReportsPage({ page: __histState.page, offset: reset ? 0 : __histState.rows.length, search: __histState.search, type: __histState.type, area: __histState.area, status: __histState.status, dateBy: __histState.dateBy, year: __histState.year, month: __histState.month, day: __histState.day, sort: __histState.sort })); }
   catch(err){
+    if(seq !== __histSeq) return;
     target.innerHTML = errorStateHTML(err.message);
     qs('#retryLoadBtn', target).addEventListener('click', function(){ loadHistoryPage(target, reset); });
     return;
   }
+  if(seq !== __histSeq) return;   // the filters changed while this was loading; the newer list is the one to show
   __histState.rows = reset ? rows : __histState.rows.concat(rows);
   __histState.count = count;
   renderHistList(target);
@@ -9448,7 +9450,10 @@ function renderHistList(target){
   let html = '<div class="card" style="padding:2px 14px;">' + body + '</div>';
   const hasMore = __histState.rows.length < __histState.count;
   if(hasMore){
-    html += '<div class="load-more-wrap"><button class="btn btn-secondary" id="histLoadMore">Load more ('+(__histState.count - __histState.rows.length)+' remaining)</button></div>';
+    html += '<div class="load-more-wrap hist-more-actions">' +
+      '<button class="btn btn-secondary" id="histLoadMore">Load more ('+(__histState.count - __histState.rows.length)+' remaining)</button>' +
+      '<button class="btn btn-primary" id="histShowAll">Show all '+__histState.count+' reports</button>' +
+    '</div>';
   }
   target.innerHTML = html;
   qsa('.hist-item', target).forEach(function(el){
@@ -9462,6 +9467,32 @@ function renderHistList(target){
       loadHistoryPage(target, false);
     });
   }
+  const showAllBtn = qs('#histShowAll', target);
+  if(showAllBtn){ showAllBtn.addEventListener('click', function(){ loadAllHistory(target, showAllBtn); }); }
+}
+
+/* "Show all reports": loads every report that is not on the screen yet (100 at a time, with the same filters) and draws the whole list. */
+async function loadAllHistory(target, btn){
+  const seq = __histSeq;
+  const more = qs('#histLoadMore', target);
+  if(more) more.disabled = true;
+  btn.disabled = true;
+  try{
+    while(__histState.rows.length < __histState.count){
+      btn.textContent = 'Loading… ' + __histState.rows.length + ' of ' + __histState.count;
+      const res = await listReportsPage({ page: 0, offset: __histState.rows.length, pageSize: 100, search: __histState.search, type: __histState.type, area: __histState.area, status: __histState.status, dateBy: __histState.dateBy, year: __histState.year, month: __histState.month, day: __histState.day, sort: __histState.sort });
+      if(seq !== __histSeq) return;   // the filters changed while loading: the newer list takes over
+      if(!res.rows.length) break;
+      __histState.rows = __histState.rows.concat(res.rows);
+      __histState.count = res.count;
+    }
+  }catch(err){
+    if(seq !== __histSeq) return;
+    console.error('Show all failed', err);
+    toast('Could not load every report: ' + ((err && err.message) || 'please try again.'), 'error');
+  }
+  if(seq !== __histSeq) return;
+  renderHistList(target);
 }
 ;
 /* ============================================================
@@ -9541,9 +9572,6 @@ async function loadAndRenderDetail(wrap, id){
   html += '<div><h2 class="section-title">'+escapeHTML(d.client.name||d.client.storeName||'Report')+'</h2><p class="small-muted">'+formatDateDisplay(d.schedule.serviceDate)+'</p></div>';
   html += '<span class="ticket"><span class="t-label">Control No.</span><span class="t-num">'+escapeHTML(d.controlDisplay)+'</span></span>';
   html += '</div>';
-  if(d.accountId){
-    html += '<button class="helper-banner" id="viewLinkedAccountBtn" style="width:100%;text-align:left;border:none;cursor:pointer;">'+icon('briefcase')+'<span>Linked to an account \u2014 view its full history '+icon('chevronRight')+'</span></button>';
-  }
   html += reviewBlock('Client & schedule', null, clientKV(d, d.type));
   html += detailProblemsBlockHTML(d);
   html += reviewBlock('Service details', null, serviceKV(d, d.type));
@@ -9593,10 +9621,6 @@ async function loadAndRenderDetail(wrap, id){
   loadDetailMedia(d, wrap);
 
   qs('#detailBack2', wrap).addEventListener('click', function(){ navigate('history'); });
-  const viewAccountBtn = qs('#viewLinkedAccountBtn', wrap);
-  if(viewAccountBtn){
-    viewAccountBtn.addEventListener('click', function(){ navigate('accountDetail', { viewingAccountId: d.accountId }); });
-  }
   const viewBtn = qs('#detailView', wrap);
   if(viewBtn) viewBtn.addEventListener('click', function(){
     openPdfViewer(async function(){ return d.pdfPath ? await fetchStoredPdf(d.pdfPath) : null; }, reportPdfFilename(d));
@@ -12730,25 +12754,6 @@ const PERM_GROUPS = [
   { key:'dashboard', label:'Dashboard', perms:[
     { k:'dashboard.view', label:'Open the Dashboard', hint:'The full home page with quick links. Without it, the home page is only the New Report screen.' }
   ]},
-  { key:'clients', label:'Clients', perms:[
-    { k:'clients.view', label:'See clients', hint:'Open the Clients list and each client’s page.' },
-    { k:'clients.add',  label:'Add clients', hint:'', needs:'clients.view', db:true },
-    { k:'clients.edit', label:'Edit and archive clients', hint:'', needs:'clients.view', db:true }
-  ]},
-  { key:'accounts', label:'Accounts', perms:[
-    { k:'accounts.view', label:'See accounts', hint:'Open the Accounts list and each account’s page, including its report history.' },
-    { k:'accounts.add',  label:'Add accounts', hint:'', needs:'accounts.view', db:true },
-    { k:'accounts.edit', label:'Edit and archive accounts', hint:'', needs:'accounts.view', db:true }
-  ]},
-  { key:'stores', label:'7-Eleven stores', perms:[
-    { k:'stores.view',   label:'See the store list', hint:'Open the 7-Eleven Stores screen.' },
-    { k:'stores.manage', label:'Add, edit, import and delete stores', hint:'', needs:'stores.view', db:true }
-  ]},
-  { key:'staff', label:'Staff', perms:[
-    { k:'staff.view',   label:'See the staff list', hint:'Open the Technicians screen and each person’s page.' },
-    { k:'staff.invite', label:'Invite new staff', hint:'The database also needs the person to be a Supervisor or higher.', needs:'staff.view', rank:true },
-    { k:'staff.manage', label:'Change someone’s role or active status', hint:'The database also only allows changing people ranked below you.', needs:'staff.view', rank:true }
-  ]},
   { key:'areatechs', label:'Area technicians', perms:[
     { k:'areatechs.view',   label:'See the area technicians', hint:'Open the Area Technicians screen.' },
     { k:'areatechs.manage', label:'Change the area technicians', hint:'The database allows this for Supervisor and higher.', needs:'areatechs.view', rank:true }
@@ -12756,14 +12761,6 @@ const PERM_GROUPS = [
   { key:'schedule', label:'Schedule', perms:[
     { k:'schedule.view',   label:'See the schedule', hint:'Open the Schedule and its visits.' },
     { k:'schedule.manage', label:'Add and cancel visits', hint:'', needs:'schedule.view', db:true }
-  ]},
-  { key:'services', label:'Services', perms:[
-    { k:'services.view',   label:'See services', hint:'Open the Services screen.' },
-    { k:'services.manage', label:'Add and edit services', hint:'', needs:'services.view', db:true }
-  ]},
-  { key:'inventory', label:'Inventory', perms:[
-    { k:'inventory.view',   label:'See inventory', hint:'Open the Inventory screen.' },
-    { k:'inventory.manage', label:'Add and edit inventory items', hint:'', needs:'inventory.view', db:true }
   ]},
   { key:'insights', label:'Analytics and notifications', perms:[
     { k:'analytics.view',     label:'See analytics', hint:'Open the Analytics screen.' },
@@ -12913,15 +12910,9 @@ function screenAllowed(screen){
     case 'wizard': return state.reportType ? canCreateType(state.reportType) : canCreateAnyReport();
     case 'review': case 'success': case 'queued': return canCreateAnyReport();
     case 'history': case 'reportDetail': return canSeeReports();
-    case 'clients': case 'clientDetail': return can('clients.view');
-    case 'accounts': return can('accounts.view');
-    case 'accountDetail': return state.backTo === 'stores' ? can('stores.view') : (can('accounts.view') || can('clients.view'));
-    case 'stores': return can('stores.view');
-    case 'technicians': case 'technicianDetail': return can('staff.view');
+    case 'clients': case 'clientDetail': case 'accounts': case 'accountDetail': case 'stores': case 'technicians': case 'technicianDetail': case 'services': case 'inventory': return false;   // these pages were removed from the app
     case 'areatechs': return can('areatechs.view');
     case 'schedule': return can('schedule.view');
-    case 'services': return can('services.view');
-    case 'inventory': return can('inventory.view');
     case 'analytics': return can('analytics.view');
     case 'notifications': return can('notifications.view');
     case 'settings': return can('settings.view');
@@ -12931,7 +12922,7 @@ function screenAllowed(screen){
   }
 }
 function firstAllowedScreen(){
-  const order = ['home','history','clients','accounts','stores','technicians','areatechs','schedule','services','inventory','analytics','notifications','settings','profile'];
+  const order = ['home','history','areatechs','schedule','analytics','notifications','settings','profile'];
   for(let i = 0; i < order.length; i++){ if(screenAllowed(order[i])) return order[i]; }
   return 'profile';
 }
@@ -12943,14 +12934,8 @@ function navItemAllowed(key){
     case 'dashboard': return can('dashboard.view') || canCreateAnyReport();
     case 'new-report': return canCreateAnyReport();
     case 'history': return canSeeReports();
-    case 'clients': return can('clients.view');
-    case 'accounts': return can('accounts.view');
-    case 'stores': return can('stores.view');
-    case 'technicians': return can('staff.view');
     case 'areatechs': return can('areatechs.view');
     case 'schedule': return can('schedule.view');
-    case 'services': return can('services.view');
-    case 'inventory': return can('inventory.view');
     case 'analytics': return can('analytics.view');
     case 'notifications': return can('notifications.view');
     case 'settings': return can('settings.view');
@@ -13704,17 +13689,8 @@ function render(){
   else if(state.screen === 'reportDetail'){ app.appendChild(renderReportDetail()); removeFooterBar(); }
   else if(state.screen === 'settings'){ app.appendChild(renderSettings()); removeFooterBar(); }
   else if(state.screen === 'profile'){ app.appendChild(renderProfile()); removeFooterBar(); }
-  else if(state.screen === 'clients'){ app.appendChild(renderClientsList()); removeFooterBar(); }
-  else if(state.screen === 'clientDetail'){ app.appendChild(renderClientDetail()); removeFooterBar(); }
-  else if(state.screen === 'accounts'){ app.appendChild(renderAccountsList()); removeFooterBar(); }
-  else if(state.screen === 'accountDetail'){ app.appendChild(renderAccountDetail()); removeFooterBar(); }
-  else if(state.screen === 'stores'){ app.appendChild(renderStoresList()); removeFooterBar(); }
-  else if(state.screen === 'technicians'){ app.appendChild(renderTechniciansList()); removeFooterBar(); }
   else if(state.screen === 'areatechs'){ app.appendChild(renderAreaTechs()); removeFooterBar(); }
-  else if(state.screen === 'technicianDetail'){ app.appendChild(renderTechnicianDetail()); removeFooterBar(); }
   else if(state.screen === 'schedule'){ app.appendChild(renderScheduleList()); removeFooterBar(); }
-  else if(state.screen === 'services'){ app.appendChild(renderServicesList()); removeFooterBar(); }
-  else if(state.screen === 'inventory'){ app.appendChild(renderInventoryList()); removeFooterBar(); }
   else if(state.screen === 'notifications'){ app.appendChild(renderNotificationsList()); removeFooterBar(); refreshNotificationBadge(); }
   else if(state.screen === 'analytics'){ app.appendChild(renderAnalytics()); removeFooterBar(); }
   else if(state.screen === 'usermgmt'){ app.appendChild(renderUserMgmt()); removeFooterBar(); }
