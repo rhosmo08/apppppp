@@ -6,7 +6,7 @@
 <!-- APP VERSION: the update system reads this number. When a NEWER number is deployed, every device that is on an older number is forced to update.
      To release a new version, change ONLY this number (for example 1.0.0 to 2.0.0) and deploy. Keep it as digits and dots.
      The first number is also the label shown next to the company name in the app: 1.x.x shows V1, 2.x.x shows V2 (automatic). -->
-<meta name="app-version" content="2.2.0">
+<meta name="app-version" content="2.4.0">
 <title>GEPESTCON CO — Job Reports</title>
 <meta name="theme-color" content="#F6F5F3" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)">
@@ -415,7 +415,7 @@ a{ color:inherit; }
 .header-user .hu-name{ font-size:12.5px; font-weight:700; line-height:1.15; text-align:right; }
 .header-user .hu-role{ display:block; font-size:10.5px; font-weight:600; color: var(--ink-faint); text-transform:uppercase; letter-spacing:.05em; }
 
-.app-main{ flex:1; width:100%; max-width: 760px; margin: 0 auto; padding: 20px 16px calc(var(--footer-h) + 28px); position:relative; }
+.app-main{ flex:1; width:100%; max-width: 760px; margin: 0 auto; padding: 20px 16px calc(var(--footer-h) + 28px + env(safe-area-inset-bottom, 0px) + 40px); position:relative; }   /* tab bar + the iPhone home bar + room to spare: the last button on a page is never hidden behind the bar */
 .app-main.no-footer-pad{ padding-bottom: 40px; }
 
 /* ---------- Buttons ---------- */
@@ -3746,6 +3746,7 @@ function areaConfirm(code){
 }
 /* "Yes": remember the area, play the WELCOME animation and open the app (signing in without a password in the background). */
 async function areaEnter(code){
+  sessionBegin();   // the 2 hours start now
   saveArea(code);
   welcomeStart(code);
   try{
@@ -3800,11 +3801,124 @@ function areaChange(){
   qs('#acGo', body).addEventListener('click', function(){
     closeModal();
     saveArea(null);
+    sessionClear();
     if(typeof outboxReset === 'function') outboxReset();
     state.profile = null; state.screen = 'home'; state.reportType = null; state.step = 0; state.draft = null;
     state.viewingReportId = null; state.viewingClientId = null; state.viewingAccountId = null; state.viewingTechnicianId = null;
     showAreaPicker();
   });
+}
+
+/* ============================================================
+   2-HOUR SESSION
+   Every session lasts 2 hours. It starts when a person chooses an area (or signs in to Main Office) and, 2 hours later, the app signs
+   itself out and shows the area screen again ("Where are you working today?"). The start time is kept on the phone, so closing the app or
+   switching to another app does not stretch it, and an app left open all night is out at the next look.
+     - Area phones: same as "Change area". The phone itself stays signed in, so reports waiting to be sent are kept and go out as
+       soon as an area is chosen again.
+     - Main Office: a full sign-out.
+   Nothing is lost: a report being filled in is saved first ("Resume draft?" next time), a report that is being sent is never cut off
+   (the sign-out waits for it), and reports waiting to be sent get a few minutes to go out first when there is internet.
+   A reminder shows 5 minutes before the end.
+   ============================================================ */
+const SESSION_LIMIT_MS = 2 * 60 * 60 * 1000;
+const SESSION_WARN_MS = 5 * 60 * 1000;
+const SESSION_GRACE_MS = 3 * 60 * 1000;
+const SESSION_KEY = 'gepestcon_session_start_v1';
+let sessionMem = 0, sessionWatching = false, sessionEnding = false, sessionWarned = false, sessionGraceEnd = 0, sessionKeepDraft = false;
+let reportSending = false;   // true while "Send report" is working: the session never ends in the middle of it
+function sessionStart(){
+  let n = 0;
+  try{ n = Number(localStorage.getItem(SESSION_KEY)) || 0; }catch(e){}
+  return n || sessionMem;
+}
+function sessionBegin(){
+  sessionMem = Date.now(); sessionWarned = false; sessionGraceEnd = 0;
+  try{ localStorage.setItem(SESSION_KEY, String(sessionMem)); }catch(e){}
+}
+function sessionClear(){
+  sessionMem = 0; sessionWarned = false; sessionGraceEnd = 0;
+  try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
+}
+/* a phone that was already signed in before this version (no start time yet) gets its 2 hours from now */
+function sessionEnsure(){ if(!sessionStart()) sessionBegin(); }
+function sessionRemainingMs(){
+  const s = sessionStart();
+  if(!s) return SESSION_LIMIT_MS;
+  const used = Date.now() - s;
+  if(used < 0){ sessionBegin(); return SESSION_LIMIT_MS; }   // the phone's clock was moved back: start again instead of waiting for hours
+  return SESSION_LIMIT_MS - used;
+}
+function sessionLeftText(){
+  const m = Math.max(0, Math.ceil(sessionRemainingMs() / 60000)), h = Math.floor(m / 60), r = m % 60;
+  return (h ? h + ' h ' : '') + r + ' min';
+}
+function sessionAppOpen(){ const ar = qs('#appRoot'); return !!(state.profile && ar && ar.style.display !== 'none'); }
+async function sessionCheck(){
+  if(sessionEnding || !sessionAppOpen()) return;
+  const left = sessionRemainingMs();
+  if(left > SESSION_WARN_MS) return;
+  if(left > 0){
+    if(!sessionWarned){ sessionWarned = true; toast('Your session ends in ' + Math.max(1, Math.ceil(left / 60000)) + ' min. Finish and send your report.'); }
+    return;
+  }
+  // time is up. A report that is being sent right now is never cut off: wait for the next look.
+  if(reportSending || outbox.syncing) return;
+  // reports waiting to be sent get a few minutes to go out first (only when there is internet to send them with)
+  if(!isOfflineNow() && outboxMine().some(function(i){ return !i.fatal; })){
+    if(!sessionGraceEnd){ sessionGraceEnd = Date.now() + SESSION_GRACE_MS; outboxKick(0); }
+    if(Date.now() < sessionGraceEnd) return;
+  }
+  sessionEnding = true;
+  try{ await sessionEnd(); }
+  catch(e){ console.error('session end failed', e); }
+  finally{ sessionEnding = false; }
+}
+function sessionWatch(){
+  if(sessionWatching) return;
+  sessionWatching = true;
+  setInterval(sessionCheck, 15000);
+  document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') sessionCheck(); });
+  window.addEventListener('pageshow', function(){ sessionCheck(); });
+  window.addEventListener('online', function(){ sessionCheck(); });
+}
+function sessionResetScreens(){
+  state.profile = null; state.screen = 'home'; state.reportType = null; state.step = 0; state.draft = null;
+  state.viewingReportId = null; state.viewingClientId = null; state.viewingAccountId = null; state.viewingTechnicianId = null;
+  pendingVisitId = null;
+}
+async function sessionEnd(){
+  try{ flushDraftToStorage(); }catch(e){}                       // a report being filled in is saved first
+  try{ const cc = qs('#camCancel'); if(cc) cc.click(); }catch(e){}   // a camera window that is open is closed (the camera light goes off)
+  try{ closeModal(); }catch(e){}
+  const wasArea = isAreaSession();
+  sessionClear();
+  if(wasArea){
+    saveArea(null);
+    if(typeof outboxReset === 'function') outboxReset();
+    sessionResetScreens();
+    showAreaPicker();
+  } else {
+    await sessionSignOut();
+  }
+  toast('Your 2-hour session has ended. Please choose your area to continue.');
+}
+/* Main Office: a full sign-out. Without internet the server cannot be told, so the saved login is taken off this phone directly. */
+async function sessionSignOut(){
+  sessionKeepDraft = true;   // the sign-out handler keeps the saved draft this one time
+  let failed = false;
+  try{
+    const r = await Promise.race([ signOutUser(), new Promise(function(res){ setTimeout(function(){ res({ error: new Error('no answer') }); }, 8000); }) ]);
+    failed = !!(r && r.error);
+  }catch(e){ failed = true; }
+  if(!failed) return;   // the sign-out event has taken the person to the area screen
+  try{ const ref = new URL(SUPABASE_URL).hostname.split('.')[0]; localStorage.removeItem('sb-' + ref + '-auth-token'); }catch(e){}
+  state.session = null; offlineBootEntered = false;
+  if(typeof outboxReset === 'function') outboxReset();
+  sessionResetScreens();
+  saveArea(null);
+  authMode = 'area';
+  showAuthScreen();
 }
 
 /* ---- the WELCOME animation (full screen, plays while the app opens) ---- */
@@ -4322,12 +4436,14 @@ function renderAuthScreen(){
     try{
       if(isOfflineNow()) throw new Error('There is no internet. Main Office needs internet once to check the password. To work with no internet, go back and choose your area.');
       saveArea(null);
+      sessionBegin();   // the 2 hours start now
       welcomeStart('MAIN');   // WELCOME MAIN OFFICE covers the screen BEFORE signing in: the app can open while signIn() is still finishing, and the dashboard must never show first
       const { error } = await signIn(email, password);
       if(error) throw error;
       // onAuthStateChange handles the transition: the animation finishes its run, then fades away over the dashboard
     } catch(err){
       welcomeCancel();   // wrong password or no connection: take the animation off again so the error can be read
+      sessionClear();
       alertBox.innerHTML = '<div class="auth-error">'+escapeHTML(err.message || 'Something went wrong.')+'</div>';
       btn.disabled = false; btn.textContent = 'Sign in';
     }
@@ -7593,7 +7709,8 @@ function rateBtnHTML(val, emoji, label, current){
   return '<button type="button" class="rate-btn'+(current===val?' is-picked':'')+'" data-val="'+val+'"><span class="rate-emoji">'+emoji+'</span><span>'+label+'</span></button>';
 }
 /* One signer block (technician or client): the signature pad, plus optional extras. "Add picture" puts a picture of the
-   signature on the pad; "Add PDF" puts a signature that exists as a PDF file on the pad; "Add stamp" attaches a stamp image
+   signature on the pad from the phone's gallery; "Add camera" opens the camera and puts the photo it takes on the pad;
+   "Add PDF" puts a signature that exists as a PDF file on the pad; "Add stamp" attaches a stamp image
    that is printed beside the signature on the PDF. */
 function signoffPartyHTML(key, label, hint){
   return '<div class="field"><label>'+label+'</label>'+
@@ -7601,10 +7718,12 @@ function signoffPartyHTML(key, label, hint){
     '<div class="sig-toolbar"><span>'+hint+'</span><button type="button" class="btn btn-ghost btn-sm" id="clear'+key+'">'+icon('trash')+' Clear</button></div></div>'+
     '<div class="sig-actions">'+
       '<button type="button" class="btn btn-secondary btn-sm" id="pic'+key+'">'+icon('image')+' Add picture</button>'+
+      '<button type="button" class="btn btn-secondary btn-sm" id="cam'+key+'">'+icon('camera')+' Add camera</button>'+
       '<button type="button" class="btn btn-secondary btn-sm" id="stampBtn'+key+'">'+icon('stamp')+' Add stamp</button>'+
       '<button type="button" class="btn btn-secondary btn-sm" id="pdfBtn'+key+'">'+icon('file')+' Add PDF</button>'+
     '</div>'+
     '<input type="file" accept="image/*" class="sig-file" id="picFile'+key+'" tabindex="-1" aria-hidden="true">'+
+    '<input type="file" accept="image/*" capture="environment" class="sig-file" id="camFile'+key+'" tabindex="-1" aria-hidden="true">'+
     '<input type="file" accept="image/*" class="sig-file" id="stampFile'+key+'" tabindex="-1" aria-hidden="true">'+
     '<input type="file" accept="application/pdf,.pdf" class="sig-file" id="pdfFile'+key+'" tabindex="-1" aria-hidden="true">'+
     '<div id="stampHolder'+key+'"></div></div>';
@@ -7627,16 +7746,24 @@ function wireSignoffParty(container, key, savedSig, savedStamp){
   renderStampChip(holder, container['__stamp'+key], removeStamp);
   qs('#clear'+key, container).addEventListener('click', function(){ api.clear(); });
 
-  const picFile = qs('#picFile'+key, container), stampFile = qs('#stampFile'+key, container);
+  const picFile = qs('#picFile'+key, container), camFile = qs('#camFile'+key, container), stampFile = qs('#stampFile'+key, container);
   qs('#pic'+key, container).addEventListener('click', function(){ picFile.click(); });
+  // "Add camera": a phone or tablet opens its own camera straight away; a computer opens the live camera window (the normal file window when there is no camera)
+  qs('#cam'+key, container).addEventListener('click', function(){
+    if(photoIsTouchDevice() || !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) camFile.click();
+    else openCameraWindow(camFile);
+  });
   qs('#stampBtn'+key, container).addEventListener('click', function(){ stampFile.click(); });
-  picFile.addEventListener('change', async function(){
-    const file = picFile.files && picFile.files[0];
-    picFile.value = '';                       // lets the same file be picked again later
+  // a picture from the gallery and a photo from the camera end up on the pad the same way
+  async function putPictureOnPad(input){
+    const file = input.files && input.files[0];
+    input.value = '';                         // lets the same file be picked again later
     if(!file) return;
     try{ api.setPicture(await readSignoffPicture(file, 800)); }
     catch(err){ toast(err.message || 'That picture could not be added.', 'error'); }
-  });
+  }
+  picFile.addEventListener('change', function(){ putPictureOnPad(picFile); });
+  camFile.addEventListener('change', function(){ putPictureOnPad(camFile); });
   stampFile.addEventListener('change', async function(){
     const file = stampFile.files && stampFile.files[0];
     stampFile.value = '';
@@ -8277,6 +8404,7 @@ async function sendReportCore(d, type, ctx){
 
 async function submitReport(){
   const releaseUpdateHold = window.gepestconUpdate ? window.gepestconUpdate.hold() : function(){};   // the update screen waits until sending has finished
+  reportSending = true;   // the 2-hour session waits until sending has finished
   const btn = qs('#sendReportBtn');
   if(btn){ btn.disabled = true; btn.innerHTML = 'Sending…'; }
   const d = state.draft;
@@ -8329,6 +8457,7 @@ async function submitReport(){
     toast('Something went wrong while sending. Nothing was lost — try again.', 'error');
     if(btn){ btn.disabled = false; btn.innerHTML = icon('send') + ' Send report'; }
   } finally {
+    reportSending = false;
     releaseUpdateHold();
   }
 }
@@ -8337,7 +8466,8 @@ async function submitReport(){
    OFFLINE OUTBOX  (send later / Sync)
    With no internet, "Send report" saves the finished report on THIS phone (IndexedDB: photos and signatures included) instead of
    failing. Waiting reports are shown in the top bar (Sync button with a number), in a banner, on Home and on Job Reports, and are sent:
-     - by themselves, when the internet comes back, when the app opens, when it comes back on screen, and every 45 seconds while any wait;
+     - by themselves, when the internet comes back, when the app opens, when it comes back on screen, and (while any wait) a tiny check every
+       10 seconds for real internet, which starts the sending the moment the server answers;
      - by hand, with the Sync button ("Sync now").
    The control number is only given by the server, so a waiting report has none yet: it gets its number when it is sent, and it keeps the
    time the technician pressed Send. A send that is cut off half-way is resumed, never repeated, so no report is created twice.
@@ -8528,6 +8658,14 @@ function isNetworkError(err){
   const st = err.status || err.statusCode;
   return st === 0 || st === 408 || st === 502 || st === 503 || st === 504;
 }
+/* A busy or restarting server (not a problem with the report itself). The outbox tries these again by itself a few times. */
+function isServerBusyError(err){
+  if(!err) return false;
+  const msg = String(err.message || err.error_description || err.details || err);
+  if(/network connection was lost|could not connect|cannot connect|econnreset|etimedout|enotfound|temporarily unavailable|bad gateway|gateway time-?out|service unavailable|too many requests/i.test(msg)) return true;
+  const st = Number(err.status || err.statusCode || 0);
+  return st === 429 || (st >= 500 && st <= 599);
+}
 function isAuthLikeError(err){
   if(!err) return false;
   const st = err.status || err.statusCode;
@@ -8562,7 +8700,7 @@ function outboxPut(item){ return outboxTx('readwrite', function(s){ s.put(item);
 function outboxDelete(id){ return outboxTx('readwrite', function(s){ s.delete(id); }); }
 function outboxAll(){ return outboxTx('readonly', function(s, o){ const r = s.getAll(); r.onsuccess = function(){ o.v = r.result; }; }); }
 
-const outbox = { items: [], syncing: false, started: false, timer: null, lastSyncAt: 0, lastResult: '' };
+const outbox = { items: [], syncing: false, started: false, timer: null, lastSyncAt: 0, lastResult: '', probing: false, failStreak: 0, nextTryAt: 0, releaseAuth: false };
 let lastQueuedItem = null;
 function outboxMine(){ return state.profile ? outbox.items.filter(function(i){ return i.userId === state.profile.id; }) : []; }
 function outboxCount(){ return outboxMine().length; }
@@ -8571,6 +8709,17 @@ async function outboxLoad(){
   try{ all = (await outboxAll()) || []; }catch(e){ console.error('outbox load failed', e); }
   const mine = state.profile ? all.filter(function(i){ return i.userId === state.profile.id; }) : [];
   mine.forEach(function(i){ if(i.status === 'sending' && !outbox.syncing) i.status = 'waiting'; });   // the app was closed mid-send
+  if(outbox.releaseAuth){
+    /* A report held back only because the phone needed a new sign-in (or a connection problem was mistaken for a refusal by an older version of the app)
+       is tried again by itself whenever the app opens, the internet returns or the app comes back on screen. Reports the server really refused stay for Sync. */
+    outbox.releaseAuth = false;
+    mine.forEach(function(i){
+      if(i.fatal && i.status !== 'sending' && (i.authNeeded || /sign in again/i.test(i.lastError || ''))){
+        i.fatal = false; i.authNeeded = false; i.status = 'waiting';
+        outboxPut(i).catch(function(e){ console.error('outbox save failed', e); });
+      }
+    });
+  }
   mine.sort(function(a, b){ return String(a.queuedAt).localeCompare(String(b.queuedAt)); });
   outbox.items = mine;
 }
@@ -8623,7 +8772,7 @@ async function outboxWithAuthRetry(fn){
   }
 }
 function outboxErrorText(err){
-  if(isNetworkError(err)) return 'Could not reach the server yet. It will try again by itself.';
+  if(isNetworkError(err) || isServerBusyError(err)) return 'Could not reach the server yet. It will try again by itself.';
   if(err && err.fatalForNow) return err.message;
   return 'The server did not accept it: ' + String((err && err.message) || err || 'unknown error').slice(0, 140) + ' Tap Send now to try again.';
 }
@@ -8650,15 +8799,49 @@ async function outboxSendOne(item){
   }catch(err){
     console.error('outbox send failed', err);
     item.status = 'error'; item.statusText = ''; item.lastError = outboxErrorText(err);
-    item.fatal = !isNetworkError(err);
+    // no internet, a weak signal, or a busy server (a few times): wait and try again by itself. Anything else needs a person (Sync) - so the same refusal is not sent again and again.
+    let again = isNetworkError(err);
+    if(!again && isServerBusyError(err)){ item.busyTries = (item.busyTries || 0) + 1; again = item.busyTries < 6; }
+    item.authNeeded = !!(err && err.fatalForNow);
+    item.fatal = !again;
     try{ await outboxPut(item); }catch(e){}
-    return isNetworkError(err) ? 'offline' : 'rejected';
+    return again ? 'offline' : 'rejected';
   }
 }
 let outboxSyncTimer = null;
 function outboxSyncSoon(){
   clearTimeout(outboxSyncTimer);
   outboxSyncTimer = setTimeout(function(){ outboxSyncNow(false); }, 400);
+}
+/* Something changed that may mean the internet is back (the phone says online, the connection type changed, the app came back on screen):
+   forget any waiting time, give held reports another chance, and try to send soon. */
+function outboxKick(ms){
+  outbox.failStreak = 0; outbox.nextTryAt = 0; outbox.releaseAuth = true;
+  clearTimeout(outboxSyncTimer);
+  outboxSyncTimer = setTimeout(function(){ outboxSyncNow(false); }, ms);
+}
+/* The phone's "online" flag can say yes while there is no real internet (Wi-Fi without data, no signal bars), and it does not
+   announce the day the data comes back. So while reports wait, the server is knocked on every few seconds with a tiny request:
+   any answer at all means the internet is really there. Costs almost nothing, and only runs while a report is waiting. */
+async function outboxServerReachable(){
+  if(isOfflineNow()) return false;
+  const ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
+  const timer = setTimeout(function(){ if(ctrl) ctrl.abort(); }, 6000);
+  try{
+    await fetch(SUPABASE_URL + '/auth/v1/health', { method: 'GET', mode: 'no-cors', cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
+    return true;
+  }catch(e){ return false; }
+  finally{ clearTimeout(timer); }
+}
+const OUTBOX_TICK_MS = 10000;
+async function outboxTick(){
+  if(outbox.syncing || outbox.probing || !state.profile) return;
+  if(isOfflineNow() || Date.now() < outbox.nextTryAt) return;
+  if(!outboxMine().some(function(i){ return !i.fatal; })) return;
+  outbox.probing = true;
+  let ok = false;
+  try{ ok = await outboxServerReachable(); } finally { outbox.probing = false; }
+  if(ok) outboxSyncNow(false);
 }
 /* manual = the person pressed Sync: also retries reports the server refused, and refreshes the lists on screen. */
 async function outboxSyncNow(manual){
@@ -8690,6 +8873,8 @@ async function outboxSyncNow(manual){
     } finally {
       release(); outbox.syncing = false; outbox.lastSyncAt = Date.now();
     }
+    if(blocked){ outbox.failStreak = (outbox.failStreak || 0) + 1; outbox.nextTryAt = Date.now() + Math.min(10000 * Math.pow(2, outbox.failStreak - 1), 60000); }   // 10s, 20s, 40s, then every minute
+    else { outbox.failStreak = 0; outbox.nextTryAt = 0; }
     const sent = outbox.sentNow || [];
     outbox.lastResult = sent.length ? (sent.length + (sent.length === 1 ? ' report sent' : ' reports sent')) : '';
     if(sent.length) toast((sent.length === 1 ? 'Report ' + sent[0] + ' was sent.' : sent.length + ' reports were sent.') + ' It now waits for admin approval.', 'success');
@@ -8710,12 +8895,14 @@ function outboxRefreshScreen(manual){
 function outboxStart(){
   if(!outbox.started){
     outbox.started = true;
-    window.addEventListener('online', function(){ outboxChanged(); setTimeout(function(){ outboxSyncNow(false); }, 1500); });
+    window.addEventListener('online', function(){ outboxChanged(); outboxKick(1500); });
     window.addEventListener('offline', function(){ outboxChanged(); });
-    document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible'){ outboxChanged(); if(outboxCount()) outboxSyncSoon(); } });
-    outbox.timer = setInterval(function(){ if(state.profile && outboxMine().some(function(i){ return !i.fatal; }) && !isOfflineNow()) outboxSyncNow(false); }, 45000);
+    document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible'){ outboxChanged(); if(outboxCount()) outboxKick(400); } });
+    try{ if(navigator.connection && navigator.connection.addEventListener) navigator.connection.addEventListener('change', function(){ if(outboxCount()) outboxKick(1500); }); }catch(e){}
+    outbox.timer = setInterval(outboxTick, OUTBOX_TICK_MS);
     document.addEventListener('click', outboxOnClick);
   }
+  outbox.releaseAuth = true;
   outboxLoad().then(function(){ outboxChanged(); if(outboxMine().length && !isOfflineNow()) setTimeout(function(){ outboxSyncNow(false); }, 2000); });
 }
 function outboxOnClick(e){
@@ -8788,7 +8975,7 @@ function syncStatusInnerHTML(){
   const off = isOfflineNow(), n = outboxCount();
   const ic = off ? 'wifiOff' : n ? 'cloudUp' : 'shield';
   const title = off ? 'You are offline' : n ? n + (n === 1 ? ' report' : ' reports') + ' waiting to send' : 'All systems operational';
-  const dot = off ? (n ? n + ' saved on this phone' : 'Reports are saved on this phone') : n ? (outbox.syncing ? 'Sending…' : 'Tap Sync to send now') : 'Online · all good';
+  const dot = off ? (n ? n + ' saved on this phone' : 'Reports are saved on this phone') : n ? (outbox.syncing ? 'Sending…' : 'Sends by itself · or tap Sync') : 'Online · all good';
   return '<span class="sc-icon' + (off ? ' is-off' : n ? ' is-wait' : '') + '">' + icon(ic) + '</span>' +
     '<span><span class="sc-eyebrow">' + (off || n ? 'Connection' : 'System status') + '</span>' +
     '<span class="sc-title">' + escapeHTML(title) + '</span>' +
@@ -8822,7 +9009,7 @@ function outboxChanged(){
     let html = '', cls = '';
     if(busy){ cls = 'is-busy'; html = '<i class="ob-spin"></i><span>Sending your saved reports…</span>'; }
     else if(off){ cls = 'is-off'; html = icon('wifiOff') + '<span>' + (n ? '<b>No internet.</b> ' + n + (n === 1 ? ' report is' : ' reports are') + ' saved on this phone and will be sent when you are back online.' : '<b>You are offline.</b> You can keep working. Reports you send are saved on this phone and sent when the internet is back.') + '</span>'; }
-    else if(n){ cls = 'is-wait'; html = icon('cloudUp') + '<span><b>' + n + (n === 1 ? ' report is' : ' reports are') + ' waiting to send.</b></span>' + (qs('[data-outbox-host]') ? '' : '<button type="button" class="sync-banner-btn" data-ob-sync>Sync now</button>'); }   // the card on this screen already has the button
+    else if(n){ cls = 'is-wait'; html = icon('cloudUp') + '<span><b>' + n + (n === 1 ? ' report is' : ' reports are') + ' waiting to send.</b> They send by themselves.</span>' + (qs('[data-outbox-host]') ? '' : '<button type="button" class="sync-banner-btn" data-ob-sync>Sync now</button>'); }   // the card on this screen already has the button
     bar.hidden = !html; bar.className = 'sync-banner' + (cls ? ' ' + cls : ''); bar.innerHTML = html;
   }
   const hs = qs('#homeStatusCard'); if(hs) hs.innerHTML = syncStatusInnerHTML();
@@ -10102,8 +10289,10 @@ function renderProfile(){
   html += '<h2>'+escapeHTML(arInfo ? arInfo.title : (p.full_name||'(no name set)'))+'</h2>';
   html += '<span class="role-tag">'+roleLabel+'</span>';
   html += '</div>';
+  // at the top so it is always on screen, with no need to scroll down behind the bottom bar
+  html += '<button class="btn btn-secondary btn-block btn-lg" id="profileSignOutTopBtn" style="margin-top:14px;">'+icon('logout')+(arInfo ? ' Change area' : ' Sign out')+'</button>';
 
-  html += '<div class="card" style="margin-top:8px;">';
+  html += '<div class="card" style="margin-top:14px;">';
   html += '<h3 class="section-title" style="font-size:14px;margin-bottom:2px;">Appearance</h3>';
   html += '<p class="section-hint">Follows you to any device you sign in on.</p>';
   html += '<div class="chip-group" id="themeChips">'+
@@ -10119,6 +10308,7 @@ function renderProfile(){
   '</button>';
   html += '</div>';
 
+  html += '<div class="card" style="margin-top:14px;padding:4px 20px;"><div class="profile-row"><span><span class="pr-label">Session</span><span class="pr-sub" style="display:block;">Signs out by itself 2 hours after you start. Time left: ' + sessionLeftText() + '.</span></span></div></div>';
   html += '<div class="card" style="margin-top:14px;padding:4px 20px;"><div class="profile-row"><span><span class="pr-label">Offline use</span><span class="pr-sub" style="display:block;" id="offlineReady">Checking\u2026</span></span></div></div>';
   html += '<div class="card" style="margin-top:14px;padding:4px 20px;">';
   html += '<div class="profile-row"><span><span class="pr-label">App version</span><i class="brand-ver">'+escapeHTML(window.GEPESTCON_EDITION || '')+'</i><span class="pr-sub" style="display:block;">Version '+escapeHTML(window.GEPESTCON_VERSION || '')+'</span></span>'+
@@ -10155,7 +10345,9 @@ function renderProfile(){
     if(r.status === 'current'){ toast('You are using the latest version (' + window.GEPESTCON_VERSION + ').', 'success'); }
     else if(r.status !== 'update'){ toast('Could not check for updates right now. Check your internet connection and try again.', 'error'); }
   });
-  qs('#profileSignOutBtn', wrap).addEventListener('click', function(){ if(arInfo) areaChange(); else confirmSignOutWithOutbox(); });
+  qsa('#profileSignOutBtn, #profileSignOutTopBtn', wrap).forEach(function(b){
+    b.addEventListener('click', function(){ if(arInfo) areaChange(); else confirmSignOutWithOutbox(); });
+  });
 
   return wrap;
 }
@@ -12707,6 +12899,7 @@ async function refreshNotificationBadge(){
   if(sidebarNotifLink) sidebarNotifLink.classList.toggle('has-badge', count > 0);
 }
 function showApp(){
+  sessionEnsure(); sessionWatch(); setTimeout(sessionCheck, 400);   // 2-hour session (an app opened after the 2 hours are over is closed again straight away)
   applyThemeFromProfile();
   qs('#authRoot').style.display = 'none';
   qs('#authRoot').innerHTML = '';
@@ -13905,7 +14098,8 @@ function init(){
       state.viewingAccountId = null;
       state.viewingTechnicianId = null;
       pendingVisitId = null;
-      clearDraftStorage();
+      if(sessionKeepDraft){ sessionKeepDraft = false; } else { clearDraftStorage(); }   // (the 2-hour sign-out keeps a half-finished report for "Resume draft?")
+      sessionClear();
       saveArea(null);
       authMode = 'area';
       showAuthScreen();
