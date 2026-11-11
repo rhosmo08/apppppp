@@ -6,7 +6,7 @@
 <!-- APP VERSION: the update system reads this number. When a NEWER number is deployed, every device that is on an older number is forced to update.
      To release a new version, change ONLY this number (for example 1.0.0 to 2.0.0) and deploy. Keep it as digits and dots.
      The first number is also the label shown next to the company name in the app: 1.x.x shows V1, 2.x.x shows V2, 3.x.x shows V3 (automatic). -->
-<meta name="app-version" content="3.2.0">
+<meta name="app-version" content="3.2.1">
 <title>GEPESTCON CO — Job Reports</title>
 <meta name="theme-color" content="#F6F5F3" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)">
@@ -2759,7 +2759,7 @@ const CONFIG = {
   companyTagline: 'Pest Management Services',
   companyAddress: '51A St. Tobias St., Brgy. Laging Handa, Diliman Quezon City',
   companyPhone: '02-79068414 / 0905-3017710',
-  companyEmail: 'gepestcon_co@yahoo.com',
+  companyEmail: 'gepestcon.team@gmail.com',
   companyWeb: 'gepestcon.co',
   // Optional: a public https link to the logo for the designed email. Leave blank to embed the built-in copy.
   emailLogoUrl: '',
@@ -5898,6 +5898,8 @@ let pendingMailto = null;
    The PDF travels as an EmailJS "Variable Attachment" named report_pdf (see the setup steps on the Settings screen).
    An email that says "attached" is never sent without the PDF: if the PDF is missing or EmailJS refuses the send, nothing
    goes out and the app falls back to the pre-filled email draft (where the PDF is attached by hand). */
+/* The company email that clients are told to contact. It comes from CONFIG.companyEmail (Settings > Company info); '' when none is set. */
+function companyMail(){ return String(CONFIG.companyEmail || '').trim(); }
 function emailGreeting(d){
   const c = d.client || {};
   const who = String(c.contactPerson || c.storeManager || c.name || c.storeName || '').trim();
@@ -5927,7 +5929,7 @@ function buildEmailSummary(d, opts){
   lines.push('');
   lines.push('Your complete report is attached to this email as a PDF. It includes the service details, findings and recommendations, photos and sign-off.');
   lines.push('');
-  lines.push('If you have any questions or would like to schedule a follow-up visit, just reply to this email' + (CONFIG.companyPhone ? (' or call us at ' + CONFIG.companyPhone) : '') + '.');
+  lines.push('If you have any questions or concerns, or would like to schedule a follow-up visit, ' + (companyMail() ? ('please contact us at ' + companyMail()) : 'just reply to this email') + (CONFIG.companyPhone ? (' or call us at ' + CONFIG.companyPhone) : '') + '.');
   lines.push('');
   lines.push('Thank you for trusting us.');
   lines.push('');
@@ -5950,7 +5952,7 @@ function approvalEmailContent(d){
     '',
     'Please check the attached PDF file for Job Accomplishment Report #' + no + '. It contains your full service report, and we ask that you keep a copy for your records.',
     '',
-    'If you have any questions or concerns regarding the report, please feel free to contact us.',
+    'If you have any questions or concerns regarding the report, please feel free to contact us' + (companyMail() ? ' at ' + companyMail() : '') + '.',
     '',
     'Thank you for choosing ' + company + '.',
     '',
@@ -6005,7 +6007,9 @@ function approvalEmailHtml(d, opts){
            '<td valign="top" style="' + b + 'padding:12px 0;' + F + 'font-size:15px;line-height:20px;font-weight:bold;color:' + INK + ';">' + e(String(r[1]).trim()) + '</td></tr>';
   }).join('');
 
-  let contact = 'Questions? Just reply to this email';
+  let contact = mail
+    ? 'Questions or concerns? Contact us at <a href="mailto:' + e(mail) + '" style="color:' + INK + ';font-weight:bold;text-decoration:underline;">' + nowrap(mail) + '</a>'
+    : 'Questions? Just reply to this email';
   if(phone) contact += ' or call ' + phone.split(/\s*\/\s*/).map(nowrap).join(' / ');
   contact += '.';
 
@@ -6784,7 +6788,7 @@ function buildStepClient(container){
   html += '<div class="helper-banner"><span style="display:flex;">'+icon('mail')+'</span><span>The finished report is sent to this address automatically \u2014 double-check it before continuing.</span></div>';
   html += '<div class="row-2 row-stack-sm">'+
     field('Client email', 'f_email', 'email', d.client.email, {required:true, placeholder:'client@email.com'}) +
-    field('CC email (optional)', 'f_ccEmail', 'email', d.client.ccEmail, {placeholder:'office@gepestcon.co'}) +
+    field('CC email (optional)', 'f_ccEmail', 'email', d.client.ccEmail, {placeholder:'gepestcon.team@gmail.com'}) +
   '</div>';
 
   html += '<hr class="hairline">';
@@ -14265,7 +14269,8 @@ async function loadSettings(){
     // An address saved from before the office moved (Sct. Ybardolaza) is ignored, so the current address is used until an admin saves a different one.
     if(s.company_address && !/ybardolaza/i.test(s.company_address)) CONFIG.companyAddress = s.company_address;
     if(s.company_phone) CONFIG.companyPhone = s.company_phone;
-    if(s.company_email) CONFIG.companyEmail = s.company_email;
+    // The old default email (gepestcon_co@yahoo.com) may still be saved in the database from before; it is ignored, so the current email is used until an admin saves a different one.
+    if(s.company_email && !/^\s*gepestcon_co@yahoo\.com\s*$/i.test(String(s.company_email))) CONFIG.companyEmail = s.company_email;
     if(s.mailer_url) CONFIG.mailerUrl = s.mailer_url;          // shared Gmail draft link: every device gets it after login
     if(s.mailer_secret) CONFIG.mailerSecret = s.mailer_secret;
     // fix: P3.5-1, see build prompt
