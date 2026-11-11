@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <!-- APP VERSION: the update system reads this number. When a NEWER number is deployed, every device that is on an older number is forced to update.
      To release a new version, change ONLY this number (for example 1.0.0 to 2.0.0) and deploy. Keep it as digits and dots.
-     The first number is also the label shown next to the company name in the app: 1.x.x shows V1, 2.x.x shows V2 (automatic). -->
-<meta name="app-version" content="2.4.0">
+     The first number is also the label shown next to the company name in the app: 1.x.x shows V1, 2.x.x shows V2, 3.x.x shows V3 (automatic). -->
+<meta name="app-version" content="3.2.0">
 <title>GEPESTCON CO — Job Reports</title>
 <meta name="theme-color" content="#F6F5F3" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)">
@@ -371,7 +371,7 @@ a{ color:inherit; }
 .center{ text-align:center; }
 .eyebrow{
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size:12px;
   letter-spacing:.08em;
   text-transform: uppercase;
   color: var(--ink-faint);
@@ -397,7 +397,7 @@ a{ color:inherit; }
 .brand-word{ display:flex; flex-direction:column; align-items:flex-start; line-height:1.05; }
 .brand-word b{ font-family: var(--font-heading); font-size:15px; letter-spacing:.02em; font-weight:800; color: var(--ink); }
 .brand-co{ color: var(--brand-text); } /* defect #3, fixed: was pointed at --rust (severity token), which drifts away from the new vivid brand red since --rust's value is intentionally untouched */
-.brand-word span{ font-family: var(--font-mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color: var(--ink-faint); }
+.brand-word span{ font-family: var(--font-mono); font-size:12px; letter-spacing:.09em; text-transform:uppercase; color: var(--ink-faint); }
 .header-actions{ display:flex; align-items:center; gap:6px; }
 .icon-btn{
   width:38px; height:38px; border-radius: var(--radius-pill);
@@ -413,9 +413,9 @@ a{ color:inherit; }
    header redesign; this pass just needs auth to be visibly real. */
 .header-user{ display:flex; align-items:center; gap:8px; }
 .header-user .hu-name{ font-size:12.5px; font-weight:700; line-height:1.15; text-align:right; }
-.header-user .hu-role{ display:block; font-size:10.5px; font-weight:600; color: var(--ink-faint); text-transform:uppercase; letter-spacing:.05em; }
+.header-user .hu-role{ display:block; font-size:12px; font-weight:600; color: var(--ink-faint); text-transform:uppercase; letter-spacing:.05em; }
 
-.app-main{ flex:1; width:100%; max-width: 760px; margin: 0 auto; padding: 20px 16px calc(var(--footer-h) + 28px + env(safe-area-inset-bottom, 0px) + 40px); position:relative; }   /* tab bar + the iPhone home bar + room to spare: the last button on a page is never hidden behind the bar */
+.app-main{ flex:1; width:100%; max-width: 760px; margin: 0 auto; padding: 20px 16px calc(var(--footer-h) + 28px); position:relative; }
 .app-main.no-footer-pad{ padding-bottom: 40px; }
 
 /* ---------- Buttons ---------- */
@@ -484,15 +484,7 @@ a{ color:inherit; }
 .type-card .type-go{ margin-top:auto; display:flex; align-items:center; gap:5px; color: var(--brand-text); font-weight:700; font-size:13px; }
 .type-card .type-go svg{ width:15px; height:15px; transition: transform .15s ease; }
 .type-card:hover .type-go svg{ transform: translateX(3px); }
-@media(max-width:420px){
-  .type-grid{ gap:7px; }
-  .type-card{ padding:11px 9px; gap:7px; }
-  .type-card .type-icon{ width:34px; height:34px; }
-  .type-card .type-icon svg{ width:18px; height:18px; }
-  .type-card h3{ font-size:12.5px; line-height:1.25; }
-  .type-card p{ font-size:10.5px; line-height:1.35; }
-  .type-card .type-go{ font-size:11px; }
-}
+/* V3: on a phone the three account-type cards are full-width rows (see the V3 layer at the end of this sheet); the old 3-tiny-columns squeeze is gone */
 
 /* ---------- Stepper / progress rail ---------- */
 .wizard-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
@@ -575,8 +567,8 @@ input[type="date"].input::-webkit-datetime-edit, input[type="time"].input::-webk
 .svc-sec.is-open .svc-head{ border-bottom:1.5px solid var(--brand-tint-2); }
 .svc-num{ flex:0 0 auto; width:26px; height:26px; border-radius:50%; background: var(--brand); color:#fff; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; }
 .svc-title{ flex:1 1 auto; min-width:0; font-size:14.5px; font-weight:800; line-height:1.25; }
-.svc-pill{ flex:0 0 auto; font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:999px; background: var(--surface); border:1px solid var(--line); color: var(--ink-soft); white-space:nowrap; }
-.svc-pill.is-filled{ background: var(--forest-dark, #1E6B45); border-color: transparent; color:#fff; }
+.svc-pill{ flex:0 0 auto; font-size:12px; font-weight:700; padding:3px 9px; border-radius:999px; background: var(--surface); border:1px solid var(--line); color: var(--ink-soft); white-space:nowrap; }
+.svc-pill.is-filled{ background: var(--success-tint-2); border-color: var(--success); color: var(--success-text); }
 .svc-chev{ flex:0 0 auto; display:flex; color: var(--brand-dark); transition: transform .15s ease; }
 .svc-chev svg{ width:18px; height:18px; }
 .svc-sec.is-open .svc-chev{ transform: rotate(90deg); }
@@ -592,7 +584,7 @@ input[type="date"].input::-webkit-datetime-edit, input[type="time"].input::-webk
 .svc-grp > summary::after{ content:'+'; font-size:18px; font-weight:700; line-height:1; margin-left:4px; }
 .svc-grp[open] > summary::after{ content:'\2212'; }
 .svc-grp > summary .svc-grp-name{ flex:1 1 auto; }
-.svc-grp-count{ font-size:11.5px; font-weight:700; letter-spacing:0; text-transform:none; padding:2px 9px; border-radius:999px; background: var(--surface); border:1px solid var(--line); color: var(--ink-soft); }
+.svc-grp-count{ font-size:12px; font-weight:700; letter-spacing:0; text-transform:none; padding:2px 9px; border-radius:999px; background: var(--surface); border:1px solid var(--line); color: var(--ink-soft); }
 .svc-grp[open] > .check-grid{ padding:0 12px 12px; }
 
 
@@ -636,7 +628,7 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .photo-add{
   aspect-ratio:1; border-radius: var(--radius-sm); border:1.5px dashed var(--line-strong);
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
-  color: var(--ink-soft); font-size:11px; font-weight:700; cursor:pointer; background: var(--paper);
+  color: var(--ink-soft); font-size:12px; font-weight:700; cursor:pointer; background: var(--paper);
 }
 .photo-add svg{ width:20px; height:20px; }
 .photo-add:hover{ border-color: var(--brand); color: var(--brand-dark); }
@@ -667,11 +659,11 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .cam-shutter{ width:68px; height:68px; border-radius:50%; border:4px solid #fff; background:#fff; box-shadow:0 0 0 3px rgba(0,0,0,.35) inset; cursor:pointer; flex:0 0 auto; }
 .cam-shutter:disabled{ opacity:.4; cursor:default; }
 [data-photo-status]:empty{ display:none; }
-.acc-photo-badge{ display:inline-flex; align-items:center; gap:3px; margin-left:8px; font-size:11px; font-weight:700; color: var(--ink-soft); vertical-align:middle; }
+.acc-photo-badge{ display:inline-flex; align-items:center; gap:3px; margin-left:8px; font-size:12px; font-weight:700; color: var(--ink-soft); vertical-align:middle; }
 .acc-photo-badge svg{ width:13px; height:13px; }
 .photo-group + .photo-group{ margin-top:14px; }
 .photo-group-title{ display:flex; align-items:center; justify-content:space-between; font-size:12.5px; font-weight:700; color: var(--ink-soft); margin-bottom:8px; }
-.photo-group-title span{ font-family: var(--font-mono); font-size:11.5px; font-weight:600; color: var(--ink-faint); }
+.photo-group-title span{ font-family: var(--font-mono); font-size:12px; font-weight:600; color: var(--ink-faint); }
 
 /* ---------- Potential Problem Areas (form step, review screen, saved report) ---------- */
 .pa-meter{ display:flex; flex-wrap:wrap; gap:4px 16px; margin:0 0 12px; font-size:12.5px; font-weight:600; color: var(--ink-soft); }
@@ -698,7 +690,7 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .pa-card.is-open .pa-tags{ display:none; }
 .pa-pill{
   display:inline-flex; align-items:center; padding:2px 9px; border-radius: var(--radius-pill); border:1px solid var(--line);
-  font-size:11.5px; font-weight:700; line-height:1.5; background: var(--paper-alt); color: var(--ink-soft);
+  font-size:12px; font-weight:700; line-height:1.5; background: var(--paper-alt); color: var(--ink-soft);
 }
 .pa-pill.is-recur{ background: var(--rust-pale); color: var(--rust-dark); border-color: transparent; }
 .pa-pill.is-prio[data-lv="1"]{ background: var(--forest-pale); color: var(--forest-dark); border-color: transparent; }
@@ -706,7 +698,7 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .pa-pill.is-prio[data-lv="3"]{ background: var(--rust-pale); color: var(--rust-dark); border-color: transparent; }
 .pa-flag{
   display:inline-flex; align-items:center; padding:2px 9px; border-radius: var(--radius-pill);
-  font-size:11.5px; font-weight:800; line-height:1.5; background: var(--amber-pale); color: var(--warning-text);
+  font-size:12px; font-weight:800; line-height:1.5; background: var(--amber-pale); color: var(--warning-text);
 }
 .pa-chev{ flex:0 0 auto; display:flex; margin-top:5px; color: var(--ink-faint); transition: transform .15s ease; }
 .pa-chev svg{ width:18px; height:18px; }
@@ -723,7 +715,7 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .pa-form{ padding:2px 14px 16px; border-top:1px solid var(--line); }
 .pa-form .field{ margin:16px 0 0; }
 .pa-opt{ font-weight:600; color: var(--ink-faint); }
-.pa-count{ font-family: var(--font-mono); font-size:11.5px; font-weight:600; color: var(--ink-faint); }
+.pa-count{ font-family: var(--font-mono); font-size:12px; font-weight:600; color: var(--ink-faint); }
 .pa-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
 .pa-chip{
   border:1.5px solid var(--control-border); background: var(--surface); color: var(--ink-soft); text-align:left;
@@ -734,7 +726,7 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .pa-chip.is-on{ background: var(--brand-pale); border-color: var(--brand); color: var(--brand-dark); }
 .pa-quick{ margin-top:10px; }
 .pa-quick .pa-chip{ border-radius:14px; }
-.pa-quick-label{ font-size:11.5px; font-weight:700; color: var(--ink-faint); }
+.pa-quick-label{ font-size:12px; font-weight:700; color: var(--ink-faint); }
 .pa-quick .pa-chips{ margin-top:6px; }
 .pa-types{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 @media(max-width:359px){ .pa-types{ grid-template-columns:1fr; } }
@@ -745,7 +737,7 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 }
 .pa-type svg{ width:20px; height:20px; flex:0 0 auto; margin-top:1px; color: var(--ink-faint); }
 .pa-type .t{ display:block; font-size:13px; font-weight:700; line-height:1.25; }
-.pa-type small{ display:block; margin-top:3px; font-size:11.5px; font-weight:500; line-height:1.3; color: var(--ink-faint); }
+.pa-type small{ display:block; margin-top:3px; font-size:12px; font-weight:500; line-height:1.3; color: var(--ink-faint); }
 .pa-type:hover{ border-color: var(--brand); }
 .pa-type.is-on{ border-color: var(--brand); background: var(--brand-pale); }
 .pa-type.is-on svg, .pa-type.is-on .t{ color: var(--brand-dark); }
@@ -788,7 +780,7 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .pa-ro{ border:1.5px solid var(--line); border-radius: var(--radius-md); background: var(--surface); overflow:hidden; }
 .pa-ro-head{ display:flex; align-items:flex-start; gap:12px; padding:11px 14px; background: var(--paper-alt); border-bottom:1px solid var(--line); }
 .pa-ro-body{ padding:12px 14px 14px; display:flex; flex-direction:column; gap:12px; }
-.pa-ro-label{ margin-bottom:3px; font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color: var(--ink-faint); }
+.pa-ro-label{ margin-bottom:3px; font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color: var(--ink-faint); }
 .pa-ro-text{ margin:0; font-size:13.5px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere; }
 .pa-ro-text.is-empty{ color: var(--ink-faint); font-style:italic; }
 .pa-ro-reco{ padding:10px 12px; border-left:3px solid var(--brand); border-radius:6px; background: var(--brand-pale); }
@@ -817,7 +809,7 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .sl-sub{ display:block; font-size:12px; color: var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .sl-tags{ display:flex; flex-wrap:wrap; gap:6px; margin-top:5px; }
 .hist-item.sl-row .hi-main .hi-title{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; white-space:normal; overflow:hidden; overflow-wrap:anywhere; }
-.sl-tag{ flex:0 0 auto; font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; padding:4px 8px; border-radius: var(--radius-pill); background: var(--warning-tint); color: var(--warning-text); }
+.sl-tag{ flex:0 0 auto; font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; padding:4px 8px; border-radius: var(--radius-pill); background: var(--warning-tint); color: var(--warning-text); }
 .sl-form-hint{ margin:0 0 14px; line-height:1.45; }
 .sl-mailhint{ margin:-8px 0 16px; }
 .sl-saved{ margin:0 0 12px; font-size:12.5px; font-weight:700; color: var(--success-text); }
@@ -850,7 +842,7 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .sl-actions .btn{ flex:1 1 150px; min-height: var(--tap); }
 .sl-diff{ list-style:none; margin:8px 0 0; padding:0; display:grid; gap:8px; }
 .sl-diff li{ background: var(--surface); border:1px solid var(--border); border-radius: var(--radius-sm); padding:8px 10px; display:grid; gap:2px; }
-.sl-dl{ font-weight:800; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color: var(--text-soft); }
+.sl-dl{ font-weight:800; font-size:12px; text-transform:uppercase; letter-spacing:.05em; color: var(--text-soft); }
 .sl-dv{ word-break:break-word; }
 .sl-dv i{ font-style:normal; font-weight:700; color: var(--text-soft); margin-right:6px; }
 .sl-pick{ display:grid; gap:8px; margin-top:8px; }
@@ -904,7 +896,7 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .stamp-chip{ display:flex; align-items:center; gap:10px; margin-top:10px; padding:8px 8px 8px 10px; border:1.5px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface); }
 .stamp-chip img{ width:46px; height:46px; object-fit:contain; background:#fff; border:1px solid var(--line); border-radius:6px; flex:0 0 auto; }
 .stamp-meta{ flex:1 1 auto; min-width:0; font-size:13px; font-weight:700; color: var(--ink); line-height:1.3; }
-.stamp-meta small{ display:block; font-size:11.5px; font-weight:500; color: var(--ink-faint); }
+.stamp-meta small{ display:block; font-size:12px; font-weight:500; color: var(--ink-faint); }
 
 /* ---------- Helper banners ---------- */
 .helper-banner{ display:flex; gap:10px; align-items:flex-start; background: var(--forest-pale); border-radius: var(--radius-md); padding:12px 14px; font-size:12.5px; color: var(--forest-dark); margin-bottom:16px; }
@@ -913,14 +905,14 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 
 /* ---------- Ticket (control number stub) ---------- */
 .ticket{ background: var(--plate); border-radius: var(--radius-md); padding:9px 14px; display:flex; flex-direction:column; align-items:flex-end; }
-.ticket .t-label{ font-size:9.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#9CB0A4; }
+.ticket .t-label{ font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#9CB0A4; }
 .ticket .t-num{ font-family: var(--font-mono); font-size:15px; font-weight:700; color:#F0B79E; }
 
 /* ---------- Review screen ---------- */
 .review-block{ margin-bottom:20px; }
 .review-block:last-child{ margin-bottom:0; }
 .rb-title{ display:flex; align-items:center; justify-content:space-between; font-size:12.5px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color: var(--ink-faint); margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--line); }
-.rb-edit{ display:flex; align-items:center; gap:4px; background:none; border:none; color: var(--brand-dark); font-size:11.5px; font-weight:700; text-transform:none; letter-spacing:0; }
+.rb-edit{ display:flex; align-items:center; gap:4px; background:none; border:none; color: var(--brand-dark); font-size:12px; font-weight:700; text-transform:none; letter-spacing:0; }
 .rb-edit svg{ width:13px; height:13px; }
 .kv{ display:grid; grid-template-columns: 130px 1fr; gap:8px 12px; margin:0; }
 .kv dt{ font-size:12.5px; color: var(--ink-soft); font-weight:600; }
@@ -958,7 +950,7 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 /* ---------- Divider label (Recent reports, Quick access, etc.) ---------- */
 .divider-label{
   display:flex; align-items:center; gap:10px; margin: 26px 0 14px;
-  font-family: var(--font-mono); font-size:11.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: var(--brand-text);
+  font-family: var(--font-mono); font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: var(--brand-text);
 }
 .divider-label::before, .divider-label::after{ content:''; flex:1; height:1px; background: var(--brand-pale); }
 .divider-label::before{ margin-right:2px; }
@@ -1017,18 +1009,18 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .hist-item .hi-main .hi-title, .hist-item .hi-main .hi-sub{ display:block; }
 .hist-item .hi-main .hi-title{ font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .hist-item .hi-main .hi-sub{ font-size:12px; color: var(--ink-soft); font-family: var(--font-mono); }
-.hist-item .hi-status{ font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; padding:4px 8px; border-radius: var(--radius-pill); flex:0 0 auto; }
+.hist-item .hi-status{ font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; padding:4px 8px; border-radius: var(--radius-pill); flex:0 0 auto; }
 .hi-status.st-sent{ background: var(--forest-pale); color: var(--forest-dark); }
 .hi-status.st-manual{ background: var(--amber-pale); color: var(--warning-text); }
 .hi-status.st-draft{ background: var(--line); color: var(--ink-soft); }
 
-.hist-item .hi-main .hi-sub2{ display:block; font-size:11.5px; color: var(--ink-faint); margin-top:2px; overflow-wrap:anywhere; }
+.hist-item .hi-main .hi-sub2{ display:block; font-size:12px; color: var(--ink-faint); margin-top:2px; overflow-wrap:anywhere; }
 .hist-item .hi-tags{ display:flex; align-items:center; gap:8px; flex:0 0 auto; }
-.hi-type{ flex:0 0 auto; display:inline-block; font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; padding:4px 10px; border-radius: var(--radius-pill); color:#fff; white-space:nowrap; }
-.hi-type.t-seven11{ background:#D9480F; }
+.hi-type{ flex:0 0 auto; display:inline-block; font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; padding:4px 10px; border-radius: var(--radius-pill); color:#fff; white-space:nowrap; }
+.hi-type.t-seven11{ background:#C2410C; }
 .hi-type.t-private{ background:#1971C2; }
 .hi-type.t-government{ background:#6741D9; }
-.hist-item.t-seven11 .hi-icon{ background:rgba(217,72,15,.14); color:#D9480F; }
+.hist-item.t-seven11 .hi-icon{ background:rgba(194,65,12,.14); color:#C2410C; }
 .hist-item.t-private .hi-icon{ background:rgba(25,113,194,.14); color:#1971C2; }
 .hist-item.t-government .hi-icon{ background:rgba(103,65,217,.14); color:#6741D9; }
 @media(max-width:600px){ .hist-item .hi-tags{ flex-direction:column; align-items:flex-end; gap:5px; } }
@@ -1036,18 +1028,18 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .hist-chips{ display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; }
 .hist-chip{ flex:0 0 auto; border:1.5px solid var(--line); background: var(--surface); color: var(--ink); font-size:13px; font-weight:700; padding:8px 14px; border-radius:999px; cursor:pointer; min-height:38px; }
 .hist-chip.is-on{ background: var(--ink); border-color: var(--ink); color: var(--surface); }
-.hist-chip.t-seven11.is-on{ background:#D9480F; border-color:#D9480F; color:#fff; }
+.hist-chip.t-seven11.is-on{ background:#C2410C; border-color:#C2410C; color:#fff; }
 .hist-chip.t-private.is-on{ background:#1971C2; border-color:#1971C2; color:#fff; }
 .hist-chip.t-government.is-on{ background:#6741D9; border-color:#6741D9; color:#fff; }
 .hist-more > summary{ list-style:none; cursor:pointer; font-size:13px; font-weight:800; color: var(--brand-dark); display:flex; align-items:center; gap:8px; min-height:34px; }
 .hist-more > summary::-webkit-details-marker{ display:none; }
 .hist-more > summary::after{ content:'+'; margin-left:auto; font-size:18px; font-weight:700; }
 .hist-more[open] > summary::after{ content:'\2212'; }
-.hist-badge{ background: var(--brand); color:#fff; font-size:11px; font-weight:800; min-width:20px; height:20px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; padding:0 6px; }
+.hist-badge{ background: var(--brand); color:#fff; font-size:12px; font-weight:800; min-width:20px; height:20px; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; padding:0 6px; }
 .hist-badge[hidden]{ display:none; }
 .hist-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); gap:10px; margin-top:10px; }
 .hist-f{ display:flex; flex-direction:column; gap:4px; min-width:0; }
-.hist-f > span{ font-size:11.5px; font-weight:700; color: var(--ink-soft); }
+.hist-f > span{ font-size:12px; font-weight:700; color: var(--ink-soft); }
 .hist-foot{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; border-top:1px solid var(--line); padding-top:10px; }
 .hist-summary{ font-size:12.5px; font-weight:700; color: var(--ink-soft); }
 .hist-clear{ background:none; border:none; color: var(--brand-dark); font-size:12.5px; font-weight:800; cursor:pointer; padding:6px 4px; }
@@ -1056,7 +1048,7 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .sync-btn.is-busy svg{ animation: sl-spin 1s linear infinite; }
 .sync-btn.is-offline{ color:#B45309; }
 .sync-btn.has-waiting{ color: var(--brand-dark); background: var(--brand-tint); }
-.sync-badge{ position:absolute; top:-3px; right:-3px; min-width:18px; height:18px; padding:0 5px; border-radius:999px; background: var(--brand); color:#fff; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; border:2px solid var(--surface); }
+.sync-badge{ position:absolute; top:-3px; right:-3px; min-width:18px; height:18px; padding:0 5px; border-radius:999px; background: var(--brand); color:#fff; font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; border:2px solid var(--surface); }
 .sync-badge[hidden]{ display:none; }
 .sync-banner{ position:sticky; top: var(--header-h); z-index:39; display:flex; align-items:center; gap:10px; padding:9px 16px; font-size:13px; line-height:1.35; background: var(--amber-pale); color: var(--warning-text); border-bottom:1px solid var(--line); }
 .sync-banner[hidden]{ display:none; }
@@ -1069,7 +1061,7 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .ob-card{ padding:14px; margin-bottom:16px; border:1.5px solid var(--brand); }
 .type-grid + [data-outbox-host]:not(:empty){ margin-top:16px; }
 .ob-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:6px; }
-.ob-eyebrow{ display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color: var(--brand-dark); }
+.ob-eyebrow{ display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color: var(--brand-dark); }
 .ob-eyebrow svg{ width:16px; height:16px; }
 .ob-count{ font-size:13.5px; font-weight:700; margin-top:2px; }
 .ob-item .hi-type{ align-self:flex-start; margin-top:1px; }
@@ -1187,7 +1179,7 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .wo-welcome span, .wo-area span{ display:inline-block; opacity:0; transform: translateY(26px) scale(.9); animation: woLetter .55s cubic-bezier(.2,.9,.3,1.25) forwards; animation-delay: calc(var(--d, 0ms) + var(--i, 0) * 55ms); }
 .wo-welcome .wo-sp, .wo-area .wo-sp{ opacity:1; transform:none; animation:none; }
 .wo-line{ height:4px; width:0; border-radius:4px; background:#fff; animation: woLine .8s 1.1s ease forwards; }
-.wo-sub{ font-family: var(--font-mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase; opacity:0; animation: woFade .6s 1.6s ease forwards; }
+.wo-sub{ font-family: var(--font-mono); font-size:12px; letter-spacing:.12em; text-transform:uppercase; opacity:0; animation: woFade .6s 1.6s ease forwards; }
 @keyframes woPop{ from{ opacity:0; transform: scale(.4) rotate(-12deg); } to{ opacity:1; transform:none; } }
 @keyframes woLetter{ to{ opacity:1; transform:none; } }
 @keyframes woLine{ to{ width: min(70vw, 320px); } }
@@ -1202,8 +1194,8 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 @keyframes wbShine{ to{ left:130%; } }
 .wb-small{ display:block; font-size:12px; font-weight:800; letter-spacing:.4em; opacity:.92; }
 .wb-big{ display:block; font-size: clamp(34px, 9vw, 60px); font-weight:900; letter-spacing:-.01em; line-height:1.02; margin-top:6px; }
-.wb-sub{ display:block; margin-top:10px; font-family: var(--font-mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; opacity:.85; }
-.hi-area{ flex:0 0 auto; display:inline-block; font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; padding:3px 9px; border-radius: var(--radius-pill); border:1.5px solid var(--line); color: var(--ink-soft); background: var(--surface); white-space:nowrap; }
+.wb-sub{ display:block; margin-top:10px; font-family: var(--font-mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase; opacity:.85; }
+.hi-area{ flex:0 0 auto; display:inline-block; font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; padding:3px 9px; border-radius: var(--radius-pill); border:1.5px solid var(--line); color: var(--ink-soft); background: var(--surface); white-space:nowrap; }
 #histAreas{ flex-wrap:wrap; overflow:visible; }
 .hist-chip-area.is-on{ background: var(--ink); border-color: var(--ink); color: var(--surface); }
 /* ---------- technicians who worked / area technicians ---------- */
@@ -1216,7 +1208,7 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .tw-row.is-rep .tw-dot{ border-color: var(--brand); }
 .tw-row.is-rep .tw-dot::after{ content:''; position:absolute; inset:3px; border-radius:50%; background: var(--brand); }
 .tw-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.tw-badge{ flex:0 0 auto; font-size:10px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#fff; background: var(--brand); border-radius: var(--radius-pill); padding:3px 8px; }
+.tw-badge{ flex:0 0 auto; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#fff; background: var(--brand); border-radius: var(--radius-pill); padding:3px 8px; }
 .tw-ic{ flex:0 0 auto; width:42px; display:grid; place-items:center; background:none; border:none; color: var(--ink-soft); cursor:pointer; }
 .tw-ic svg{ width:18px; height:18px; }
 .tw-ic:hover{ color: var(--brand); }
@@ -1236,7 +1228,7 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .at-add{ display:flex; gap:8px; margin-top:12px; }
 .at-add .input{ flex:1; min-width:0; }
 .at-setup{ margin-bottom:16px; border-color: var(--amber, #E0A100); }
-.at-sql{ margin-top:12px; max-height:220px; overflow:auto; background: var(--paper-alt, #F1F1F3); border-radius: var(--radius-sm); padding:10px; font-size:11.5px; line-height:1.45; white-space:pre-wrap; word-break:break-word; }
+.at-sql{ margin-top:12px; max-height:220px; overflow:auto; background: var(--paper-alt, #F1F1F3); border-radius: var(--radius-sm); padding:10px; font-size:12px; line-height:1.45; white-space:pre-wrap; word-break:break-word; }
 .sl-cachenote{font-size:12px;color:var(--ink-soft,#666);margin-top:2px;}
 .ob-stamp{ background: var(--brand-tint); color: var(--brand-dark); border-color: var(--brand); }
 .ob-stamp svg{ width:44px; height:44px; }
@@ -1244,11 +1236,11 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .sync-conn svg{ width:18px; height:18px; flex:0 0 auto; }
 .sync-conn.is-on{ background: var(--forest-pale); color: var(--forest-dark); }
 .sync-conn.is-off{ background: var(--amber-pale); color: var(--warning-text); }
-.status-card .sc-icon.is-off, .status-card .sc-dot.is-off{ color:#B45309; }
+.status-card .sc-icon.is-off, .status-card .sc-dot.is-off{ color: var(--warning-text); }   /* the same amber as the banner and the "waiting" lines, readable in dark mode too */
 .status-card .sc-icon.is-off{ background: var(--amber-pale); }
 .status-card .sc-icon.is-wait, .status-card .sc-dot.is-wait{ color: var(--brand-dark); }
 .sc-sync{ display:block; margin-top:6px; border:none; background: var(--brand); color:#fff; font-size:12px; font-weight:800; padding:6px 12px; border-radius:999px; cursor:pointer; }
-.hist-day{ font-size:11.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color: var(--ink-soft); padding:14px 4px 6px; border-bottom:1px solid var(--line); }
+.hist-day{ font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color: var(--ink-soft); padding:14px 4px 6px; border-bottom:1px solid var(--line); }
 
 
 .empty-state{ text-align:center; padding: 52px 20px; color: var(--ink-soft); }
@@ -1260,7 +1252,7 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .rate-row{ display:flex; gap:10px; }
 .rate-btn{ flex:1; border:1.5px solid var(--control-border); background: var(--surface); border-radius: var(--radius-md); padding:14px 6px; display:flex; flex-direction:column; align-items:center; gap:6px; }
 .rate-btn .rate-emoji{ font-size:26px; }
-.rate-btn span{ font-size:11.5px; font-weight:700; color: var(--ink-soft); }
+.rate-btn span{ font-size:12px; font-weight:700; color: var(--ink-soft); }
 .rate-btn.is-picked{ border-color: var(--brand); background: var(--brand-pale); }
 .rate-btn.is-picked span{ color: var(--brand-dark); }
 
@@ -1269,7 +1261,7 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .status-pill.ok{ background: var(--forest-pale); color: var(--forest-dark); }
 .status-pill.off{ background: var(--line); color: var(--ink-soft); }
 .status-pill svg{ width:12px; height:12px; }
-.pill-mono{ font-family: var(--font-mono); font-size:11.5px; background: var(--paper); border:1px solid var(--border-strong); border-radius:4px; padding:1px 5px; }
+.pill-mono{ font-family: var(--font-mono); font-size:12px; background: var(--paper); border:1px solid var(--border-strong); border-radius:4px; padding:1px 5px; }
 
 /* ---------- Success / stamp ---------- */
 .success-wrap{ display:flex; flex-direction:column; align-items:center; text-align:center; padding: 30px 10px 10px; }
@@ -1295,7 +1287,7 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
 .auth-brand .brand-mark{ width:52px; height:52px; }
 .auth-brand h1{ font-size:19px; }
 .auth-brand h1 .brand-co{ color: var(--brand-text); }
-.auth-brand p{ font-family: var(--font-mono); font-size:11px; letter-spacing:.09em; text-transform:uppercase; color: var(--ink-faint); }
+.auth-brand p{ font-family: var(--font-mono); font-size:12px; letter-spacing:.09em; text-transform:uppercase; color: var(--ink-faint); }
 .auth-switch{ text-align:center; margin-top:16px; font-size:13px; color: var(--ink-soft); }
 .auth-switch button{ background:none; border:none; color: var(--brand-dark); font-weight:700; padding:0; }
 .auth-error{ background: var(--rust-pale); color: var(--rust-dark); border-radius: var(--radius-sm); padding:10px 12px; font-size:13px; font-weight:600; margin-bottom:14px; }
@@ -1331,10 +1323,6 @@ body, .app-header, .bottom-tab-bar, .app-sidebar, .card{
 
 /* Pagination ("load more") */
 .load-more-wrap{ display:flex; justify-content:center; padding:18px 0 4px; }
-.hist-more-actions{ flex-wrap:wrap; gap:10px; }
-.hist-more-actions .btn{ flex:1 1 220px; max-width:340px; }
-.hist-chip.hist-approved{ display:inline-flex; align-items:center; gap:6px; }
-.hist-chip.hist-approved svg{ width:16px; height:16px; flex:0 0 auto; }
 
 /* Phase 1, old defect: this reset skipped pseudo-elements, so the pulse on the notification bell (an ::after) never stopped for people who asked their phone to reduce motion.
    It now covers ::before and ::after, and the in-app "reduce motion" switch the design system reserves (<html data-motion="reduce">). */
@@ -1369,7 +1357,7 @@ body, .app-header, .bottom-tab-bar, .app-sidebar, .card{
 }
 .tab-item{
   flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
-  background:none; border:none; color: var(--ink-faint); font-size:10.5px; font-weight:700;
+  background:none; border:none; color: var(--ink-faint); font-size:12px; font-weight:700;
   padding:4px 2px;
 }
 .tab-item svg{ width:22px; height:22px; }
@@ -1396,7 +1384,7 @@ body, .app-header, .bottom-tab-bar, .app-sidebar, .card{
   .shell-main-col{ flex:1; min-width:0; }
   .app-header{ border-bottom:1px solid var(--line); }
   .header-actions{ margin-left:auto; }
-  .app-main{ max-width:1040px; margin:0; padding:28px 36px 48px; }
+  .app-main{ max-width:1040px; margin:0 auto; padding:28px 36px 48px; }
 
   .sidebar-brand{ display:flex; align-items:center; gap:10px; background:none; border:none; padding:0 6px; margin-bottom:22px; }
   .sidebar-nav{ display:flex; flex-direction:column; gap:2px; flex:1; }
@@ -1429,19 +1417,19 @@ body, .app-header, .bottom-tab-bar, .app-sidebar, .card{
 .status-card{ display:flex; align-items:center; gap:12px; }
 .status-card .sc-icon{ width:38px; height:38px; border-radius: var(--radius-sm); background: var(--brand-pale); color: var(--brand-dark); display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
 .status-card .sc-icon svg{ width:20px; height:20px; }
-.status-card .sc-eyebrow{ font-family: var(--font-mono); font-size:9.5px; letter-spacing:.07em; text-transform:uppercase; color: var(--ink-faint); }
+.status-card .sc-eyebrow{ font-family: var(--font-mono); font-size:12px; letter-spacing:.07em; text-transform:uppercase; color: var(--ink-faint); }
 .status-card .sc-title{ font-size:12.5px; font-weight:800; line-height:1.3; }
 /* Phase 1, old defect: the label, the title and "All good" were all inline spans, so they ran together on one line ("SYSTEM STATUSAll systems operational"). Stacked, as intended. */
 .status-card .sc-eyebrow, .status-card .sc-title{ display:block; }
 .status-card .sc-dot{ display:flex; }
-.status-card .sc-dot{ display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; color: var(--forest); margin-top:3px; }
+.status-card .sc-dot{ display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:700; color: var(--forest); margin-top:3px; }
 .status-card .sc-dot i{ width:6px; height:6px; border-radius:50%; background: currentColor; }
 
 /* ---------- Profile screen ---------- */
 .profile-hero{ display:flex; flex-direction:column; align-items:center; text-align:center; padding:26px 10px 6px; }
 .profile-hero .ph-avatar{ width:76px; height:76px; border-radius:50%; background: var(--brand-pale); color: var(--brand-dark); display:flex; align-items:center; justify-content:center; font-size:26px; font-weight:800; }
 .profile-hero h2{ margin-top:14px; font-size:19px; }
-.profile-hero .role-tag{ margin-top:4px; font-family: var(--font-mono); font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color: var(--brand-dark); background: var(--brand-pale); padding:3px 10px; border-radius: var(--radius-pill); display:inline-block; }
+.profile-hero .role-tag{ margin-top:4px; font-family: var(--font-mono); font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color: var(--brand-dark); background: var(--brand-pale); padding:3px 10px; border-radius: var(--radius-pill); display:inline-block; }
 .profile-row{ display:flex; align-items:center; justify-content:space-between; padding:14px 4px; border-bottom:1px solid var(--line); }
 .profile-row:last-child{ border-bottom:none; }
 .profile-row .pr-label{ font-size:13.5px; font-weight:700; }
@@ -1463,7 +1451,7 @@ body, .app-header, .bottom-tab-bar, .app-sidebar, .card{
 .stat-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:22px; }
 .stat-card{ text-align:center; padding:16px 8px; }
 .stat-card .stat-num{ font-size:26px; font-weight:800; color: var(--brand-dark); }
-.stat-card .stat-label{ font-size:11px; color: var(--ink-soft); margin-top:2px; }
+.stat-card .stat-label{ font-size:12px; color: var(--ink-soft); margin-top:2px; }
 @media(max-width:480px){ .stat-grid{ grid-template-columns:repeat(2,1fr); } }
 .bar-row{ margin-bottom:12px; }
 .bar-row .bar-row-top{ display:flex; justify-content:space-between; font-size:12.5px; font-weight:600; margin-bottom:5px; }
@@ -1494,7 +1482,7 @@ body, .app-header, .bottom-tab-bar, .app-sidebar, .card{
 .qa-tile .qa-icon svg{ width:15px; height:15px; }
 .qa-tile .qa-text{ display:flex; flex-direction:column; }
 .qa-tile .qa-label{ font-size:12px; font-weight:700; line-height:1.25; }
-.qa-tile .qa-sub{ font-size:10px; color: var(--ink-soft); line-height:1.3; }
+.qa-tile .qa-sub{ font-size:12px; color: var(--ink-soft); line-height:1.3; }
 .qa-tile > svg{ position:absolute; top:12px; right:9px; width:13px; height:13px; color: var(--ink-faint); }
 
 /* Phase 1, old defect: a control reached with the Tab key could end up behind the sticky header (60 px) or the bottom bar (65 to 81 px), so keyboard users could not see where they were.
@@ -1510,6 +1498,262 @@ html{ scroll-padding-top: 72px; scroll-padding-bottom: calc(96px + env(safe-area
   .sidebar-link.is-active{ outline:2px solid Highlight; outline-offset:-2px; }
 }
 </style>
+<style id="gepestcon-v3">
+/* =====================================================================================================================
+   V3 REFINEMENT LAYER  (Gepestcon Job Reports 3.0)
+   Comfort, consistency and motion rules for the whole app, in one place. It loads after the main sheet, so it wins ties.
+   Rules: text never below 12px, inputs 16px (an iPhone zooms into anything smaller), touch targets at least 44px,
+   one motion language (tokens --dur-* / --ease-*), brand red / black / white unchanged.
+   ===================================================================================================================== */
+/* The "hidden" attribute always wins. (Without this, a button or panel with its own "display" ignored "hidden": the PDF zoom
+   buttons stayed on screen over an error message, and "Switch camera" showed on a phone with only one camera.) */
+[hidden]{ display:none !important; }
+
+/* ---------- touch comfort ---------- */
+*{ -webkit-tap-highlight-color: transparent; }
+button, a, summary, select, label, .chip, .check-row, .hist-item, .type-card, .qa-tile, .tab-item, .sidebar-link, .area-tile, .area-main{ touch-action: manipulation; }
+
+/* ---------- buttons: one size scale, one pressed look, one disabled look ---------- */
+:root .btn{ min-height: var(--tap); }
+:root .btn-lg{ min-height: 52px; }
+:root .btn-sm{ min-height: var(--control-h-sm); padding:8px 14px; font-size:14px; }
+@media (pointer:coarse), (max-width:899px){ :root .btn-sm{ min-height: var(--tap); } }
+.btn:disabled{ opacity:.5; cursor:not-allowed; transform:none; }
+.btn-primary:active:not(:disabled){ background: var(--brand-pressed); }
+.btn-secondary:active:not(:disabled){ background: var(--surface-2); }
+.btn-ghost:active:not(:disabled){ background: var(--surface-2); }
+.btn-danger:active:not(:disabled){ background: var(--danger-tint-2); }
+
+/* ---------- header and small controls: 44px targets ---------- */
+:root .icon-btn{ width: var(--tap); height: var(--tap); }
+:root .icon-btn svg{ width:20px; height:20px; }
+.header-actions{ gap:2px; }
+.icon-btn.has-badge::after{ top:10px; right:10px; }
+.sync-badge{ top:2px; right:2px; }
+:root .brand{ min-height: var(--tap); }
+@media (max-width:359px){
+  .app-header{ padding:0 10px; }
+  .brand{ gap:8px; }
+  .brand-mark{ width:30px; height:30px; }
+  .brand-word span{ display:none; }
+}
+:root .back-link{ min-height: var(--tap); font-size:14.5px; padding:0 12px 0 0; }
+:root .rb-edit{ min-height: var(--tap); padding:0 0 0 14px; margin:-14px 0; font-size:13px; }
+:root .rb-edit svg{ width:14px; height:14px; }
+.pw-toggle{ min-height: var(--tap); padding:0 12px; font-size:14px; }
+.ob-del{ width: var(--tap); height: var(--tap); }
+.tw-ic{ width: var(--tap); min-height: var(--tap); }
+.hist-more > summary{ min-height: var(--tap); }
+.hist-clear{ min-height: var(--tap); padding:0 8px; }
+.modal-close{ width: var(--tap); height: var(--tap); margin:-8px -10px -8px 0; background:none; position:relative; isolation:isolate; }
+.modal-close::before{ content:''; position:absolute; inset:7px; border-radius:50%; background: var(--paper); z-index:-1; }
+.sync-banner-btn{ position:relative; font-size:13px; min-height:36px; }
+.sync-banner-btn::after{ content:''; position:absolute; inset:-6px -4px; }
+
+/* ---------- forms: 16px text (no iPhone zoom), 48px boxes, clearer labels ---------- */
+:root .input, :root select.input, :root textarea.input{ font-size: var(--fs-md); min-height: var(--control-h); padding:12px 14px; }
+:root textarea.input{ min-height:96px; }
+/* Chrome, Edge and Firefox add 1px of their own above and below a date or time value, which made those boxes 0.8px taller than the text box beside them.
+   Safari (iPhone, iPad, Mac) is left exactly as it was. */
+@supports not (font: -apple-system-body){
+  :root input[type="date"].input, :root input[type="time"].input, :root input[type="datetime-local"].input{ padding-top:10px; padding-bottom:10px; }
+}
+.field label{ font-size:13.5px; letter-spacing:0; margin-bottom:7px; }
+.field .hint{ font-size:12.5px; }
+.check-row{ min-height:48px; padding:11px 14px; }
+.check-row span{ font-size:14.5px; }
+.check-row input[type=checkbox]{ width:20px; height:20px; }
+.svc-body .check-row{ padding:10px 12px; min-height:48px; }
+.svc-body .check-row span{ font-size:14px; }
+:root .chip{
+  min-height: var(--tap); padding:9px 16px; font-size:14px;
+  transition: background-color var(--dur-2) var(--ease-standard), border-color var(--dur-2) var(--ease-standard), color var(--dur-2) var(--ease-standard), transform var(--dur-1) var(--ease-standard);
+}
+.chip:active{ transform: scale(.97); }
+.chip svg{ transition: opacity var(--dur-2) var(--ease-standard); }
+:root .svc-all, :root .hist-chip{ min-height: var(--control-h-sm); font-size:13.5px; display:inline-flex; align-items:center; }
+:root .svc-all{ padding:6px 16px; }
+@media (pointer:coarse), (max-width:899px){ :root .svc-all, :root .hist-chip{ min-height: var(--tap); } }
+.hist-chip{ transition: background-color var(--dur-2) var(--ease-standard), border-color var(--dur-2) var(--ease-standard), color var(--dur-2) var(--ease-standard); }
+@media (max-width:560px){ .row-2.row-stack-sm{ grid-template-columns:minmax(0,1fr); } }   /* e-mail pairs: a whole address needs a whole line on a phone */
+
+/* two or three choices, one picked: a segmented control (same look as the User Management tabs) */
+.seg{ display:flex; flex-wrap:nowrap; gap:4px; padding:4px; background: var(--surface-2); border-radius: var(--radius-md); }
+.seg .chip{ flex:1 1 0; min-width:0; justify-content:center; border:0; background:transparent; border-radius: var(--radius-sm); padding:10px 8px; color: var(--text-soft); font-weight:700; }
+.seg .chip svg{ display:none; }
+.seg .chip:hover{ border-color:transparent; color: var(--text); }
+.seg .chip.is-on{ background: var(--surface); color: var(--brand-text); box-shadow: 0 0 0 1px var(--border-strong), var(--shadow-1); }
+
+/* ---------- badges and pills ---------- */
+.hi-type, .hi-area, .hi-status{ letter-spacing:.03em; }
+.hi-type, .hi-status{ padding:4px 10px; }
+.hi-area{ padding:3px 9px; }
+:root .svc-pill{ padding:3px 10px; }
+.qa-tile .qa-label{ font-size:13.5px; }
+.ticket .t-label{ letter-spacing:.04em; }
+
+/* ---------- list rows that carry tags (the Job Reports list and the dashboard) ---------- */
+@media (max-width:700px){
+  .hist-item.has-tags{ flex-wrap:wrap; align-items:flex-start; row-gap:8px; }
+  .hist-item.has-tags .hi-icon{ margin-top:2px; }
+  .hist-item.has-tags .hi-tags{ flex:0 0 100%; margin:0 0 0 50px; flex-direction:row; flex-wrap:wrap; align-items:center; justify-content:flex-start; gap:6px; }
+  .hist-item.has-tags .hi-main .hi-title{ display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; white-space:normal; overflow:hidden; overflow-wrap:anywhere; }
+}
+.hist-item{ transition: background-color var(--dur-2) var(--ease-standard); }
+.hist-item:active{ background: var(--surface-2); }
+
+/* ---------- dashboard: the three account types as full-width rows on a phone ---------- */
+@media (max-width:639px){
+  .type-grid{ grid-template-columns:minmax(0,1fr); gap:10px; }
+  .type-card{ display:grid; grid-template-columns:48px minmax(0,1fr); grid-template-areas:"ic ti" "ic de" "ic go"; column-gap:14px; row-gap:3px; align-items:start; padding:14px 16px; }
+  .type-card .type-icon{ grid-area:ic; width:48px; height:48px; align-self:center; }
+  .type-card .type-icon svg{ width:24px; height:24px; }
+  .type-card h3{ grid-area:ti; font-size:16px; line-height:1.25; }
+  .type-card p{ grid-area:de; font-size:13px; line-height:1.4; }
+  .type-card .type-go{ grid-area:go; margin-top:4px; font-size:13.5px; }
+}
+
+/* ---------- statistics tiles (Analytics and a technician's page) ---------- */
+.stat-grid{ grid-template-columns:repeat(3, minmax(0,1fr)); }
+@media (max-width:359px){ .stat-grid{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
+.stat-card .stat-label{ font-size:12px; line-height:1.3; }
+.stat-grid.in-card{ margin-bottom:0; }
+.stat-grid.in-card .stat-card{ background: var(--surface-2); border-radius: var(--radius-md); padding:14px 8px; }
+
+/* ---------- sign-off: technicians who worked (the whole name is always readable) ---------- */
+.tw-pick{ display:grid; grid-template-columns:20px minmax(0,1fr); column-gap:12px; row-gap:4px; align-items:center; min-height: var(--tap); }
+.tw-name{ white-space:normal; overflow:visible; text-overflow:clip; overflow-wrap:anywhere; font-weight:700; }
+.tw-badge{ grid-column:2; justify-self:start; }
+
+/* ---------- loading: shimmering placeholders instead of the word "Loading" ---------- */
+.skel-list{ display:grid; gap:10px; padding:4px 0; }
+.skel-row{ display:block; height:64px; border-radius: var(--radius-md); background: linear-gradient(90deg, var(--surface-2) 0%, var(--border) 50%, var(--surface-2) 100%); background-size:200% 100%; animation: v3Shimmer 1.3s linear infinite; }
+.skel-row:nth-child(2){ opacity:.75; }
+.skel-row:nth-child(3){ opacity:.5; }
+@keyframes v3Shimmer{ from{ background-position:100% 50%; } to{ background-position:0 50%; } }
+
+/* ---------- motion: one language ---------- */
+.screen-enter{ animation: v3ScreenIn var(--dur-3) var(--ease-decel) backwards; }
+@keyframes v3ScreenIn{ from{ opacity:0; transform: translateY(var(--move-sm)); } }
+.modal-overlay{ animation: v3Fade var(--dur-2) var(--ease-standard) both; }
+.modal-sheet{ animation: v3Sheet var(--dur-3) var(--ease-decel) both; max-height:88vh; max-height:88dvh; }
+@media (min-width:640px){ .modal-sheet{ animation-name: v3Pop; } }
+.modal-overlay.is-leaving{ animation: v3FadeOut var(--dur-2) var(--ease-accel) both; pointer-events:none; }
+.modal-overlay.is-leaving .modal-sheet{ animation: v3SheetOut var(--dur-2) var(--ease-accel) both; }
+.modal-sheet:focus{ outline:none; }
+.modal-sheet:focus-visible{ outline:none; }
+@keyframes v3Fade{ from{ opacity:0; } to{ opacity:1; } }
+@keyframes v3FadeOut{ to{ opacity:0; } }
+@keyframes v3Sheet{ from{ opacity:0; transform: translateY(var(--move-lg)); } to{ opacity:1; transform:none; } }
+@keyframes v3SheetOut{ to{ opacity:0; transform: translateY(var(--move-md)); } }
+@keyframes v3Pop{ from{ opacity:0; transform: translateY(var(--move-sm)) scale(.98); } to{ opacity:1; transform:none; } }
+.toast{ animation: v3ToastIn var(--dur-3) var(--ease-decel) backwards; }
+@keyframes v3ToastIn{ from{ opacity:0; transform: translateY(calc(var(--move-sm) * -1)) scale(.98); } }
+.svc-body:not([hidden]){ animation: v3Reveal var(--dur-3) var(--ease-decel) backwards; }
+@keyframes v3Reveal{ from{ opacity:0; transform: translateY(calc(var(--move-sm) * -.5)); } }
+.card, .hist-item, .check-row, .tw-row, .type-card, .qa-tile{ transition-property: background-color, border-color, box-shadow, transform, color; transition-duration: var(--dur-2); transition-timing-function: var(--ease-standard); }
+.pv-overlay{ animation: v3Fade var(--dur-2) var(--ease-standard) both; }
+@media (prefers-reduced-motion: reduce){ .skel-row{ animation:none; } }
+:root[data-motion="reduce"] .skel-row{ animation:none; }
+
+/* ---------- fixes found while reviewing every screen ---------- */
+@media (max-width:700px){ .hist-item.has-tags .hi-tags{ flex:0 0 calc(100% - 50px); } }   /* it was 100% plus its own 50px margin: the last tag stuck out of the card */
+.rd-head{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
+@media (max-width:639px){
+  .rd-head{ flex-direction:column; align-items:flex-start; }
+  .rd-head .ticket{ flex-direction:row; align-items:baseline; gap:10px; }   /* the control number always sits under the title on a phone, whatever the length of the name */
+}
+.kv dt{ font-size:13px; }
+.kv dd{ font-size:15px; }
+@media (max-width:480px){ .sl-item .hi-icon{ display:none; } }   /* store names get the room the picture used to take */
+.seg .chip{ flex:1 1 auto; white-space:nowrap; }
+.chip-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(96px, 1fr)); gap:8px; }
+.chip-grid .chip{ justify-content:center; padding:9px 8px; }
+.btn-icon{ width: var(--tap); min-width: var(--tap); padding:0; flex:0 0 auto; }
+.svc-item{ padding:4px 0 14px; border-bottom:1px solid var(--line); }
+.svc-item:last-child{ border-bottom:0; padding-bottom:10px; }
+.svc-item > .hist-item{ border-bottom:0; padding-bottom:10px; align-items:flex-start; }
+.svc-item > .hist-item .hi-title{ white-space:normal; overflow:visible; display:block; }
+.svc-actions{ display:flex; flex-wrap:wrap; gap:8px; padding:0 4px; }
+.ad-actions{ flex-wrap:wrap; max-width:100%; }
+.sidebar-link{ min-height:40px; }
+:root .sidebar-brand{ min-height: var(--tap); }
+.sc-sync{ min-height:40px; }
+.at-setup > summary{ min-height: var(--tap); display:flex; align-items:center; cursor:pointer; }
+.svc-actions .btn:first-child{ flex:1 1 auto; }
+/* icons that sit inside a line of help text are small (the store icon in the Sync pop-up used to fill the whole width) */
+.ob-help svg{ width:15px; height:15px; vertical-align:-3px; flex:0 0 auto; }
+/* pop-ups: the close button never gets squeezed by a long title; technician name chips are full-size to tap */
+:root .modal-close{ flex:0 0 auto; min-width: var(--tap); }
+:root .tw-chip{ min-height: var(--tap); padding:0 16px; display:inline-flex; align-items:center; }
+/* read-only boxes that hold a command or script to copy: 16px so a phone does not zoom in when the box is tapped */
+.code-box{ display:block; width:100%; font-family: var(--font-mono); font-size:16px; line-height:1.4; padding:10px 12px; color: var(--ink); background: var(--paper); border:1.5px solid var(--line); border-radius: var(--radius-md); resize:vertical; }
+/* sign-in pages: the small links get a full-size tap area; the negative margins keep every line exactly where it was */
+:root .lg-back{ min-height: var(--tap); padding:0 14px 0 0; margin:-8px 0 6px; }
+:root .auth-switch{ margin-top:4px; }
+:root .auth-switch button{ min-height: var(--tap); padding:0 16px; cursor:pointer; }
+
+/* ---------- very long names, e-mail addresses and notes never push a page sideways ----------
+   Text that cannot be broken at a space (an e-mail address, a name with no spaces) is broken where it meets the edge of its box
+   instead of running past the screen. Short text looks exactly the same as before. */
+:root p, :root h1, :root h2, :root h3, :root dt, :root dd, :root .hi-sub, :root .hi-sub2, :root .section-hint, :root .small-muted,
+:root .auth-notice, :root .auth-error, :root .helper-banner > span, :root .tw-name, :root .tw-badge, :root .svc-title, :root .qa-label, :root .qa-sub { overflow-wrap:anywhere; }
+.kv{ grid-template-columns:130px minmax(0,1fr); }
+@media(max-width:480px){ .kv{ grid-template-columns:minmax(0,1fr); } }   /* on a phone the label sits above its value, as before */
+.rd-head > div{ min-width:0; max-width:100%; }
+.success-wrap p{ max-width:min(320px, 100%); }
+.hist-item .hi-main .hi-sub{ max-width:100%; }
+.tw-badge{ max-width:100%; }
+.quick-access-grid{ grid-template-columns:repeat(3, minmax(0,1fr)); }
+.qa-tile, .qa-tile .qa-text{ min-width:0; }
+/* the report-type filter used to be a strip that slid sideways, so on a small phone "Government" was out of sight; it wraps like the area filter does */
+.hist-chips{ flex-wrap:wrap; overflow:visible; }
+/* Phones with a notch or rounded corners, held sideways: the notch hides a strip on the left and right edge (env() is 0 on every other
+   screen, so nothing changes there). The page is kept inside the visible area, and each bar that spans the full width keeps its
+   background to the edge but moves its buttons in. */
+body{ padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+.bottom-tab-bar{ padding-left: max(6px, env(safe-area-inset-left, 0px)); padding-right: max(6px, env(safe-area-inset-right, 0px)); }
+.footer-bar{ padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+:root #previewBar{ left: max(12px, env(safe-area-inset-left, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); }
+.modal-overlay{ padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+.cam-overlay{ padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)); }
+.modal-sheet{ padding-bottom: calc(22px + env(safe-area-inset-bottom, 0px)); }   /* the last button of a pop-up clears the home bar */
+.pv-top{ padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); }
+.pv-zoom{ right: max(14px, env(safe-area-inset-right, 0px)); }
+.welcome-overlay{ padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)); }
+:root .upd-overlay{ padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+/* camera window: Cancel on the left, the shutter always in the middle, "Switch camera" on the right; on a 320 px phone the label wraps instead of running off the screen */
+.cam-bar{ display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center; }
+.cam-bar > :first-child{ justify-self:start; }
+.cam-bar > :last-child{ justify-self:end; }
+.cam-bar .btn{ white-space:normal; line-height:1.2; max-width:100%; padding-left:14px; padding-right:14px; }
+/* a hint or a typed value that is wider than its box ends in "…" instead of being cut in the middle of a letter */
+:root input.input:not(:focus), :root input.input::placeholder{ text-overflow:ellipsis; }
+/* a button with a long label ("Recommended settings for everyone") wraps onto a second line on a small phone instead of running off the screen;
+   short buttons such as "Add store" keep their label on one line */
+.um-actions .btn{ white-space:normal; text-align:center; max-width:100%; }
+/* the smallest phones (320 px wide): a little less padding so three tiles, the sign-off rows and the section headers still read comfortably */
+@media (max-width:359px){
+  .qa-tile{ padding:12px 8px; }
+  .qa-tile .qa-label{ font-size:13px; }
+  .tw-badge{ grid-column:1 / -1; text-transform:none; letter-spacing:0; }   /* the badge gets the whole width of the row, so the word "Representative" is never broken in two */
+  .svc-head{ gap:8px; padding:12px 10px; }
+  .svc-num{ width:24px; height:24px; font-size:12px; }
+  .svc-title{ font-size:14px; }
+  :root .svc-pill{ padding:3px 8px; }
+  .stat-grid > .stat-card:last-child:nth-child(odd){ grid-column:1 / -1; }   /* two columns here: a lone last tile fills the row instead of sitting half-empty */
+}
+/* The phone tab bar sits on top of the page. Every screen used to leave only 40px below its last item, but the bar covers about 67px on
+   most phones and about 100px on an iPhone with a home bar, so the last button (for example "Sign out") ended up under the bar and could only
+   be seen by pulling the page. The page now always leaves room for the whole bar (the app measures its real height) plus a little air, so
+   the very last item scrolls fully into view. Screens with their own Back / Next bar already had this room. */
+@media (max-width:899px){
+  .app-main.no-footer-pad{ padding-bottom: calc(max(var(--tab-bar-h, 0px), 76px + env(safe-area-inset-bottom, 0px)) + 28px); }
+}
+/* "Take photo" in the sign-off area: four buttons per signer in two tidy rows (Take photo + Add picture, then Add stamp + Add PDF) */
+.sig-actions{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); }
+.sig-actions .btn{ min-width:0; white-space:normal; line-height:1.2; }
+</style>
 <style id="gepestcon-update-css">
 /* ---- Forced update screen (see the "APP UPDATE SYSTEM" script) ---- */
 html.upd-lock, html.upd-lock body{ overflow:hidden; }
@@ -1524,7 +1768,7 @@ html.upd-lock, html.upd-lock body{ overflow:hidden; }
   padding:28px 22px 22px; box-shadow: var(--shadow-md);
 }
 .upd-crest{ display:block; width:64px; height:64px; margin:0 auto 12px; }
-.upd-eyebrow{ font-family: var(--font-mono); font-size:11px; letter-spacing:.09em; text-transform:uppercase; color: var(--ink-faint); margin-bottom:10px; }
+.upd-eyebrow{ font-family: var(--font-mono); font-size:12px; letter-spacing:.09em; text-transform:uppercase; color: var(--ink-faint); margin-bottom:10px; }
 .upd-card h2{ font-size:22px; color: var(--ink); margin-bottom:8px; }
 .upd-text{ font-size:14px; line-height:1.5; color: var(--ink-soft); }
 .upd-versions{
@@ -1542,7 +1786,7 @@ html.upd-lock, html.upd-lock body{ overflow:hidden; }
 .upd-msg.is-error{ color: var(--rust-dark); }
 .upd-card .btn + .btn{ margin-top:8px; }
 .upd-card [hidden]{ display:none !important; }
-.auth-version{ text-align:center; margin-top:14px; font-family: var(--font-mono); font-size:11px; letter-spacing:.04em; color: var(--ink-faint); }
+.auth-version{ text-align:center; margin-top:14px; font-family: var(--font-mono); font-size:12px; letter-spacing:.04em; color: var(--ink-faint); }
 
 /* ---- "V1" badge next to the company name (top bar, side menu, sign-in screen, Profile). The text is put in by the update script from <meta name="app-version">.
    Drawn in the app's own heading font (Lexend, embedded in this file) so it looks the same on every phone. The small negative top and bottom margins keep
@@ -1552,11 +1796,11 @@ html.upd-lock, html.upd-lock body{ overflow:hidden; }
   display:inline-block; vertical-align:1.75px;
   margin:-4px 0 -4px 7px; padding:3.5px 7px 2.5px; border-radius: var(--radius-pill);
   background: var(--brand); color: var(--white);
-  font-family: var(--font-heading); font-style:normal; font-weight:800; font-size:10px; line-height:1; letter-spacing:.04em; text-transform:none;
+  font-family: var(--font-heading); font-style:normal; font-weight:800; font-size:12px; line-height:1; letter-spacing:.04em; text-transform:none;
 }
 .brand-ver:empty{ display:none; }
 .app-header .brand-ver{ vertical-align:2.6px; }
-.auth-brand .brand-ver{ vertical-align:2.6px; margin:-5px 0 -5px 9px; padding:4px 9px; font-size:11.5px; }
+.auth-brand .brand-ver{ vertical-align:2.6px; margin:-5px 0 -5px 9px; padding:4px 9px; font-size:12px; }
 .profile-row .brand-ver{ vertical-align:1.2px; white-space:nowrap; }
 @media (max-width: 339px){ .profile-row .brand-ver{ display:none; } }   /* on the very smallest phones the Profile row has no room for it (the top bar still shows it) */
 @media (forced-colors: active){
@@ -1949,7 +2193,8 @@ html.upd-lock, html.upd-lock body{ overflow:hidden; }
   window.gepestconUpdate = {
     version: CURRENT || '0.0.0',
     checkNow: function(){ return check({ force: true }); },
-    hold: hold
+    hold: hold,
+    busy: function(){ return activeHolds() > 0; }   // true while a report is being sent or saved (the 2-hour sign-out waits for it)
   };
   boot();
 })();
@@ -2754,8 +2999,14 @@ const GOV_FINDINGS_PESTS = ['Flies','Roaches','Mosquito','Rodents','Ants'];
 const SIDEBAR_NAV = [
   { key:'dashboard', label:'Dashboard', icon:'grid' },
   { key:'history', label:'Job Reports', icon:'history' },
+  { key:'clients', label:'Clients', icon:'users' },
+  { key:'accounts', label:'Accounts', icon:'briefcase' },
+  { key:'stores', label:'7-Eleven Stores', icon:'store' },
+  { key:'technicians', label:'Technicians', icon:'user' },
   { key:'areatechs', label:'Area Technicians', icon:'users' },
   { key:'schedule', label:'Schedule', icon:'calendar' },
+  { key:'services', label:'Services', icon:'wrench' },
+  { key:'inventory', label:'Inventory', icon:'box' },
   { key:'analytics', label:'Analytics', icon:'barChart' },
   { key:'notifications', label:'Notifications', icon:'bell' },
   { key:'usermgmt', label:'User Management', icon:'shield' },
@@ -2765,6 +3016,7 @@ const TAB_BAR_NAV = [
   { key:'dashboard', label:'Dashboard', icon:'grid' },
   { key:'history', label:'Reports', icon:'history' },
   { key:'new-report', label:'New Report', icon:'plus', isRaised:true },
+  { key:'clients', label:'Clients', icon:'users' },
   { key:'profile', label:'Profile', icon:'user' }
 ];
 // fix: P2-3, see build prompt — removed the dead COMING_SOON_MODULES table
@@ -2805,7 +3057,7 @@ function formatTimeDisplay(hm){
 }
 function formatDateTimeStamp(iso){
   const d = iso ? new Date(iso) : new Date();
-  return d.toLocaleString('en-PH', { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+  return d.toLocaleString('en-PH', { year:'numeric', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });   /* "8:00 AM", the same way every other time in the app is written */
 }
 function validateEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||'').trim()); }
 function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
@@ -2836,13 +3088,13 @@ function errorStateHTML(message){
 }
 
 /* ---------------- TOAST ---------------- */
-function toast(message, kind){
+function toast(message, kind, ms){
   const root = qs('#toastRoot');
   const t = document.createElement('div');
   t.className = 'toast' + (kind==='error' ? ' is-error' : kind==='success' ? ' is-success' : '');
   t.innerHTML = icon(kind==='error'?'alert':kind==='success'?'check':'info') + '<span>'+escapeHTML(message)+'</span>';
   root.appendChild(t);
-  setTimeout(()=>{ t.style.transition='opacity .25s ease, transform .25s ease'; t.style.opacity='0'; t.style.transform='translateY(-6px)'; setTimeout(()=>t.remove(), 260); }, 3400);
+  setTimeout(()=>{ t.style.transition='opacity .25s ease, transform .25s ease'; t.style.opacity='0'; t.style.transform='translateY(-6px)'; setTimeout(()=>t.remove(), 260); }, ms || 3400);
 }
 
 /* ---------------- MODAL ---------------- */
@@ -2854,9 +3106,39 @@ function openModal(innerHTML, opts){
     '<div id="modalBody">'+innerHTML+'</div></div></div>';
   qs('#modalCloseBtn').addEventListener('click', closeModal);
   qs('#modalOverlay').addEventListener('click', (e)=>{ if(e.target.id==='modalOverlay') closeModal(); });
+  const sheet = qs('#modalOverlay .modal-sheet');
+  if(sheet){ sheet.setAttribute('tabindex', '-1'); sheet.setAttribute('aria-label', opts.title || 'Dialog'); }
+  const prev = document.activeElement;
+  if(prev && prev !== document.body && prev.tagName !== 'INPUT' && prev.tagName !== 'TEXTAREA') modalReturnFocus = prev;
+  /* keyboard and screen-reader users start inside the pop-up, not on the page behind it (a box the caller focuses afterwards still wins) */
+  if(sheet){ try{ sheet.focus({ preventScroll:true }); }catch(e){} }
   return qs('#modalBody');
 }
-function closeModal(){ qs('#modalRoot').innerHTML = ''; }
+/* V3: a pop-up now fades away. The real pop-up is removed at once (so nothing that follows can trip over it); a lifeless copy plays the exit. */
+let modalReturnFocus = null;
+function closeModal(){
+  const root = qs('#modalRoot');
+  if(!root) return;
+  const live = root.querySelector('.modal-overlay');
+  if(live){
+    try{
+      const ghost = live.cloneNode(true);
+      ghost.removeAttribute('id');
+      ghost.querySelectorAll('[id]').forEach(function(n){ n.removeAttribute('id'); });
+      ghost.querySelectorAll('input,textarea,select,button,a,[tabindex]').forEach(function(n){ n.setAttribute('tabindex', '-1'); if('disabled' in n) n.disabled = true; });
+      ghost.setAttribute('aria-hidden', 'true');
+      ghost.classList.add('is-leaving');
+      document.body.appendChild(ghost);
+      setTimeout(function(){ if(ghost.parentNode) ghost.parentNode.removeChild(ghost); }, 280);
+    }catch(e){}
+  }
+  root.innerHTML = '';
+  const back = modalReturnFocus; modalReturnFocus = null;
+  if(back && back.isConnected && /^(BUTTON|A|SUMMARY)$/.test(back.tagName) && back.focus){ try{ back.focus({ preventScroll:true }); }catch(e){} }
+}
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape' && !e.defaultPrevented && qs('#modalOverlay')){ e.preventDefault(); closeModal(); }
+});
 
 /* ---------------- FOOTER BAR ---------------- */
 function setFooterBar(innerHTML){
@@ -2899,7 +3181,7 @@ function selectField(label, id, value, options, opts){
     '<span class="err"></span></div>';
 }
 function fieldMini(label, id, value){
-  return '<div class="field" style="margin-bottom:10px;"><label>'+escapeHTML(label)+'</label>'+
+  return '<div class="field" style="margin-bottom:10px;"><label for="'+id+'">'+escapeHTML(label)+'</label>'+
     '<input class="input" id="'+id+'" value="'+escapeHTML(value||'')+'"></div>';
 }
 function selectMini(label, id, value, options){
@@ -2907,9 +3189,30 @@ function selectMini(label, id, value, options){
     return '<option value="'+escapeHTML(o)+'"'+(value===o?' selected':'')+'>'+escapeHTML(o)+'</option>';
   }).join('');
   const filled = value ? ' has-value' : '';
-  return '<div class="field" style="margin-bottom:10px;"><label>'+escapeHTML(label)+'</label>'+
+  return '<div class="field" style="margin-bottom:10px;"><label for="'+id+'">'+escapeHTML(label)+'</label>'+
     '<select class="input'+filled+'" id="'+id+'">'+opts+'</select></div>';
 }
+/* Safety net for hand-written forms: a label that is not tied to its box gets tied here, so a screen reader says "Technician name" and tapping the label puts the cursor in the box. */
+let labelSeq = 0;
+function linkLabels(root){
+  try{
+    (root || document).querySelectorAll('label:not([for])').forEach(function(l){
+      if(l.querySelector('input,select,textarea')) return;                 // the box is inside the label (tick rows)
+      let box = l.nextElementSibling;
+      if(!box) return;
+      if(!/^(INPUT|SELECT|TEXTAREA)$/.test(box.tagName)) box = box.children.length <= 3 ? box.querySelector('input:not([type=hidden]),select,textarea') : null;   // a wrapper around one box (the password box)
+      if(!box) return;
+      if(!box.id) box.id = 'lbl-auto-' + (++labelSeq);
+      l.setAttribute('for', box.id);
+    });
+  }catch(e){}
+}
+(function(){
+  let queued = false;
+  function run(){ queued = false; linkLabels(document); }
+  try{ new MutationObserver(function(){ if(!queued){ queued = true; (window.requestAnimationFrame || setTimeout)(run); } }).observe(document.body, { childList:true, subtree:true }); }catch(e){}
+  run();
+})();
 function textareaField(label, id, value, opts){
   opts = opts || {};
   const req = opts.required ? '<span class="req">*</span>' : '';
@@ -3001,7 +3304,7 @@ function scopeAccordionHTML(areas, dataObj){
     const hasOthers = pests.indexOf('Others')!==-1;
     return '<div class="group-block acc-item" data-key="'+key+'" style="padding:0;overflow:hidden;">'+
       '<button type="button" class="acc-head" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:13px 14px;background:none;border:none;text-align:left;">'+
-        '<span style="font-weight:700;font-size:13.5px;">'+escapeHTML(area)+(filled?' <span style="color:var(--forest-dark);font-size:11px;">\u25CF logged</span>':'')+'<span class="acc-photo-badge" data-photo-badge="'+key+'" style="display:none;" title="Photos attached to this area">'+icon('camera')+'<span class="n">0</span></span></span>'+
+        '<span style="font-weight:700;font-size:13.5px;">'+escapeHTML(area)+(filled?' <span style="color:var(--forest-dark);font-size:12px;">\u25CF logged</span>':'')+'<span class="acc-photo-badge" data-photo-badge="'+key+'" style="display:none;" title="Photos attached to this area">'+icon('camera')+'<span class="n">0</span></span></span>'+
         '<span class="acc-chevron" style="display:flex;color:var(--ink-faint);transition:transform .15s ease;">'+icon('chevronRight')+'</span>'+
       '</button>'+
       '<div class="acc-body" style="display:none;padding:2px 14px 14px;">'+
@@ -3502,7 +3805,7 @@ async function readSignoffPdf(file, maxDim){
   catch(e){
     if(e && e.sigpdfProblem) throw e;
     if(window.console) console.error('PDF reader did not start', e);
-    throw sigpdfProblem('The PDF reader could not start on this phone. Use Add picture with a photo or screenshot of the signature instead.');
+    throw sigpdfProblem('The PDF reader could not start on this phone. Use Take photo or Add picture with a photo or screenshot of the signature instead.');
   }
   let task = null;
   try{
@@ -3692,6 +3995,7 @@ function areaFail(err){
   console.error('area sign-in failed', err);
   welcomeCancel();
   saveArea(null);
+  sessionEnd();
   showAreaPicker();
   const box = qs('#areaAlert');
   if(box) box.innerHTML = '<div class="auth-error">' + escapeHTML(areaErrorText(err)) + '</div>';
@@ -3727,6 +4031,8 @@ function renderAreaScreen(){
   if(isOfflineNow() && !(stored && stored.anon)){
     qs('#areaAlert', wrap).innerHTML = '<div class="ob-note-box">' + icon('wifiOff') + '<span><b>No internet connection.</b> The first time on this phone needs internet. After that, the app opens without it.</span></div>';
   }
+  const ended = sessionEndedNoticeHTML();   // "Your 2-hour session has ended ..."
+  if(ended) qs('#areaAlert', wrap).insertAdjacentHTML('afterbegin', ended);
   qsa('.area-tile', wrap).forEach(function(b){ b.addEventListener('click', function(){ areaConfirm(b.dataset.area); }); });
   qs('#areaMainBtn', wrap).addEventListener('click', function(){ authMode = 'signin'; showAuthScreen(); });
   return wrap;
@@ -3746,8 +4052,8 @@ function areaConfirm(code){
 }
 /* "Yes": remember the area, play the WELCOME animation and open the app (signing in without a password in the background). */
 async function areaEnter(code){
-  sessionBegin();   // the 2 hours start now
   saveArea(code);
+  sessionBegin('area', '');   // the 2 hours start now
   welcomeStart(code);
   try{
     const stored = readStoredLogin(), hasAnon = !!(stored && stored.anon);
@@ -3798,127 +4104,160 @@ function areaChange(){
     '<div style="display:flex;gap:10px;"><button class="btn btn-secondary btn-block" id="acStay">Stay</button><button class="btn btn-primary btn-block" id="acGo">Change area</button></div>',
     { title: 'Change area?' });
   qs('#acStay', body).addEventListener('click', closeModal);
-  qs('#acGo', body).addEventListener('click', function(){
-    closeModal();
-    saveArea(null);
-    sessionClear();
-    if(typeof outboxReset === 'function') outboxReset();
-    state.profile = null; state.screen = 'home'; state.reportType = null; state.step = 0; state.draft = null;
-    state.viewingReportId = null; state.viewingClientId = null; state.viewingAccountId = null; state.viewingTechnicianId = null;
-    showAreaPicker();
-  });
+  qs('#acGo', body).addEventListener('click', function(){ closeModal(); areaLeaveToPicker(); });
+}
+/* Back to the area screen. The phone stays signed in (its own anonymous sign-in), so the reports waiting on it are kept and still go out. */
+function areaLeaveToPicker(){
+  saveArea(null);
+  if(typeof outboxReset === 'function') outboxReset();
+  state.profile = null; state.screen = 'home'; state.reportType = null; state.step = 0; state.draft = null;
+  state.viewingReportId = null; state.viewingClientId = null; state.viewingAccountId = null; state.viewingTechnicianId = null;
+  sessionEnd();
+  showAreaPicker();
+  // the waiting reports of this phone are still its own: look at them again from here, so they go out from the area screen too
+  try{ outboxLoad().then(function(){ outboxChanged(); if(outboxMine().length && !isOfflineNow()) outboxSyncSoon(); }); }catch(e){}
 }
 
 /* ============================================================
-   2-HOUR SESSION
-   Every session lasts 2 hours. It starts when a person chooses an area (or signs in to Main Office) and, 2 hours later, the app signs
-   itself out and shows the area screen again ("Where are you working today?"). The start time is kept on the phone, so closing the app or
-   switching to another app does not stretch it, and an app left open all night is out at the next look.
-     - Area phones: same as "Change area". The phone itself stays signed in, so reports waiting to be sent are kept and go out as
-       soon as an area is chosen again.
-     - Main Office: a full sign-out.
-   Nothing is lost: a report being filled in is saved first ("Resume draft?" next time), a report that is being sent is never cut off
-   (the sign-out waits for it), and reports waiting to be sent get a few minutes to go out first when there is internet.
-   A reminder shows 5 minutes before the end.
+   SESSIONS  (every sign-in lasts 2 hours)
+   A session starts when the person picks their area (area phones) or signs in with a password (Main Office) and ends 2 hours later,
+   whatever they are doing (using the app does not extend it). Then:
+     - a report that is being sent right now is allowed to finish first (a send is never cut off half-way);
+     - the report they were filling in is saved as a draft: "Resume draft?" is offered again after signing in;
+     - everything that is open (pop-ups, camera, PDF) is closed;
+     - an area phone goes back to the area screen. It keeps its own sign-in, so the reports waiting on it are kept and still go out;
+     - a Main Office phone is signed out (only this phone) and also lands on the area screen; its own waiting reports go out after the next sign-in;
+     - a short note on that screen says what happened.
+   Reminders show 5 minutes and 1 minute before the end. The time is checked every 15 seconds, whenever the app comes back on screen,
+   and whenever the app opens, so a session that ran out while the phone slept or the app was closed ends at once.
+   The start time is kept on the phone. If the phone's clock is turned back, the session is counted from that moment instead.
    ============================================================ */
-const SESSION_LIMIT_MS = 2 * 60 * 60 * 1000;
-const SESSION_WARN_MS = 5 * 60 * 1000;
-const SESSION_GRACE_MS = 3 * 60 * 1000;
-const SESSION_KEY = 'gepestcon_session_start_v1';
-let sessionMem = 0, sessionWatching = false, sessionEnding = false, sessionWarned = false, sessionGraceEnd = 0, sessionKeepDraft = false;
-let reportSending = false;   // true while "Send report" is working: the session never ends in the middle of it
+const SESSION_KEY = 'gepestcon_session_v1', SESSION_ENDED_KEY = 'gepestcon_session_ended_v1';
+const SESSION_MS = window.GEPESTCON_SESSION_MS || 2 * 60 * 60 * 1000;   // (the window values are only for tests)
+const SESSION_WARN_MS = window.GEPESTCON_SESSION_WARN_MS || [5 * 60 * 1000, 60 * 1000];
+const SESSION_CHECK_MS = window.GEPESTCON_SESSION_CHECK_MS || 15000;
+const sessionCtl = { started: false, ending: false, warned: {}, keepDraft: false };
+function sessionRead(){
+  try{ const v = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); if(v && typeof v.t0 === 'number' && (v.kind === 'area' || v.kind === 'office')) return v; }catch(e){}
+  return null;
+}
+function sessionWrite(v){ try{ if(v) localStorage.setItem(SESSION_KEY, JSON.stringify(v)); else localStorage.removeItem(SESSION_KEY); }catch(e){} }
+function sessionKind(){ return isAreaSession() ? 'area' : 'office'; }
+function sessionUserId(){ const u = state.session && state.session.user; return (u && u.id) || (state.profile && state.profile.id) || ''; }
+/* a new session starts now (area chosen, or a password sign-in is made) */
+function sessionBegin(kind, uid){
+  sessionCtl.warned = {};
+  sessionWrite({ kind: kind, uid: uid || '', t0: Date.now() });
+  try{ sessionStorage.removeItem(SESSION_ENDED_KEY); }catch(e){}
+}
+function sessionEnd(){ sessionWrite(null); sessionCtl.warned = {}; }
+/* milliseconds left; a clock that was turned back never stretches the session */
+function sessionLeft(rec){
+  const now = Date.now();
+  if(now < rec.t0 - 60000){ rec.t0 = now; sessionWrite(rec); }
+  return rec.t0 + SESSION_MS - now;
+}
+/* Asked every time the app is about to open. true = this session had already run out, so the person is sent back instead of the app opening. */
+function sessionGate(){
+  const kind = sessionKind(), uid = sessionUserId();
+  const rec = sessionRead();
+  if(!rec || rec.kind !== kind || (kind === 'office' && rec.uid && uid && rec.uid !== uid)){ sessionBegin(kind, uid); return false; }   // first time (or another person): the 2 hours start now
+  if(!rec.uid && uid){ rec.uid = uid; sessionWrite(rec); }
+  if(sessionLeft(rec) <= 0){ sessionExpire('open'); return true; }
+  return false;
+}
+function sessionLeftText(ms){ return ms > 90000 ? Math.ceil(ms / 60000) + ' minutes' : ms > 45000 ? '1 minute' : 'a few seconds'; }
+function sessionTick(){
+  if(sessionCtl.ending || !state.profile) return;   // nobody is in the app (area screen / sign-in screen)
+  const root = qs('#appRoot'); if(!root || root.style.display === 'none') return;
+  const kind = sessionKind(), rec = sessionRead();
+  if(!rec || rec.kind !== kind){ sessionBegin(kind, sessionUserId()); return; }   // the saved start was lost (storage cleared): counted from now
+  const left = sessionLeft(rec);
+  if(left <= 0){ sessionExpire('time'); return; }
+  const ws = SESSION_WARN_MS.slice().sort(function(a, b){ return a - b; });   // smallest first: the reminder that fits now (only one is shown)
+  let hit = null; ws.forEach(function(w){ if(hit === null && left <= w) hit = w; });
+  if(hit !== null && !sessionCtl.warned[hit]){
+    ws.forEach(function(w){ if(w >= hit) sessionCtl.warned[w] = true; });
+    const writing = (state.screen === 'wizard' || state.screen === 'review') && !!state.draft;
+    toast('Your session ends in ' + sessionLeftText(left) + '. ' + (writing ? 'Finish and send your report; anything unfinished is saved as a draft.' : (kind === 'office' ? 'You will be signed out.' : 'You will be taken back to the area screen.')), hit <= 60000 ? 'error' : undefined, 9000);
+  }
+}
 function sessionStart(){
-  let n = 0;
-  try{ n = Number(localStorage.getItem(SESSION_KEY)) || 0; }catch(e){}
-  return n || sessionMem;
+  if(sessionCtl.started) return;
+  sessionCtl.started = true;
+  setInterval(sessionTick, SESSION_CHECK_MS);
+  document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') sessionTick(); });
+  window.addEventListener('focus', sessionTick);
+  window.addEventListener('pageshow', sessionTick);
+  window.addEventListener('online', sessionTick);
 }
-function sessionBegin(){
-  sessionMem = Date.now(); sessionWarned = false; sessionGraceEnd = 0;
-  try{ localStorage.setItem(SESSION_KEY, String(sessionMem)); }catch(e){}
+/* "Ends at 3:42 PM" for the Profile screen */
+function sessionInfoText(){
+  const rec = sessionRead();
+  if(!rec) return 'Every sign-in lasts 2 hours.';
+  return 'Ends at ' + new Date(rec.t0 + SESSION_MS).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' }) + '. Every sign-in lasts 2 hours.';
 }
-function sessionClear(){
-  sessionMem = 0; sessionWarned = false; sessionGraceEnd = 0;
-  try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
+function sessionMarkEnded(kind, n){ try{ sessionStorage.setItem(SESSION_ENDED_KEY, JSON.stringify({ kind: kind, n: n || 0 })); }catch(e){} }
+/* the note shown on the area screen after a session ended ('' when there is none) */
+function sessionEndedNoticeHTML(){
+  let v = null;
+  try{ v = JSON.parse(sessionStorage.getItem(SESSION_ENDED_KEY) || 'null'); }catch(e){}
+  if(!v) return '';
+  const n = v.n || 0, office = v.kind === 'office';
+  return '<div class="ob-note-box" id="sessionEndedNote">' + icon('info') + '<span><b>Your 2-hour session has ended.</b> ' +
+    (office ? 'You were signed out. Pick your area to start again, or choose Main Office to sign in.' : 'Pick your area to start again.') +
+    (n ? ' ' + n + (n === 1 ? ' report is' : ' reports are') + ' still saved on this phone' + (office ? ' and sent after you sign in again.' : '; ' + (n === 1 ? 'it is sent by itself' : 'they are sent by themselves') + ' as soon as there is internet.') : '') + '</span></div>';
 }
-/* a phone that was already signed in before this version (no start time yet) gets its 2 hours from now */
-function sessionEnsure(){ if(!sessionStart()) sessionBegin(); }
-function sessionRemainingMs(){
-  const s = sessionStart();
-  if(!s) return SESSION_LIMIT_MS;
-  const used = Date.now() - s;
-  if(used < 0){ sessionBegin(); return SESSION_LIMIT_MS; }   // the phone's clock was moved back: start again instead of waiting for hours
-  return SESSION_LIMIT_MS - used;
+/* closes whatever is open on top of the page (each part closes itself properly: the camera is switched off, the page can scroll again) */
+function sessionCloseEverything(){
+  try{ const cam = document.getElementById('camCancel'); if(cam) cam.click(); }catch(e){}
+  try{ const pv = document.getElementById('pvClose'); if(pv) pv.click(); }catch(e){}
+  try{ syncSheetWanted = false; }catch(e){}
+  for(let i = 0; i < 6 && qs('#modalOverlay'); i++){ try{ closeModal(); }catch(e){} }
+  try{ welcomeCancel(); }catch(e){}
+  try{ accessClearPreview(); }catch(e){}
+  try{ qsa('#toastRoot .toast').forEach(function(t){ t.remove(); }); }catch(e){}   // no "session ends in a few seconds" left hanging over the area screen
+  try{ const a = document.activeElement; if(a && a !== document.body && a.blur) a.blur(); }catch(e){}
 }
-function sessionLeftText(){
-  const m = Math.max(0, Math.ceil(sessionRemainingMs() / 60000)), h = Math.floor(m / 60), r = m % 60;
-  return (h ? h + ' h ' : '') + r + ' min';
+/* waits (at most maxMs) while a report is being sent or saved, so the sign-out never cuts one off */
+async function sessionWaitForSending(maxMs){
+  const t0 = Date.now();
+  const busy = function(){ return !!(outboxBusy || outbox.syncing || (window.gepestconUpdate && window.gepestconUpdate.busy && window.gepestconUpdate.busy())); };
+  await new Promise(function(r){ setTimeout(r, 80); });
+  while(busy() && Date.now() - t0 < maxMs) await new Promise(function(r){ setTimeout(r, 250); });
 }
-function sessionAppOpen(){ const ar = qs('#appRoot'); return !!(state.profile && ar && ar.style.display !== 'none'); }
-async function sessionCheck(){
-  if(sessionEnding || !sessionAppOpen()) return;
-  const left = sessionRemainingMs();
-  if(left > SESSION_WARN_MS) return;
-  if(left > 0){
-    if(!sessionWarned){ sessionWarned = true; toast('Your session ends in ' + Math.max(1, Math.ceil(left / 60000)) + ' min. Finish and send your report.'); }
-    return;
-  }
-  // time is up. A report that is being sent right now is never cut off: wait for the next look.
-  if(reportSending || outbox.syncing) return;
-  // reports waiting to be sent get a few minutes to go out first (only when there is internet to send them with)
-  if(!isOfflineNow() && outboxMine().some(function(i){ return !i.fatal; })){
-    if(!sessionGraceEnd){ sessionGraceEnd = Date.now() + SESSION_GRACE_MS; outboxKick(0); }
-    if(Date.now() < sessionGraceEnd) return;
-  }
-  sessionEnding = true;
-  try{ await sessionEnd(); }
-  catch(e){ console.error('session end failed', e); }
-  finally{ sessionEnding = false; }
-}
-function sessionWatch(){
-  if(sessionWatching) return;
-  sessionWatching = true;
-  setInterval(sessionCheck, 15000);
-  document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') sessionCheck(); });
-  window.addEventListener('pageshow', function(){ sessionCheck(); });
-  window.addEventListener('online', function(){ sessionCheck(); });
-}
-function sessionResetScreens(){
-  state.profile = null; state.screen = 'home'; state.reportType = null; state.step = 0; state.draft = null;
-  state.viewingReportId = null; state.viewingClientId = null; state.viewingAccountId = null; state.viewingTechnicianId = null;
-  pendingVisitId = null;
-}
-async function sessionEnd(){
-  try{ flushDraftToStorage(); }catch(e){}                       // a report being filled in is saved first
-  try{ const cc = qs('#camCancel'); if(cc) cc.click(); }catch(e){}   // a camera window that is open is closed (the camera light goes off)
-  try{ closeModal(); }catch(e){}
-  const wasArea = isAreaSession();
-  sessionClear();
-  if(wasArea){
-    saveArea(null);
-    if(typeof outboxReset === 'function') outboxReset();
-    sessionResetScreens();
-    showAreaPicker();
-  } else {
-    await sessionSignOut();
-  }
-  toast('Your 2-hour session has ended. Please choose your area to continue.');
-}
-/* Main Office: a full sign-out. Without internet the server cannot be told, so the saved login is taken off this phone directly. */
-async function sessionSignOut(){
-  sessionKeepDraft = true;   // the sign-out handler keeps the saved draft this one time
-  let failed = false;
+/* Main Office: sign this phone out (the same person may be signed in on another device, so only this one), and make sure the saved login is gone */
+async function sessionSignOutOffice(){
+  sessionCtl.keepDraft = true;
   try{
-    const r = await Promise.race([ signOutUser(), new Promise(function(res){ setTimeout(function(){ res({ error: new Error('no answer') }); }, 8000); }) ]);
-    failed = !!(r && r.error);
-  }catch(e){ failed = true; }
-  if(!failed) return;   // the sign-out event has taken the person to the area screen
-  try{ const ref = new URL(SUPABASE_URL).hostname.split('.')[0]; localStorage.removeItem('sb-' + ref + '-auth-token'); }catch(e){}
-  state.session = null; offlineBootEntered = false;
-  if(typeof outboxReset === 'function') outboxReset();
-  sessionResetScreens();
-  saveArea(null);
-  authMode = 'area';
-  showAuthScreen();
+    try{
+      await Promise.race([sb.auth.signOut({ scope: 'local' }), new Promise(function(r){ setTimeout(r, 8000); })]);
+    }catch(e){ console.error('sign-out failed', e); }
+    try{   // with no internet the library may leave the login behind: remove it by hand
+      const st = readStoredLogin();
+      if(st && !st.anon) localStorage.removeItem('sb-' + new URL(SUPABASE_URL).hostname.split('.')[0] + '-auth-token');
+    }catch(e){}
+    if(state.profile){ state.session = null; resetToSignedOut(); }   // the sign-in listener did not run: do what it does
+  } finally { sessionCtl.keepDraft = false; }
+}
+async function sessionExpire(why){
+  if(sessionCtl.ending) return;
+  sessionCtl.ending = true;
+  try{
+    const kind = sessionKind();
+    // 1. a Main Office phone gives its waiting reports one last try; whatever is being sent right now finishes first
+    if(kind === 'office' && !isOfflineNow() && outboxMine().length) outboxSyncNow(false);
+    await sessionWaitForSending(60000);
+    // 2. what is on the screen is saved as a draft
+    try{ if(state.screen === 'wizard') flushDraftToStorage(); else if(state.draft) persistDraft(); }catch(e){ console.error(e); }
+    // 3. everything that is open is closed
+    sessionCloseEverything();
+    // 4. back to the start, with a note
+    sessionMarkEnded(kind, outboxMine().length);
+    if(kind === 'area') areaLeaveToPicker();
+    else await sessionSignOutOffice();
+  }catch(e){ console.error('could not end the session', e); }
+  finally{ sessionCtl.ending = false; }
 }
 
 /* ---- the WELCOME animation (full screen, plays while the app opens) ---- */
@@ -4297,7 +4636,7 @@ function renderAreaTechs(){
           inp.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); save(); } });
         } else {
           const body = openModal('<p style="font-size:14px;color:var(--ink-soft);margin-bottom:18px;line-height:1.5;">Remove <b>' + escapeHTML(rec.name) + '</b> from the ' + escapeHTML(areaInfo(area).label) + ' fixed list? New reports will not add this name by themselves. Reports already made keep their names.</p>' +
-            '<div style="display:flex;gap:10px;"><button class="btn btn-secondary btn-block" id="atKeep">Keep</button><button class="btn btn-primary btn-block" id="atDelYes">Remove</button></div>', { title:'Remove technician?' });
+            '<div style="display:flex;gap:10px;"><button class="btn btn-secondary btn-block" id="atKeep">Keep</button><button class="btn btn-danger btn-block" id="atDelYes">Remove</button></div>', { title:'Remove technician?' });
           qs('#atKeep', body).addEventListener('click', closeModal);
           qs('#atDelYes', body).addEventListener('click', async function(){
             try{ await atRemove(id, area); closeModal(); toast('Removed.', 'success'); draw(); }
@@ -4417,6 +4756,7 @@ function renderAuthScreen(){
         // updateUser succeed) but the app never ran the normal sign-in
         // setup for it, since it was intercepted into this screen instead
         // \u2014 do that now.
+        sessionBegin('office', state.session && state.session.user ? state.session.user.id : '');
         state.profile = state.session ? await fetchProfile(state.session.user.id) : null;
         if(!state.profile){ showProfileErrorScreen(); return; }
         showApp();
@@ -4436,14 +4776,14 @@ function renderAuthScreen(){
     try{
       if(isOfflineNow()) throw new Error('There is no internet. Main Office needs internet once to check the password. To work with no internet, go back and choose your area.');
       saveArea(null);
-      sessionBegin();   // the 2 hours start now
+      sessionBegin('office', '');   // the 2 hours start now (the sign-in listener adds the person's id)
       welcomeStart('MAIN');   // WELCOME MAIN OFFICE covers the screen BEFORE signing in: the app can open while signIn() is still finishing, and the dashboard must never show first
       const { error } = await signIn(email, password);
       if(error) throw error;
       // onAuthStateChange handles the transition: the animation finishes its run, then fades away over the dashboard
     } catch(err){
       welcomeCancel();   // wrong password or no connection: take the animation off again so the error can be read
-      sessionClear();
+      sessionEnd();
       alertBox.innerHTML = '<div class="auth-error">'+escapeHTML(err.message || 'Something went wrong.')+'</div>';
       btn.disabled = false; btn.textContent = 'Sign in';
     }
@@ -4541,15 +4881,13 @@ function reportDateRange(year, month, day){
  *   dateBy  'service' (the date the work was done) or 'submitted' (the day the report was sent in)
  *   year / month / day  narrow the date; sort  one of REPORT_SORTS
  */
-async function listReportsPage({ page, search, type, status, area, dateBy, year, month, day, sort, offset, pageSize }){
-  const size = pageSize || REPORTS_PAGE_SIZE;                       // "Show all" asks for bigger pieces; everything else uses 20
-  const from = (typeof offset === 'number') ? offset : page * size;  // offset = how many reports are already on the screen
-  const to = from + size - 1;
+async function listReportsPage({ page, search, type, status, area, dateBy, year, month, day, sort }){
+  const from = page * REPORTS_PAGE_SIZE;
+  const to = from + REPORTS_PAGE_SIZE - 1;
   let q = sb.from('reports').select('*', { count:'exact' });
   if(reportsOwnOnly()){ q = q.eq('technician_id', state.profile.id); }   // User Management: this position sees only its own reports
   if(type){ q = q.eq('type', type); }
-  if(status === 'approved'){ q = q.in('email_status', ['manual', 'sent']); }   // "All approved": approved by an admin, whether or not it has been emailed yet
-  else if(status){ q = q.eq('email_status', status); }
+  if(status){ q = q.eq('email_status', status); }
   if(area){ q = q.eq('sign_off->>area', area); }   // the area is kept inside the report's sign_off data
   const range = reportDateRange(year, month, day);
   if(range){
@@ -5506,7 +5844,7 @@ function buildPDF(d){
   let y = drawLetterhead(doc, d);
 
   y = sectionHeading(doc, 'Client & Schedule', y);
-  y = kvTable(doc, y, clientKV(d, d.type));
+  y = kvTable(doc, y, clientKV(d, d.type).filter(function(r){ return r[0] !== 'CC email' && r[0] !== 'Actual date of service'; }));
 
   y = pdfProblemAreas(doc, d, y);   // "Potential Problem Areas": draws its own heading, and nothing at all when there are none
 
@@ -6427,7 +6765,7 @@ function buildStepClient(container){
     html += field('Address', 'f_address', 'text', d.client.address, {required:true, placeholder:'Complete site address'});
     html += '<div class="row-2">'+
       field('Contact person', 'f_contactPerson', 'text', d.client.contactPerson, {placeholder:'Name of on-site contact'}) +
-      field('Tel. number', 'f_phone', 'tel', d.client.phone, {placeholder:'Landline or mobile'}) +
+      field('Phone', 'f_phone', 'tel', d.client.phone, {placeholder:'Landline or mobile'}) +
     '</div>';
     html += '<div class="field"><label>Type of structure</label><div class="chip-group" id="structureChips">'+
       ['Residential','Commercial Establishment'].map(function(s){ return chipHTML(s, d.client.structureType===s); }).join('') +
@@ -6444,14 +6782,14 @@ function buildStepClient(container){
 
   html += '<hr class="hairline">';
   html += '<div class="helper-banner"><span style="display:flex;">'+icon('mail')+'</span><span>The finished report is sent to this address automatically \u2014 double-check it before continuing.</span></div>';
-  html += '<div class="row-2">'+
+  html += '<div class="row-2 row-stack-sm">'+
     field('Client email', 'f_email', 'email', d.client.email, {required:true, placeholder:'client@email.com'}) +
     field('CC email (optional)', 'f_ccEmail', 'email', d.client.ccEmail, {placeholder:'office@gepestcon.co'}) +
   '</div>';
 
   html += '<hr class="hairline">';
   html += '<div class="row-2">'+
-    field('Service schedule', 'f_serviceDate', 'date', d.schedule.serviceDate, {required:true}) +
+    field('Service date', 'f_serviceDate', 'date', d.schedule.serviceDate, {required:true}) +
     field('Actual date of service', 'f_actualDate', 'date', d.schedule.actualDate, {}) +
   '</div>';
   html += '<div class="row-2">'+
@@ -7708,22 +8046,21 @@ function saveConcernStep(){
 function rateBtnHTML(val, emoji, label, current){
   return '<button type="button" class="rate-btn'+(current===val?' is-picked':'')+'" data-val="'+val+'"><span class="rate-emoji">'+emoji+'</span><span>'+label+'</span></button>';
 }
-/* One signer block (technician or client): the signature pad, plus optional extras. "Add picture" puts a picture of the
-   signature on the pad from the phone's gallery; "Add camera" opens the camera and puts the photo it takes on the pad;
-   "Add PDF" puts a signature that exists as a PDF file on the pad; "Add stamp" attaches a stamp image
-   that is printed beside the signature on the PDF. */
+/* One signer block (technician or client): the signature pad, plus optional extras. "Take photo" opens the camera and puts the
+   photo of the signature on the pad; "Add picture" puts a saved picture of the signature on the pad; "Add PDF" puts a signature
+   that exists as a PDF file on the pad; "Add stamp" attaches a stamp image that is printed beside the signature on the PDF. */
 function signoffPartyHTML(key, label, hint){
   return '<div class="field"><label>'+label+'</label>'+
     '<div class="sig-wrap"><canvas id="sig'+key+'"></canvas>'+
     '<div class="sig-toolbar"><span>'+hint+'</span><button type="button" class="btn btn-ghost btn-sm" id="clear'+key+'">'+icon('trash')+' Clear</button></div></div>'+
     '<div class="sig-actions">'+
+      '<button type="button" class="btn btn-secondary btn-sm" id="takePic'+key+'">'+icon('camera')+' Take photo</button>'+
       '<button type="button" class="btn btn-secondary btn-sm" id="pic'+key+'">'+icon('image')+' Add picture</button>'+
-      '<button type="button" class="btn btn-secondary btn-sm" id="cam'+key+'">'+icon('camera')+' Add camera</button>'+
       '<button type="button" class="btn btn-secondary btn-sm" id="stampBtn'+key+'">'+icon('stamp')+' Add stamp</button>'+
       '<button type="button" class="btn btn-secondary btn-sm" id="pdfBtn'+key+'">'+icon('file')+' Add PDF</button>'+
     '</div>'+
+    '<input type="file" accept="image/*" capture="environment" class="sig-file" id="takeFile'+key+'" tabindex="-1" aria-hidden="true">'+
     '<input type="file" accept="image/*" class="sig-file" id="picFile'+key+'" tabindex="-1" aria-hidden="true">'+
-    '<input type="file" accept="image/*" capture="environment" class="sig-file" id="camFile'+key+'" tabindex="-1" aria-hidden="true">'+
     '<input type="file" accept="image/*" class="sig-file" id="stampFile'+key+'" tabindex="-1" aria-hidden="true">'+
     '<input type="file" accept="application/pdf,.pdf" class="sig-file" id="pdfFile'+key+'" tabindex="-1" aria-hidden="true">'+
     '<div id="stampHolder'+key+'"></div></div>';
@@ -7746,15 +8083,15 @@ function wireSignoffParty(container, key, savedSig, savedStamp){
   renderStampChip(holder, container['__stamp'+key], removeStamp);
   qs('#clear'+key, container).addEventListener('click', function(){ api.clear(); });
 
-  const picFile = qs('#picFile'+key, container), camFile = qs('#camFile'+key, container), stampFile = qs('#stampFile'+key, container);
+  const picFile = qs('#picFile'+key, container), stampFile = qs('#stampFile'+key, container), takeFile = qs('#takeFile'+key, container);
   qs('#pic'+key, container).addEventListener('click', function(){ picFile.click(); });
-  // "Add camera": a phone or tablet opens its own camera straight away; a computer opens the live camera window (the normal file window when there is no camera)
-  qs('#cam'+key, container).addEventListener('click', function(){
-    if(photoIsTouchDevice() || !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) camFile.click();
-    else openCameraWindow(camFile);
-  });
   qs('#stampBtn'+key, container).addEventListener('click', function(){ stampFile.click(); });
-  // a picture from the gallery and a photo from the camera end up on the pad the same way
+  // "Take photo": the camera, the same way the photo step opens it (a phone or tablet opens its own camera straight away; a computer
+  // opens a live camera window; with no camera the normal file window opens). The photo then goes on the pad exactly like "Add picture".
+  qs('#takePic'+key, container).addEventListener('click', function(){
+    if(photoIsTouchDevice() || !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) takeFile.click();
+    else openCameraWindow(takeFile);
+  });
   async function putPictureOnPad(input){
     const file = input.files && input.files[0];
     input.value = '';                         // lets the same file be picked again later
@@ -7763,7 +8100,7 @@ function wireSignoffParty(container, key, savedSig, savedStamp){
     catch(err){ toast(err.message || 'That picture could not be added.', 'error'); }
   }
   picFile.addEventListener('change', function(){ putPictureOnPad(picFile); });
-  camFile.addEventListener('change', function(){ putPictureOnPad(camFile); });
+  takeFile.addEventListener('change', function(){ putPictureOnPad(takeFile); });
   stampFile.addEventListener('change', async function(){
     const file = stampFile.files && stampFile.files[0];
     stampFile.value = '';
@@ -8061,9 +8398,11 @@ function draftForStorage(d){
   if(!Array.isArray(d.photos)) return d;
   return Object.assign({}, d, { photos: d.photos.map(function(p){ return { id:p.id, caption:p.caption||'', areaKey:p.areaKey||'', area:p.area||'', problemId:p.problemId||'' }; }) });
 }
+/* who an unfinished report belongs to: 'area' for every area phone, the person's own id for Main Office. A report kept when a 2-hour session ended is only offered to the same kind of sign-in. */
+function draftOwnerKey(){ return isAreaSession() ? 'area' : (sessionUserId() || ''); }
 function persistDraft(){
   if(!state.draft) return;
-  try{ localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({ reportType: state.reportType, step: state.step, stepKey: wizardSteps()[state.step] || '', draft: draftForStorage(state.draft) })); }
+  try{ localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({ reportType: state.reportType, step: state.step, stepKey: wizardSteps()[state.step] || '', draft: draftForStorage(state.draft), owner: draftOwnerKey() })); }
   catch(e){ console.error('persistDraft failed', e); }
 }
 function clearDraftStorage(){ try{ localStorage.removeItem(DRAFT_STORAGE_KEY); }catch(e){} photoDbClear(); }
@@ -8089,10 +8428,12 @@ function flushDraftToStorage(){
 document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'hidden') flushDraftToStorage(); });
 window.addEventListener('pagehide', flushDraftToStorage);
 function checkForSavedDraft(){
+  if(!state.profile || sessionCtl.ending) return;   // nobody is in the app (the area screen is showing), or the 2 hours are just ending
   let saved = null;
   try{ const raw = localStorage.getItem(DRAFT_STORAGE_KEY); saved = raw ? JSON.parse(raw) : null; }
   catch(e){ saved = null; }
   if(!saved || !saved.draft) return;
+  if(saved.owner && saved.owner !== draftOwnerKey()){ clearDraftStorage(); return; }   // somebody else's unfinished report: never shown to this person
   const body = openModal(
     '<p style="font-size:14px;color:var(--ink-soft);margin-bottom:18px;line-height:1.5;">'+(saved.draft.editingReport ? ('You have unsaved changes to report #'+escapeHTML(saved.draft.controlDisplay||'')+' from a previous session. Resume editing or discard the changes.') : ('You have an unfinished '+escapeHTML((TYPE_META[saved.reportType]||{}).label||'')+' report from a previous session. Resume it or start fresh.'))+'</p>'+
     '<div style="display:flex;gap:10px;">'+
@@ -8130,12 +8471,14 @@ function clientKV(d, type){
   } else {
     rows.push(['Name', d.client.name]);
     rows.push(['Contact person', d.client.contactPerson]);
-    if(type==='government'){ rows.push(['Structure type', d.client.structureType]); rows.push(['Tel.', d.client.phone]); }
+    if(type==='government'){ rows.push(['Type of structure', d.client.structureType]); rows.push(['Phone', d.client.phone]); }
     else { rows.push(['Phone', d.client.phone]); }
   }
   rows.push(['Address', d.client.address]);
   rows.push(['Client email', d.client.email]);
+  if(d.client.ccEmail) rows.push(['CC email', d.client.ccEmail]);
   rows.push(['Service date', formatDateDisplay(d.schedule.serviceDate)]);
+  if(d.schedule.actualDate && d.schedule.actualDate !== d.schedule.serviceDate) rows.push(['Actual date of service', formatDateDisplay(d.schedule.actualDate)]);
   const timeStr = (d.schedule.timeStarted?formatTimeDisplay(d.schedule.timeStarted):'') + (d.schedule.timeFinished?(' \u2013 '+formatTimeDisplay(d.schedule.timeFinished)):'');
   rows.push(['Time', timeStr]);
   return rows;
@@ -8143,7 +8486,7 @@ function clientKV(d, type){
 function serviceKV(d, type){
   const rows = [];
   if(type==='private'){
-    rows.push(['Services', d.service.typesOfServices.join(', ')]);
+    rows.push(['Services performed', d.service.typesOfServices.join(', ')]);
     rows.push(['Pests observed', d.service.activePests.join(', ') + (d.service.activePestOther?(', '+d.service.activePestOther):'')]);
     rows.push(['Degree of infestation', d.service.degreeOfInfestation]);
     chemKvRows(d, 'private', ', ').forEach(function(r){ rows.push(r); }); matKvRows(d, ', ').forEach(function(r){ rows.push(r); });
@@ -8152,8 +8495,12 @@ function serviceKV(d, type){
     if(loggedAreas) rows.push(['Areas logged', loggedAreas + ' of ' + SEVEN11_AREAS.length]);   // only reports saved with the old area log
     rows.push(['Services rendered', d.service.servicesRendered]);
     chemKvRows(d, 'seven11').forEach(function(r){ rows.push(r); });
-    rows.push(['Weather', d.service.weather]);
+    rows.push(['Weather condition', d.service.weather]);
     matKvRows(d).forEach(function(r){ rows.push(r); });
+    SEVEN11_OTHER_PARAMS.forEach(function(row,i){
+      const r = (d.service.otherParams && d.service.otherParams['o'+i]) || {};
+      if(r.remarks || r.recommendation) rows.push([row, [r.remarks, r.recommendation ? 'Recommendation: ' + r.recommendation : ''].filter(Boolean).join(' \u2014 ')]);
+    });
     SEVEN11_FIXTURE_ITEMS.forEach(function(item,i){
       const r = d.service.fixtureItems ? (d.service.fixtureItems['f'+i]||{}) : {};
       rows.push([item, r.qty ? (r.qty + (r.remarks?(' \u2014 '+r.remarks):'')) : (r.remarks||'')]);
@@ -8162,7 +8509,8 @@ function serviceKV(d, type){
     rows.push(['Nature of work', d.service.natureOfWork.join(', ')]);
     rows.push(['Pests noted', d.service.gpcPests.join(', ')]);
     rows.push(['Action taken', d.service.actionTaken.join(', ')]);
-    rows.push(['Areas treated', d.service.areasTreated.length + ' selected']);
+    rows.push(['Areas treated', (d.service.areasTreated || []).join(', ')]);
+    [['Rodent entry point', d.service.rodentEntryPoint], ['Barriers / sealing', d.service.sealing], ['Sanitation needs', d.service.sanitationNeeds], ['Repair & maintenance', d.service.repairMaintenance], ['Renovation notes', d.service.renovation]].forEach(function(r){ if(r[1]) rows.push(r); });
     chemKvRows(d, 'government', ', ').forEach(function(r){ if(r[1]) rows.push(r); }); matKvRows(d, ', ').forEach(function(r){ rows.push(r); });
     const findSummary = Object.keys(d.findings.byPest||{}).map(function(k){ return d.findings.byPest[k]; }).filter(function(r){return r && r.severity;}).map(function(r){ return r.pest+': '+r.severity; }).join(', ');
     rows.push(['Findings', findSummary]);
@@ -8211,11 +8559,12 @@ function reviewSignoffBlock(d, stepIdx){
     ['Technicians who worked', (Array.isArray(so.technicians) && so.technicians.length) ? so.technicians.join(', ') : ''],
     ['Technician signed', (so.technicianSig || so.technicianSigPath) ? 'Yes' : 'No'],
     ['Technician stamp', (so.technicianStamp || so.technicianStampPath) ? 'Yes' : 'No'],
-    ['Client rep.', so.clientRepName],
+    ['Client representative', so.clientRepName],
     ['Client signed', (so.clientSig || so.clientSigPath) ? 'Yes' : 'No'],
     ['Client stamp', (so.clientStamp || so.clientStampPath) ? 'Yes' : 'No'],
-    ['Satisfaction', so.satisfaction ? satisfactionLabel(so.satisfaction) : '']
+    ['Client satisfaction', so.satisfaction ? satisfactionLabel(so.satisfaction) : '']
   ];
+  if(so.clientRemarks) rows.push(['Client remarks', so.clientRemarks]);
   return reviewBlock('Sign-off & feedback', stepIdx===undefined?wizardStepIndex('signoff'):stepIdx, rows);
 }
 function renderReview(){
@@ -8404,7 +8753,6 @@ async function sendReportCore(d, type, ctx){
 
 async function submitReport(){
   const releaseUpdateHold = window.gepestconUpdate ? window.gepestconUpdate.hold() : function(){};   // the update screen waits until sending has finished
-  reportSending = true;   // the 2-hour session waits until sending has finished
   const btn = qs('#sendReportBtn');
   if(btn){ btn.disabled = true; btn.innerHTML = 'Sending…'; }
   const d = state.draft;
@@ -8457,7 +8805,6 @@ async function submitReport(){
     toast('Something went wrong while sending. Nothing was lost — try again.', 'error');
     if(btn){ btn.disabled = false; btn.innerHTML = icon('send') + ' Send report'; }
   } finally {
-    reportSending = false;
     releaseUpdateHold();
   }
 }
@@ -8466,9 +8813,10 @@ async function submitReport(){
    OFFLINE OUTBOX  (send later / Sync)
    With no internet, "Send report" saves the finished report on THIS phone (IndexedDB: photos and signatures included) instead of
    failing. Waiting reports are shown in the top bar (Sync button with a number), in a banner, on Home and on Job Reports, and are sent:
-     - by themselves, when the internet comes back, when the app opens, when it comes back on screen, and (while any wait) a tiny check every
-       10 seconds for real internet, which starts the sending the moment the server answers;
-     - by hand, with the Sync button ("Sync now").
+     - by themselves, with nothing to tap: when the internet comes back, when the app opens or comes back on screen, every 30 seconds
+       while any wait, and again after a failed try (a refusal by the server is retried after 1, 2, 5, 10 and then every 15 minutes).
+       This also works on the area screen: an area phone keeps its own sign-in, which is what its waiting reports belong to;
+     - by hand, with the Sync button ("Sync now"), only to hurry it up.
    The control number is only given by the server, so a waiting report has none yet: it gets its number when it is sent, and it keeps the
    time the technician pressed Send. A send that is cut off half-way is resumed, never repeated, so no report is created twice.
    Waiting reports stay on the phone until they are sent or the technician deletes them (signing out does not delete them).
@@ -8658,14 +9006,6 @@ function isNetworkError(err){
   const st = err.status || err.statusCode;
   return st === 0 || st === 408 || st === 502 || st === 503 || st === 504;
 }
-/* A busy or restarting server (not a problem with the report itself). The outbox tries these again by itself a few times. */
-function isServerBusyError(err){
-  if(!err) return false;
-  const msg = String(err.message || err.error_description || err.details || err);
-  if(/network connection was lost|could not connect|cannot connect|econnreset|etimedout|enotfound|temporarily unavailable|bad gateway|gateway time-?out|service unavailable|too many requests/i.test(msg)) return true;
-  const st = Number(err.status || err.statusCode || 0);
-  return st === 429 || (st >= 500 && st <= 599);
-}
 function isAuthLikeError(err){
   if(!err) return false;
   const st = err.status || err.statusCode;
@@ -8700,30 +9040,33 @@ function outboxPut(item){ return outboxTx('readwrite', function(s){ s.put(item);
 function outboxDelete(id){ return outboxTx('readwrite', function(s){ s.delete(id); }); }
 function outboxAll(){ return outboxTx('readonly', function(s, o){ const r = s.getAll(); r.onsuccess = function(){ o.v = r.result; }; }); }
 
-const outbox = { items: [], syncing: false, started: false, timer: null, lastSyncAt: 0, lastResult: '', probing: false, failStreak: 0, nextTryAt: 0, releaseAuth: false };
+const outbox = { items: [], syncing: false, started: false, timer: null, lastSyncAt: 0, lastResult: '', loadedFor: null };
+const OUTBOX_CHECK_MS = window.GEPESTCON_OUTBOX_CHECK_MS || 30000;   // while reports wait, the app looks again every 30 seconds (the window value is only for tests)
+const OUTBOX_RETRY_MINUTES = [1, 2, 5, 10, 15];     // after the server refuses a report: the pauses before each new automatic try (the last one repeats)
 let lastQueuedItem = null;
-function outboxMine(){ return state.profile ? outbox.items.filter(function(i){ return i.userId === state.profile.id; }) : []; }
+/* Whose waiting reports these are: the person who is signed in or, on the area screen (where nobody is "in" the app yet), the area
+   phone's own sign-in. An area phone keeps that sign-in, so its waiting reports can go out from the area screen too. */
+function outboxOwnerId(){
+  if(state.profile && state.profile.id) return state.profile.id;
+  const u = state.session && state.session.user;
+  if(u && u.id && u.is_anonymous) return u.id;
+  const st = readStoredLogin();
+  return (st && st.anon && st.userId) ? st.userId : null;
+}
+function outboxMine(){ const me = outboxOwnerId(); return me ? outbox.items.filter(function(i){ return i.userId === me; }) : []; }
 function outboxCount(){ return outboxMine().length; }
+function outboxDue(item, manual){ return !!manual || !item.nextTryAt || item.nextTryAt <= Date.now(); }
 async function outboxLoad(){
   let all = [];
   try{ all = (await outboxAll()) || []; }catch(e){ console.error('outbox load failed', e); }
-  const mine = state.profile ? all.filter(function(i){ return i.userId === state.profile.id; }) : [];
+  const me = outboxOwnerId();
+  const mine = me ? all.filter(function(i){ return i.userId === me; }) : [];
   mine.forEach(function(i){ if(i.status === 'sending' && !outbox.syncing) i.status = 'waiting'; });   // the app was closed mid-send
-  if(outbox.releaseAuth){
-    /* A report held back only because the phone needed a new sign-in (or a connection problem was mistaken for a refusal by an older version of the app)
-       is tried again by itself whenever the app opens, the internet returns or the app comes back on screen. Reports the server really refused stay for Sync. */
-    outbox.releaseAuth = false;
-    mine.forEach(function(i){
-      if(i.fatal && i.status !== 'sending' && (i.authNeeded || /sign in again/i.test(i.lastError || ''))){
-        i.fatal = false; i.authNeeded = false; i.status = 'waiting';
-        outboxPut(i).catch(function(e){ console.error('outbox save failed', e); });
-      }
-    });
-  }
+  if(me && outbox.loadedFor !== me){ outbox.loadedFor = me; mine.forEach(function(i){ i.nextTryAt = 0; }); }   // the app was just opened (or somebody signed in): every waiting report gets a fresh try
   mine.sort(function(a, b){ return String(a.queuedAt).localeCompare(String(b.queuedAt)); });
   outbox.items = mine;
 }
-function outboxReset(){ outbox.items = []; lastQueuedItem = null; outboxChanged(); }
+function outboxReset(){ outbox.items = []; outbox.loadedFor = null; lastQueuedItem = null; outboxChanged(); }
 
 /* Saves a finished report on the phone. Returns true when it was saved (and the screen has moved on), false when it could not be. */
 async function saveReportForLater(d, type, btn){
@@ -8766,18 +9109,18 @@ async function outboxWithAuthRetry(fn){
     const r = await sb.auth.refreshSession();
     if(r && r.error){
       if(isNetworkError(r.error)) throw r.error;
-      const e = new Error('Please sign in again, then tap Sync.'); e.fatalForNow = true; throw e;
+      const e = new Error('Your sign-in has run out. Please sign in again; the report is then sent by itself.'); e.fatalForNow = true; throw e;
     }
     return fn();
   }
 }
 function outboxErrorText(err){
-  if(isNetworkError(err) || isServerBusyError(err)) return 'Could not reach the server yet. It will try again by itself.';
+  if(isNetworkError(err)) return 'Could not reach the server yet. It will try again by itself.';
   if(err && err.fatalForNow) return err.message;
-  return 'The server did not accept it: ' + String((err && err.message) || err || 'unknown error').slice(0, 140) + ' Tap Send now to try again.';
+  return 'The server did not accept it yet: ' + String((err && err.message) || err || 'unknown error').slice(0, 140) + ' The app tries again by itself; you can also tap Sync now.';
 }
 async function outboxSendOne(item){
-  item.status = 'sending'; item.statusText = 'Sending…'; item.attempts = (item.attempts || 0) + 1; item.lastError = '';
+  item.status = 'sending'; item.statusText = 'Sending…'; item.attempts = (item.attempts || 0) + 1; item.lastError = ''; item.nextTryAt = 0;
   outboxChanged();
   const d = item.draft;
   try{
@@ -8798,14 +9141,16 @@ async function outboxSendOne(item){
     return 'sent';
   }catch(err){
     console.error('outbox send failed', err);
+    const net = isNetworkError(err);
     item.status = 'error'; item.statusText = ''; item.lastError = outboxErrorText(err);
-    // no internet, a weak signal, or a busy server (a few times): wait and try again by itself. Anything else needs a person (Sync) - so the same refusal is not sent again and again.
-    let again = isNetworkError(err);
-    if(!again && isServerBusyError(err)){ item.busyTries = (item.busyTries || 0) + 1; again = item.busyTries < 6; }
-    item.authNeeded = !!(err && err.fatalForNow);
-    item.fatal = !again;
+    item.fatal = !net;
+    if(net){ item.refusals = 0; item.nextTryAt = 0; }   // no connection: tried again as soon as the internet answers
+    else {   // the server said no: tried again by itself after 1, 2, 5, 10 and then every 15 minutes (never needs the Sync button)
+      item.refusals = (item.refusals || 0) + 1;
+      item.nextTryAt = Date.now() + OUTBOX_RETRY_MINUTES[Math.min(item.refusals, OUTBOX_RETRY_MINUTES.length) - 1] * 60000;
+    }
     try{ await outboxPut(item); }catch(e){}
-    return again ? 'offline' : 'rejected';
+    return net ? 'offline' : 'rejected';
   }
 }
 let outboxSyncTimer = null;
@@ -8813,43 +9158,21 @@ function outboxSyncSoon(){
   clearTimeout(outboxSyncTimer);
   outboxSyncTimer = setTimeout(function(){ outboxSyncNow(false); }, 400);
 }
-/* Something changed that may mean the internet is back (the phone says online, the connection type changed, the app came back on screen):
-   forget any waiting time, give held reports another chance, and try to send soon. */
-function outboxKick(ms){
-  outbox.failStreak = 0; outbox.nextTryAt = 0; outbox.releaseAuth = true;
-  clearTimeout(outboxSyncTimer);
-  outboxSyncTimer = setTimeout(function(){ outboxSyncNow(false); }, ms);
-}
-/* The phone's "online" flag can say yes while there is no real internet (Wi-Fi without data, no signal bars), and it does not
-   announce the day the data comes back. So while reports wait, the server is knocked on every few seconds with a tiny request:
-   any answer at all means the internet is really there. Costs almost nothing, and only runs while a report is waiting. */
-async function outboxServerReachable(){
-  if(isOfflineNow()) return false;
-  const ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
-  const timer = setTimeout(function(){ if(ctrl) ctrl.abort(); }, 6000);
-  try{
-    await fetch(SUPABASE_URL + '/auth/v1/health', { method: 'GET', mode: 'no-cors', cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
-    return true;
-  }catch(e){ return false; }
-  finally{ clearTimeout(timer); }
-}
-const OUTBOX_TICK_MS = 10000;
-async function outboxTick(){
-  if(outbox.syncing || outbox.probing || !state.profile) return;
-  if(isOfflineNow() || Date.now() < outbox.nextTryAt) return;
-  if(!outboxMine().some(function(i){ return !i.fatal; })) return;
-  outbox.probing = true;
-  let ok = false;
-  try{ ok = await outboxServerReachable(); } finally { outbox.probing = false; }
-  if(ok) outboxSyncNow(false);
-}
-/* manual = the person pressed Sync: also retries reports the server refused, and refreshes the lists on screen. */
+/* manual = the person pressed Sync: also retries reports the server refused (right now, without waiting for their pause), and refreshes the lists on screen. */
+let outboxBusy = false;
 async function outboxSyncNow(manual){
-  if(outbox.syncing || !state.profile) return;
+  if(outboxBusy) return;   // several triggers can arrive in the same moment (internet back, app on screen, timer): only one run may start
+  outboxBusy = true;
+  try{ await outboxSyncRun(manual); }
+  catch(e){ console.error('sync failed', e); }
+  finally{ outboxBusy = false; }
+}
+async function outboxSyncRun(manual){
+  if(!outboxOwnerId()) return;   // nobody (and no area phone) is signed in on this phone: nothing can be sent
   if(isLocalOnly() && !isOfflineNow()){ await localAreaUpgrade(); }   // the real sign-in first; the waiting reports are handed over to it
   if(isLocalOnly()){ if(manual) toast('Could not reach the server yet. Your reports are still saved on this phone.', 'error'); outboxChanged(); return; }
-  if(!outbox.syncing) await outboxLoad();
-  const todo = outboxMine().filter(function(i){ return manual || !i.fatal; });
+  await outboxLoad();
+  const todo = outboxMine().filter(function(i){ return outboxDue(i, manual); });
   if(isOfflineNow()){
     if(manual) toast(outboxCount() ? 'No internet right now. Your reports stay saved on this phone and send by themselves when you are back online.' : 'No internet right now.', 'error');
     outboxChanged(); return;
@@ -8873,14 +9196,14 @@ async function outboxSyncNow(manual){
     } finally {
       release(); outbox.syncing = false; outbox.lastSyncAt = Date.now();
     }
-    if(blocked){ outbox.failStreak = (outbox.failStreak || 0) + 1; outbox.nextTryAt = Date.now() + Math.min(10000 * Math.pow(2, outbox.failStreak - 1), 60000); }   // 10s, 20s, 40s, then every minute
-    else { outbox.failStreak = 0; outbox.nextTryAt = 0; }
     const sent = outbox.sentNow || [];
     outbox.lastResult = sent.length ? (sent.length + (sent.length === 1 ? ' report sent' : ' reports sent')) : '';
     if(sent.length) toast((sent.length === 1 ? 'Report ' + sent[0] + ' was sent.' : sent.length + ' reports were sent.') + ' It now waits for admin approval.', 'success');
     else if(manual && outboxCount()) toast(blocked ? 'Could not reach the server yet. Your reports are still saved on this phone.' : 'Some reports could not be sent. See the Sync button for details.', 'error');
     outboxChanged();
     if(sent.length || manual) outboxRefreshScreen(manual);
+    // a report saved while this was running (or one whose pause has ended meanwhile) is picked up right away, not at the next check
+    if(!blocked && outboxMine().some(function(i){ return todo.indexOf(i) < 0 && outboxDue(i, false); })) outboxSyncSoon();
   };
   if(navigator.locks && navigator.locks.request){   // two open tabs must never send the same report twice
     await navigator.locks.request('gepestcon-outbox-sync', { ifAvailable: true }, async function(lock){ if(lock) await run(); });
@@ -8895,14 +9218,17 @@ function outboxRefreshScreen(manual){
 function outboxStart(){
   if(!outbox.started){
     outbox.started = true;
-    window.addEventListener('online', function(){ outboxChanged(); outboxKick(1500); });
+    // Everything below sends the waiting reports BY ITSELF; the Sync button is only a way to hurry it up.
+    window.addEventListener('online', function(){ outboxChanged(); setTimeout(function(){ outboxSyncNow(false); }, 1500); });   // the internet came back
     window.addEventListener('offline', function(){ outboxChanged(); });
-    document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible'){ outboxChanged(); if(outboxCount()) outboxKick(400); } });
-    try{ if(navigator.connection && navigator.connection.addEventListener) navigator.connection.addEventListener('change', function(){ if(outboxCount()) outboxKick(1500); }); }catch(e){}
-    outbox.timer = setInterval(outboxTick, OUTBOX_TICK_MS);
+    const again = function(){ if(!isOfflineNow() && outboxMine().some(function(i){ return outboxDue(i, false); })) outboxSyncSoon(); };   // only when a waiting report is due (not during the pause after a refusal)
+    document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible'){ outboxChanged(); again(); } });   // the app came back on screen
+    window.addEventListener('focus', again);
+    window.addEventListener('pageshow', again);
+    try{ if(navigator.connection && navigator.connection.addEventListener) navigator.connection.addEventListener('change', function(){ outboxChanged(); again(); }); }catch(e){}   // wifi <-> mobile data, signal back
+    outbox.timer = setInterval(again, OUTBOX_CHECK_MS);   // and every 30 seconds while any report waits (a weak signal that comes and goes, or a pause after a refusal that has ended)
     document.addEventListener('click', outboxOnClick);
   }
-  outbox.releaseAuth = true;
   outboxLoad().then(function(){ outboxChanged(); if(outboxMine().length && !isOfflineNow()) setTimeout(function(){ outboxSyncNow(false); }, 2000); });
 }
 function outboxOnClick(e){
@@ -8922,7 +9248,7 @@ function confirmDeleteQueued(id){
   const body = openModal(
     '<p style="font-size:14px;color:var(--ink-soft);margin-bottom:18px;line-height:1.5;">Delete the report for <b>' + escapeHTML(item.summary.client) + '</b> from this phone? It has not been sent to the office, so it will be lost for good.' +
     (partly ? ' A part of it already reached the server (report ' + escapeHTML(item.draft.controlDisplay || '') + '), so tell an admin to remove it there.' : '') + '</p>' +
-    '<div style="display:flex;gap:10px;"><button class="btn btn-secondary btn-block" id="obKeep">Keep it</button><button class="btn btn-primary btn-block" id="obDeleteYes">Delete</button></div>',
+    '<div style="display:flex;gap:10px;"><button class="btn btn-secondary btn-block" id="obKeep">Keep it</button><button class="btn btn-danger btn-block" id="obDeleteYes">Delete</button></div>',
     { title: 'Delete this report?' });
   qs('#obKeep', body).addEventListener('click', function(){ closeModal(); if(syncSheetWanted) openSyncSheet(); });
   qs('#obDeleteYes', body).addEventListener('click', async function(){
@@ -8969,13 +9295,18 @@ function outboxHostHTML(){
     '<div class="ob-count">' + items.length + (items.length === 1 ? ' report is' : ' reports are') + ' saved on this phone</div></div>' +
     '<button type="button" class="btn btn-primary btn-sm" data-ob-sync' + (outbox.syncing ? ' disabled' : '') + '>' + (outbox.syncing ? 'Sending…' : 'Sync now') + '</button></div>' +
     items.map(outboxItemHTML).join('') +
-    '<p class="ob-help">' + (off ? 'No internet right now. They will be sent by themselves when the internet is back.' : 'They are sent by themselves. Tap Sync now to send them right away.') + '</p></div>';
+    '<p class="ob-help">' + (off ? 'No internet right now. They are sent by themselves as soon as the internet is back.' : 'They are sent by themselves; you do not need to tap anything. Sync now only sends them right away.') + '</p></div>';
+}
+/* One short line saying what happens next with the waiting reports (used on the status cards). */
+function outboxNextText(){
+  if(outbox.syncing) return 'Sending…';
+  return outboxMine().some(function(i){ return !outboxDue(i, false); }) ? 'Will try again by itself' : 'Sends by itself';
 }
 function syncStatusInnerHTML(){
   const off = isOfflineNow(), n = outboxCount();
   const ic = off ? 'wifiOff' : n ? 'cloudUp' : 'shield';
   const title = off ? 'You are offline' : n ? n + (n === 1 ? ' report' : ' reports') + ' waiting to send' : 'All systems operational';
-  const dot = off ? (n ? n + ' saved on this phone' : 'Reports are saved on this phone') : n ? (outbox.syncing ? 'Sending…' : 'Sends by itself · or tap Sync') : 'Online · all good';
+  const dot = off ? (n ? n + ' saved on this phone' : 'Reports are saved on this phone') : n ? outboxNextText() : 'Online · all good';
   return '<span class="sc-icon' + (off ? ' is-off' : n ? ' is-wait' : '') + '">' + icon(ic) + '</span>' +
     '<span><span class="sc-eyebrow">' + (off || n ? 'Connection' : 'System status') + '</span>' +
     '<span class="sc-title">' + escapeHTML(title) + '</span>' +
@@ -8987,7 +9318,7 @@ function updateReviewOfflineUI(){
   const off = isOfflineNow();
   if(note){
     note.hidden = !off;
-    if(off) note.innerHTML = icon('wifiOff') + '<span><b>No internet right now.</b> When you tap the button below, the report is saved on this phone and sent by itself as soon as you are back online. You can also tap Sync (top of the screen) later.</span>';
+    if(off) note.innerHTML = icon('wifiOff') + '<span><b>No internet right now.</b> When you tap the button below, the report is saved on this phone and sent by itself as soon as you are back online. You do not need to tap Sync.</span>';
   }
   if(btn && !btn.disabled) btn.innerHTML = icon('send') + (off ? ' Save &amp; send later' : ' Send report');
 }
@@ -9009,7 +9340,7 @@ function outboxChanged(){
     let html = '', cls = '';
     if(busy){ cls = 'is-busy'; html = '<i class="ob-spin"></i><span>Sending your saved reports…</span>'; }
     else if(off){ cls = 'is-off'; html = icon('wifiOff') + '<span>' + (n ? '<b>No internet.</b> ' + n + (n === 1 ? ' report is' : ' reports are') + ' saved on this phone and will be sent when you are back online.' : '<b>You are offline.</b> You can keep working. Reports you send are saved on this phone and sent when the internet is back.') + '</span>'; }
-    else if(n){ cls = 'is-wait'; html = icon('cloudUp') + '<span><b>' + n + (n === 1 ? ' report is' : ' reports are') + ' waiting to send.</b> They send by themselves.</span>' + (qs('[data-outbox-host]') ? '' : '<button type="button" class="sync-banner-btn" data-ob-sync>Sync now</button>'); }   // the card on this screen already has the button
+    else if(n){ cls = 'is-wait'; html = icon('cloudUp') + '<span><b>' + n + (n === 1 ? ' report is' : ' reports are') + ' waiting to send.</b> They are sent by themselves.</span>' + (qs('[data-outbox-host]') ? '' : '<button type="button" class="sync-banner-btn" data-ob-sync>Sync now</button>'); }   // the card on this screen already has the button
     bar.hidden = !html; bar.className = 'sync-banner' + (cls ? ' ' + cls : ''); bar.innerHTML = html;
   }
   const hs = qs('#homeStatusCard'); if(hs) hs.innerHTML = syncStatusInnerHTML();
@@ -9038,7 +9369,7 @@ function renderSyncSheet(){
   html += '<button type="button" class="btn btn-primary btn-block btn-lg" data-ob-sync style="margin-top:16px;"' + (outbox.syncing ? ' disabled' : '') + '>' + icon('refresh') + ' ' + (outbox.syncing ? 'Sending…' : (items.length ? 'Sync now' : 'Refresh')) + '</button>';
   html += '<p class="ob-help" style="margin-top:14px;">' + icon('store') + ' <b>Store list on this phone:</b> ' +
     (storeCache.rows && storeCache.rows.length ? storeCountText(storeCache.rows.length) + ' · updated ' + escapeHTML(storeCacheStamp(storeCache.savedAt)) + '. The store number fills in even with no internet.' : 'not saved yet. It is saved the next time the app is open with internet.') + '</p>';
-  html += '<p class="ob-help" style="margin-top:10px;">Sync sends every saved report and refreshes the lists on your screen. It also runs by itself when the internet comes back.' +
+  html += '<p class="ob-help" style="margin-top:10px;">Saved reports are sent by themselves as soon as there is internet, so you do not have to tap anything. Sync only sends them right away and refreshes the lists on your screen.' +
     (outbox.lastSyncAt ? ' Last checked ' + escapeHTML(new Date(outbox.lastSyncAt).toLocaleTimeString('en-PH', { hour:'numeric', minute:'2-digit' })) + (outbox.lastResult ? ' · ' + escapeHTML(outbox.lastResult) : '') + '.' : '') + '</p>';
   el.innerHTML = html;
 }
@@ -9048,7 +9379,7 @@ function renderQueued(){
   const off = isOfflineNow();
   let html = '<div class="success-wrap"><div class="stamp ob-stamp">' + icon('cloudUp') + '</div>';
   html += '<h2>Saved on this phone</h2>';
-  html += '<p>' + (off ? 'There is no internet right now. Your report is safe on this phone and will be sent by itself as soon as you are back online.' : 'The report could not reach the server just now, so it was saved on this phone. It will be sent by itself, or tap Sync now.') + ' It gets its report number when it is sent.</p></div>';
+  html += '<p>' + (off ? 'There is no internet right now. Your report is safe on this phone and will be sent by itself as soon as you are back online.' : 'The report could not reach the server just now, so it was saved on this phone. It is sent by itself in a moment; you do not need to do anything.') + ' It gets its report number when it is sent.</p></div>';
   html += '<div data-outbox-host></div>';
   html += '<div class="card stack-14"><button class="btn btn-ghost btn-block" id="newReportBtn">Start another report</button></div>';
   wrap.innerHTML = html;
@@ -9263,7 +9594,7 @@ function renderSuccess(){
   html += '<div class="card stack-14">';
   if(isAdmin){ html += '<button class="btn btn-primary btn-block btn-lg" id="reviewApproveBtn">'+icon('checkSeal')+' Review &amp; approve</button>'; }
   if(can('reports.download_pdf')){
-    html += '<button class="btn btn-primary btn-block btn-lg" id="viewPdfBtn" type="button">'+icon('eye')+' View PDF report</button>';
+    html += '<button class="btn '+(isAdmin?'btn-secondary':'btn-primary')+' btn-block btn-lg" id="viewPdfBtn" type="button">'+icon('eye')+' View PDF report</button>';
     html += '<button class="btn btn-secondary btn-block btn-lg" id="downloadPdfBtn">'+icon('download')+' Download PDF report</button>';
   }
   html += '<button class="btn btn-ghost btn-block" id="newReportBtn">Start another report</button>';
@@ -9336,7 +9667,7 @@ function historyItemHTML(r){
   const sent = r.submitted_at || r.created_at;
   const when = reportWorkTime(r);
   const reportArea = areaInfo(r.sign_off && r.sign_off.area);
-  return '<button class="hist-item t-' + escapeHTML(r.type || '') + '" data-id="'+escapeHTML(r.id)+'">'+
+  return '<button class="hist-item has-tags t-' + escapeHTML(r.type || '') + '" data-id="'+escapeHTML(r.id)+'">'+
     '<span class="hi-icon">'+icon(meta.icon||'house')+'</span>'+
     '<span class="hi-main">'+
       '<span class="hi-title">'+escapeHTML(title)+'</span>'+
@@ -9352,7 +9683,13 @@ function historyItemHTML(r){
 }
 const QUICK_ACCESS_TILES = [
   { key:'history', label:'Job Reports', sub:'Create & view reports', icon:'history' },
+  { key:'clients', label:'Clients', sub:'Manage clients', icon:'users' },
+  { key:'accounts', label:'Accounts', sub:'Manage accounts', icon:'briefcase' }, // fix: P1-6, see build prompt
+  { key:'stores', label:'7-Eleven Stores', sub:'Saved store list', icon:'store' },
   { key:'schedule', label:'Schedule', sub:'View appointments', icon:'calendar' },
+  { key:'services', label:'Services', sub:'Manage services', icon:'wrench' },
+  { key:'inventory', label:'Inventory', sub:'Check inventory', icon:'box' },
+  { key:'technicians', label:'Technicians', sub:'Manage team', icon:'user' },
   { key:'areatechs', label:'Area Technicians', sub:'Fixed team per area', icon:'users' },
   { key:'analytics', label:'Analytics', sub:'View insights', icon:'barChart' },
   { key:'notifications', label:'Notifications', sub:'System alerts', icon:'bell' },
@@ -9389,7 +9726,7 @@ function renderHome(){
   if(canSeeReports()){
   html += '<div class="panel-with-label">';
   html += '<div class="divider-label">' + (can('reports.view_all') ? 'Recent reports' : 'Your recent reports') + '</div>';
-  html += '<div class="card" id="homeRecentWrap" style="padding:6px 16px;"><p class="small-muted center" style="padding:20px 0;">Loading\u2026</p></div>';
+  html += '<div class="card" id="homeRecentWrap" style="padding:6px 16px;"><div class="skel-list" role="status" aria-label="Loading"><span class="skel-row"></span><span class="skel-row"></span><span class="skel-row"></span></div></div>';
   html += '</div>';
   }
 
@@ -9455,7 +9792,6 @@ async function loadRecentForHome(wrap){
 const HIST_DEFAULTS = { search:'', type:'', area:'', status:'', dateBy:'service', year:'', month:'', day:'', sort:'newest' };
 let __histFilters = Object.assign({}, HIST_DEFAULTS);   // kept while the person opens a report and comes back, so they do not lose their place
 let __histState = Object.assign({ page: 0, rows: [], count: 0 }, __histFilters);
-let __histSeq = 0;   // goes up every time the list is reloaded, so a slow answer for old filters is never drawn over the new list
 const HIST_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 function histActiveCount(f){
   // how many of "Date, status & sort" are set: year, month and exact day count as one date filter
@@ -9476,7 +9812,7 @@ function histSummaryText(count, f){
   const parts = [count + (count === 1 ? ' report' : ' reports')];
   if(f.type) parts.push(HIST_TYPE_LABEL[f.type]);
   if(f.area && areaInfo(f.area)) parts.push(areaInfo(f.area).label + (f.area === 'MAIN' ? '' : ' area'));
-  if(f.status) parts.push(f.status === 'draft' ? 'Awaiting approval' : f.status === 'approved' ? 'All approved' : f.status === 'manual' ? 'Approved, not emailed yet' : 'Emailed');
+  if(f.status) parts.push(f.status === 'draft' ? 'Awaiting approval' : f.status === 'manual' ? 'Approved' : 'Emailed');
   if(f.day) parts.push(formatDateDisplay(f.day));
   else if(f.year){ parts.push((f.month ? HIST_MONTHS[parseInt(f.month, 10) - 1] + ' ' : '') + f.year); }
   if((f.year || f.day) && f.dateBy === 'submitted') parts.push('by date submitted');
@@ -9500,7 +9836,6 @@ function renderHistory(){
   html += '<p class="section-hint" style="margin-bottom:18px;">Every report submitted with this app, shared with your team.</p>';
   html += '<div data-outbox-host></div>';
   html += '<div class="card hist-filters">' +
-    '<div class="hist-chips" id="histQuick"><button type="button" class="hist-chip hist-approved' + (f.status === 'approved' ? ' is-on' : '') + '" id="histApprovedBtn" aria-pressed="' + (f.status === 'approved' ? 'true' : 'false') + '">' + icon('checkSeal') + ' All approved reports</button></div>' +
     '<input class="input" id="histSearch" placeholder="Search client, control no. or technician" value="' + escapeHTML(f.search) + '">' +
     '<div class="hist-chips" id="histTypes" role="group" aria-label="Report type">' + typeChips + '</div>' +
     '<div class="hist-chips" id="histAreas" role="group" aria-label="Area">' + areaChips + '</div>' +
@@ -9510,13 +9845,13 @@ function renderHistory(){
         '<label class="hist-f"><span>Year</span><select class="input" id="histYear">' + histYearOptions(f.year) + '</select></label>' +
         '<label class="hist-f"><span>Month</span><select class="input" id="histMonth">' + histOptions([['', 'All months']].concat(HIST_MONTHS.map(function(m, i){ return [String(i + 1), m]; })), f.month) + '</select></label>' +
         '<label class="hist-f"><span>Exact day</span><input class="input" type="date" id="histDay" value="' + escapeHTML(f.day) + '"></label>' +
-        '<label class="hist-f"><span>Status</span><select class="input" id="histStatus">' + histOptions([['', 'All statuses'], ['draft', 'Awaiting approval'], ['approved', 'All approved (incl. emailed)'], ['manual', 'Approved, not emailed yet'], ['sent', 'Emailed']], f.status) + '</select></label>' +
+        '<label class="hist-f"><span>Status</span><select class="input" id="histStatus">' + histOptions([['', 'All statuses'], ['draft', 'Awaiting approval'], ['manual', 'Approved'], ['sent', 'Emailed']], f.status) + '</select></label>' +
         '<label class="hist-f"><span>Sort by</span><select class="input" id="histSort">' + histOptions([['newest', 'Newest submitted'], ['oldest', 'Oldest submitted'], ['service_desc', 'Service date, newest'], ['service_asc', 'Service date, oldest']], f.sort) + '</select></label>' +
       '</div>' +
     '</details>' +
     '<div class="hist-foot"><span class="hist-summary" id="histSummary" aria-live="polite"></span><button type="button" class="hist-clear" id="histClear">Clear filters</button></div>' +
   '</div>';
-  html += '<div id="histListWrap"><p class="small-muted center" style="padding:30px 0;">Loading…</p></div>';
+  html += '<div id="histListWrap"><div class="skel-list" role="status" aria-label="Loading"><span class="skel-row"></span><span class="skel-row"></span><span class="skel-row"></span></div></div>';
   wrap.innerHTML = html;
   const listWrapEl = qs('#histListWrap', wrap);
 
@@ -9524,9 +9859,6 @@ function renderHistory(){
     Object.keys(HIST_DEFAULTS).forEach(function(k){ __histFilters[k] = __histState[k]; });
     const n = histActiveCount(__histState), badge = qs('#histBadge', wrap);
     if(badge){ badge.textContent = n; badge.hidden = !n; }
-    const approvedOn = __histState.status === 'approved', approvedBtn = qs('#histApprovedBtn', wrap), statusSel = qs('#histStatus', wrap);   // the button and the Status box always show the same thing
-    if(approvedBtn){ approvedBtn.classList.toggle('is-on', approvedOn); approvedBtn.setAttribute('aria-pressed', approvedOn ? 'true' : 'false'); }
-    if(statusSel) statusSel.value = __histState.status;
     loadHistoryPage(listWrapEl, true);
   }
   qs('#histSearch', wrap).addEventListener('input', debounce(function(){
@@ -9548,7 +9880,6 @@ function renderHistory(){
     });
   });
   qs('#histStatus', wrap).addEventListener('change', function(){ __histState.status = qs('#histStatus', wrap).value; reload(); });
-  qs('#histApprovedBtn', wrap).addEventListener('click', function(){ __histState.status = (__histState.status === 'approved') ? '' : 'approved'; reload(); });   // press again to go back to every report
   qs('#histSort', wrap).addEventListener('change', function(){ __histState.sort = qs('#histSort', wrap).value; reload(); });
   qs('#histDateBy', wrap).addEventListener('change', function(){ __histState.dateBy = qs('#histDateBy', wrap).value; reload(); });
   qs('#histYear', wrap).addEventListener('change', function(){
@@ -9592,17 +9923,14 @@ function renderHistory(){
 }
 
 async function loadHistoryPage(target, reset){
-  if(reset){ __histState.page = 0; __histState.rows = []; __histSeq++; }
-  const seq = __histSeq;
+  if(reset){ __histState.page = 0; __histState.rows = []; }
   let rows, count;
-  try{ ({ rows, count } = await listReportsPage({ page: __histState.page, offset: reset ? 0 : __histState.rows.length, search: __histState.search, type: __histState.type, area: __histState.area, status: __histState.status, dateBy: __histState.dateBy, year: __histState.year, month: __histState.month, day: __histState.day, sort: __histState.sort })); }
+  try{ ({ rows, count } = await listReportsPage({ page: __histState.page, search: __histState.search, type: __histState.type, area: __histState.area, status: __histState.status, dateBy: __histState.dateBy, year: __histState.year, month: __histState.month, day: __histState.day, sort: __histState.sort })); }
   catch(err){
-    if(seq !== __histSeq) return;
     target.innerHTML = errorStateHTML(err.message);
     qs('#retryLoadBtn', target).addEventListener('click', function(){ loadHistoryPage(target, reset); });
     return;
   }
-  if(seq !== __histSeq) return;   // the filters changed while this was loading; the newer list is the one to show
   __histState.rows = reset ? rows : __histState.rows.concat(rows);
   __histState.count = count;
   renderHistList(target);
@@ -9637,10 +9965,7 @@ function renderHistList(target){
   let html = '<div class="card" style="padding:2px 14px;">' + body + '</div>';
   const hasMore = __histState.rows.length < __histState.count;
   if(hasMore){
-    html += '<div class="load-more-wrap hist-more-actions">' +
-      '<button class="btn btn-secondary" id="histLoadMore">Load more ('+(__histState.count - __histState.rows.length)+' remaining)</button>' +
-      '<button class="btn btn-primary" id="histShowAll">Show all '+__histState.count+' reports</button>' +
-    '</div>';
+    html += '<div class="load-more-wrap"><button class="btn btn-secondary" id="histLoadMore">Load more ('+(__histState.count - __histState.rows.length)+' remaining)</button></div>';
   }
   target.innerHTML = html;
   qsa('.hist-item', target).forEach(function(el){
@@ -9654,32 +9979,6 @@ function renderHistList(target){
       loadHistoryPage(target, false);
     });
   }
-  const showAllBtn = qs('#histShowAll', target);
-  if(showAllBtn){ showAllBtn.addEventListener('click', function(){ loadAllHistory(target, showAllBtn); }); }
-}
-
-/* "Show all reports": loads every report that is not on the screen yet (100 at a time, with the same filters) and draws the whole list. */
-async function loadAllHistory(target, btn){
-  const seq = __histSeq;
-  const more = qs('#histLoadMore', target);
-  if(more) more.disabled = true;
-  btn.disabled = true;
-  try{
-    while(__histState.rows.length < __histState.count){
-      btn.textContent = 'Loading… ' + __histState.rows.length + ' of ' + __histState.count;
-      const res = await listReportsPage({ page: 0, offset: __histState.rows.length, pageSize: 100, search: __histState.search, type: __histState.type, area: __histState.area, status: __histState.status, dateBy: __histState.dateBy, year: __histState.year, month: __histState.month, day: __histState.day, sort: __histState.sort });
-      if(seq !== __histSeq) return;   // the filters changed while loading: the newer list takes over
-      if(!res.rows.length) break;
-      __histState.rows = __histState.rows.concat(res.rows);
-      __histState.count = res.count;
-    }
-  }catch(err){
-    if(seq !== __histSeq) return;
-    console.error('Show all failed', err);
-    toast('Could not load every report: ' + ((err && err.message) || 'please try again.'), 'error');
-  }
-  if(seq !== __histSeq) return;
-  renderHistList(target);
 }
 ;
 /* ============================================================
@@ -9708,7 +10007,7 @@ function rowToDraftShape(row){
     controlDisplay: row.control_display,
     accountId: row.account_id,
     client: row.client || {},
-    schedule: { serviceDate: row.service_date, timeStarted: row.time_started, timeFinished: row.time_finished },
+    schedule: { serviceDate: row.service_date, actualDate: row.actual_date || '', timeStarted: row.time_started, timeFinished: row.time_finished },
     service: row.service || {},
     findings: row.findings || {},
     concern: row.concern || {},
@@ -9755,10 +10054,13 @@ async function loadAndRenderDetail(wrap, id){
   const rowArea = areaInfo(row.sign_off && row.sign_off.area);
   let html = '<div class="wizard-top"><button class="back-link" id="detailBack2">'+icon('chevronLeft')+' Job Reports</button><span class="step-tag">'+TYPE_META[d.type].short+(rowArea ? ' · '+escapeHTML(rowArea.label) : '')+'</span></div>';
   html += '<div class="card" style="margin-bottom:16px;">';
-  html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">';
+  html += '<div class="rd-head">';
   html += '<div><h2 class="section-title">'+escapeHTML(d.client.name||d.client.storeName||'Report')+'</h2><p class="small-muted">'+formatDateDisplay(d.schedule.serviceDate)+'</p></div>';
   html += '<span class="ticket"><span class="t-label">Control No.</span><span class="t-num">'+escapeHTML(d.controlDisplay)+'</span></span>';
   html += '</div>';
+  if(d.accountId){
+    html += '<button class="helper-banner" id="viewLinkedAccountBtn" style="width:100%;text-align:left;border:none;cursor:pointer;">'+icon('briefcase')+'<span>Linked to an account \u2014 view its full history '+icon('chevronRight')+'</span></button>';
+  }
   html += reviewBlock('Client & schedule', null, clientKV(d, d.type));
   html += detailProblemsBlockHTML(d);
   html += reviewBlock('Service details', null, serviceKV(d, d.type));
@@ -9808,6 +10110,10 @@ async function loadAndRenderDetail(wrap, id){
   loadDetailMedia(d, wrap);
 
   qs('#detailBack2', wrap).addEventListener('click', function(){ navigate('history'); });
+  const viewAccountBtn = qs('#viewLinkedAccountBtn', wrap);
+  if(viewAccountBtn){
+    viewAccountBtn.addEventListener('click', function(){ navigate('accountDetail', { viewingAccountId: d.accountId }); });
+  }
   const viewBtn = qs('#detailView', wrap);
   if(viewBtn) viewBtn.addEventListener('click', function(){
     openPdfViewer(async function(){ return d.pdfPath ? await fetchStoredPdf(d.pdfPath) : null; }, reportPdfFilename(d));
@@ -9950,7 +10256,7 @@ function renderSettings(){
   if(!canCompany){ html += '<div class="helper-banner">'+icon('info')+'<span>Only an admin can change these.</span></div>'; }
   html += field('Company name', 'set_companyName', 'text', CONFIG.companyName, {});
   html += field('Address', 'set_companyAddress', 'text', CONFIG.companyAddress, {});
-  html += '<div class="row-2">'+field('Phone', 'set_companyPhone', 'tel', CONFIG.companyPhone, {})+field('Email', 'set_companyEmail', 'email', CONFIG.companyEmail, {})+'</div>';
+  html += '<div class="row-2 row-stack-sm">'+field('Phone', 'set_companyPhone', 'tel', CONFIG.companyPhone, {})+field('Email', 'set_companyEmail', 'email', CONFIG.companyEmail, {})+'</div>';
   if(canCompany){ html += '<button class="btn btn-secondary btn-block" id="saveCompanyBtn">Save company info</button>'; }
   html += '</div>';
 
@@ -10087,14 +10393,14 @@ function renderSettings(){
       const text = mailerScriptText(sec);
       try{ await navigator.clipboard.writeText(text); toast('Script copied. Paste it into the Apps Script editor.', 'success'); }
       catch(err){
-        const body = openModal('<p class="small-muted" style="margin-bottom:8px;">Select all of this text, copy it, and paste it into the Apps Script editor.</p><textarea id="mailerScriptBox" readonly style="width:100%;height:260px;font-family:monospace;font-size:12px;"></textarea>', { title: 'The script' });
+        const body = openModal('<p class="small-muted" style="margin-bottom:8px;">Select all of this text, copy it, and paste it into the Apps Script editor.</p><textarea id="mailerScriptBox" class="code-box" aria-label="Email script to copy" readonly style="height:260px;"></textarea>', { title: 'The script' });
         const box = qs('#mailerScriptBox', body); box.value = text; box.focus(); box.select();
       }
     });
     qs('#copySqlBtn', wrap).addEventListener('click', async function(){
       try{ await navigator.clipboard.writeText(MAILER_SQL); toast('Copied. Paste it in Supabase → SQL Editor and press Run.', 'success'); }
       catch(err){
-        const body = openModal('<p class="small-muted" style="margin-bottom:8px;">Copy this, then paste it in Supabase → SQL Editor → New query and press Run.</p><textarea id="sqlBox" readonly style="width:100%;height:150px;font-family:monospace;font-size:12px;"></textarea>', { title: 'Database command' });
+        const body = openModal('<p class="small-muted" style="margin-bottom:8px;">Copy this, then paste it in Supabase → SQL Editor → New query and press Run.</p><textarea id="sqlBox" class="code-box" aria-label="Database command to copy" readonly style="height:150px;"></textarea>', { title: 'Database command' });
         const box = qs('#sqlBox', body); box.value = MAILER_SQL; box.focus(); box.select();
       }
     });
@@ -10114,7 +10420,7 @@ function renderSettings(){
         qs('#mailerPill', wrap).innerHTML = '<span class="status-pill ok">'+icon('check')+' This device only</span>';
         openModal('<p style="margin-bottom:10px;">Saved on <strong>this device only</strong>, because the database does not have the two new columns yet.</p>' +
           '<p class="small-muted" style="margin-bottom:12px;">To share it with every phone: copy the command below, open <strong>Supabase &rarr; SQL Editor &rarr; New query</strong>, paste it and press <strong>Run</strong>. Then come back here and press <strong>Save</strong> again.</p>' +
-          '<textarea id="sqlBox2" readonly style="width:100%;height:120px;font-family:monospace;font-size:12px;"></textarea>', { title: 'One more step' });
+          '<textarea id="sqlBox2" class="code-box" aria-label="Database command to copy" readonly style="height:120px;"></textarea>', { title: 'One more step' });
         const box = qs('#sqlBox2'); if(box){ box.value = MAILER_SQL; }
       }
       btn.disabled = false; btn.textContent = 'Save';
@@ -10289,13 +10595,11 @@ function renderProfile(){
   html += '<h2>'+escapeHTML(arInfo ? arInfo.title : (p.full_name||'(no name set)'))+'</h2>';
   html += '<span class="role-tag">'+roleLabel+'</span>';
   html += '</div>';
-  // at the top so it is always on screen, with no need to scroll down behind the bottom bar
-  html += '<button class="btn btn-secondary btn-block btn-lg" id="profileSignOutTopBtn" style="margin-top:14px;">'+icon('logout')+(arInfo ? ' Change area' : ' Sign out')+'</button>';
 
-  html += '<div class="card" style="margin-top:14px;">';
+  html += '<div class="card" style="margin-top:8px;">';
   html += '<h3 class="section-title" style="font-size:14px;margin-bottom:2px;">Appearance</h3>';
   html += '<p class="section-hint">Follows you to any device you sign in on.</p>';
-  html += '<div class="chip-group" id="themeChips">'+
+  html += '<div class="chip-group seg" id="themeChips">'+
     ['system','light','dark'].map(function(t){
       const label = t==='system' ? 'Match device' : t==='light' ? 'Light' : 'Dark';
       return '<button type="button" class="chip'+(currentTheme===t?' is-on':'')+'" data-theme-choice="'+t+'">'+icon('check')+'<span>'+label+'</span></button>';
@@ -10308,7 +10612,7 @@ function renderProfile(){
   '</button>';
   html += '</div>';
 
-  html += '<div class="card" style="margin-top:14px;padding:4px 20px;"><div class="profile-row"><span><span class="pr-label">Session</span><span class="pr-sub" style="display:block;">Signs out by itself 2 hours after you start. Time left: ' + sessionLeftText() + '.</span></span></div></div>';
+  html += '<div class="card" style="margin-top:14px;padding:4px 20px;"><div class="profile-row"><span><span class="pr-label">Session</span><span class="pr-sub" style="display:block;" id="sessionInfo">' + escapeHTML(sessionInfoText()) + '</span></span></div></div>';
   html += '<div class="card" style="margin-top:14px;padding:4px 20px;"><div class="profile-row"><span><span class="pr-label">Offline use</span><span class="pr-sub" style="display:block;" id="offlineReady">Checking\u2026</span></span></div></div>';
   html += '<div class="card" style="margin-top:14px;padding:4px 20px;">';
   html += '<div class="profile-row"><span><span class="pr-label">App version</span><i class="brand-ver">'+escapeHTML(window.GEPESTCON_EDITION || '')+'</i><span class="pr-sub" style="display:block;">Version '+escapeHTML(window.GEPESTCON_VERSION || '')+'</span></span>'+
@@ -10345,9 +10649,7 @@ function renderProfile(){
     if(r.status === 'current'){ toast('You are using the latest version (' + window.GEPESTCON_VERSION + ').', 'success'); }
     else if(r.status !== 'update'){ toast('Could not check for updates right now. Check your internet connection and try again.', 'error'); }
   });
-  qsa('#profileSignOutBtn, #profileSignOutTopBtn', wrap).forEach(function(b){
-    b.addEventListener('click', function(){ if(arInfo) areaChange(); else confirmSignOutWithOutbox(); });
-  });
+  qs('#profileSignOutBtn', wrap).addEventListener('click', function(){ if(arInfo) areaChange(); else confirmSignOutWithOutbox(); });
 
   return wrap;
 }
@@ -10384,7 +10686,7 @@ function renderClientsList(){
   if(isAdmin){ html += '<button class="btn btn-primary btn-sm" id="addClientBtn">'+icon('plus')+' Add client</button>'; }
   html += '</div>';
   html += '<input class="input" id="clientSearch" placeholder="Search clients" style="margin-bottom:16px;">';
-  html += '<div id="clientListWrap"><p class="small-muted center" style="padding:30px 0;">Loading\u2026</p></div>';
+  html += '<div id="clientListWrap"><div class="skel-list" role="status" aria-label="Loading"><span class="skel-row"></span><span class="skel-row"></span><span class="skel-row"></span></div></div>';
   wrap.innerHTML = html;
 
   async function load(){
@@ -10452,7 +10754,7 @@ function openClientForm(existing, onSaved){
 
 function renderClientDetail(){
   const wrap = document.createElement('div');
-  wrap.innerHTML = '<div class="wizard-top"><button class="back-link" id="cdBack">'+icon('chevronLeft')+' Clients</button></div><p class="small-muted center" style="padding:40px 0;">Loading\u2026</p>';
+  wrap.innerHTML = '<div class="wizard-top"><button class="back-link" id="cdBack">'+icon('chevronLeft')+' Clients</button></div><div class="skel-list" role="status" aria-label="Loading"><span class="skel-row"></span><span class="skel-row"></span><span class="skel-row"></span></div>';
   qs('#cdBack', wrap).addEventListener('click', function(){ navigate('clients'); });
   loadClientDetail(wrap);
   return wrap;
@@ -10477,10 +10779,10 @@ async function loadClientDetail(wrap){
 
   let html = '<div class="wizard-top"><button class="back-link" id="cdBack2">'+icon('chevronLeft')+' Clients</button></div>';
   html += '<div class="card" style="margin-bottom:16px;">';
-  html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">';
-  html += '<div><h2 class="section-title">'+escapeHTML(client.name)+'</h2><p class="section-hint">'+escapeHTML(client.contact_person||'No contact set')+'</p></div>';
+  html += '<div class="ad-head ad-stack" style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">';
+  html += '<div class="ad-title"><h2 class="section-title">'+escapeHTML(client.name)+'</h2><p class="section-hint">'+escapeHTML(client.contact_person||'No contact set')+'</p></div>';
   if(canEditClient){
-    html += '<div style="display:flex;gap:8px;flex-shrink:0;">'+
+    html += '<div class="ad-actions" style="display:flex;gap:8px;flex-shrink:0;">'+
       '<button class="btn btn-secondary btn-sm" id="editClientBtn">'+icon('pencil')+' Edit</button>'+
       '<button class="btn btn-secondary btn-sm" id="archiveClientBtn">'+icon('box')+' Archive</button>'+
     '</div>';
@@ -10590,7 +10892,7 @@ function renderAccountsList(){
     '<input class="input" id="acctSearch" placeholder="Search accounts">'+
     '<select class="input" id="acctFilter"><option value="">All types</option><option value="private">Private</option><option value="government">Government</option><option value="seven11">7-Eleven</option></select>'+
   '</div>';
-  html += '<div id="acctListWrap"><p class="small-muted center" style="padding:30px 0;">Loading\u2026</p></div>';
+  html += '<div id="acctListWrap"><div class="skel-list" role="status" aria-label="Loading"><span class="skel-row"></span><span class="skel-row"></span><span class="skel-row"></span></div></div>';
   wrap.innerHTML = html;
 
   async function load(){
@@ -10712,7 +11014,7 @@ function openAccountForm(existing, presetClient, onSaved, clientChoices){
 
 function renderAccountDetail(){
   const wrap = document.createElement('div');
-  wrap.innerHTML = '<div class="wizard-top"><button class="back-link" id="adBack">'+icon('chevronLeft')+' '+accountBackLabel(null)+'</button></div><p class="small-muted center" style="padding:40px 0;">Loading\u2026</p>';
+  wrap.innerHTML = '<div class="wizard-top"><button class="back-link" id="adBack">'+icon('chevronLeft')+' '+accountBackLabel(null)+'</button></div><div class="skel-list" role="status" aria-label="Loading"><span class="skel-row"></span><span class="skel-row"></span><span class="skel-row"></span></div>';
   qs('#adBack', wrap).addEventListener('click', function(){ navigate(accountBackScreen(null)); });
   loadAccountDetail(wrap);
   return wrap;
@@ -10739,7 +11041,7 @@ async function loadAccountDetail(wrap){
 
   let html = '<div class="wizard-top"><button class="back-link" id="adBack2">'+icon('chevronLeft')+' '+accountBackLabel(account)+'</button><span class="step-tag">'+meta.short+'</span></div>';
   html += '<div class="card" style="margin-bottom:16px;">';
-  html += '<div class="ad-head'+(account.type==='seven11'?' ad-stack':'')+'" style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">';
+  html += '<div class="ad-head ad-stack" style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">';
   html += '<div class="ad-title"><h2 class="section-title">'+escapeHTML(account.name||meta.label)+'</h2><p class="section-hint">'+(account.clients?escapeHTML(account.clients.name):'No client linked')+'</p></div>';
   if(isAdmin){
     html += '<div class="ad-actions" style="display:flex;gap:8px;flex-shrink:0;">'+
@@ -10750,7 +11052,7 @@ async function loadAccountDetail(wrap){
   }
   html += '</div>';
   const kvRows = account.type==='seven11'
-    ? [['Store number', account.store_number], ['Business Unit', account.store_cluster], ['Store manager', account.store_manager], ['Address', account.address], ['Email', account.email], ['Phone', account.phone]]
+    ? [['Store number', account.store_number], ['Business Unit', account.store_cluster], ['Store manager', account.store_manager], ['Address', account.address], ['Phone', account.phone], ['Email', account.email]]
     : [['Address', account.address], ['Phone', account.phone], ['Email', account.email]];
   if(account.type==='government'){ kvRows.push(['Nature of business', account.nature_of_business]); }
   html += '<dl class="kv" style="margin-top:14px;">' + kvRows.map(function(r){ return '<dt>'+r[0]+'</dt><dd class="'+(r[1]?'':'empty')+'">'+(escapeHTML(r[1])||'Not provided')+'</dd>'; }).join('') + '</dl>';
@@ -12067,8 +12369,8 @@ function techRowHTML(p){
   return '<button class="hist-item" data-id="'+escapeHTML(p.id)+'">'+
     '<span class="hi-icon">'+icon('user')+'</span>'+
     '<span class="hi-main">'+
-      '<span class="hi-title">'+escapeHTML(p.full_name||'(no name set)')+(p.active?'':' \u2014 inactive')+'</span>'+
-      '<span class="hi-sub">'+roleLabel+'</span>'+
+      '<span class="hi-title">'+escapeHTML(p.full_name||'Name not set yet')+(p.active?'':' \u2014 inactive')+'</span>'+
+      '<span class="hi-sub">'+roleLabel+(p.full_name ? '' : ' \u00b7 ' + escapeHTML(p.email || p.username || ('ID ' + String(p.id || '').slice(0, 6))))+'</span>'+
     '</span>'+icon('chevronRight')+
   '</button>';
 }
@@ -12081,7 +12383,7 @@ function renderTechniciansList(){
   if(viewerRank >= ROLE_RANK.supervisor && can('staff.invite')){ html += '<button class="btn btn-primary btn-sm" id="addStaffBtn">'+icon('plus')+' Add staff</button>'; } // feat: ROLES-2 — replaces the old Supabase-dashboard-only banner; hidden entirely for Technician
   html += '</div>';
   html += '<input class="input" id="techSearch" placeholder="Search technicians" style="margin-bottom:16px;">';
-  html += '<div id="techListWrap"><p class="small-muted center" style="padding:30px 0;">Loading\u2026</p></div>';
+  html += '<div id="techListWrap"><div class="skel-list" role="status" aria-label="Loading"><span class="skel-row"></span><span class="skel-row"></span><span class="skel-row"></span></div></div>';
   wrap.innerHTML = html;
 
   async function load(){
@@ -12167,7 +12469,7 @@ function openAddStaffForm(onSaved){
 
 function renderTechnicianDetail(){
   const wrap = document.createElement('div');
-  wrap.innerHTML = '<div class="wizard-top"><button class="back-link" id="tdBack">'+icon('chevronLeft')+' Technicians</button></div><p class="small-muted center" style="padding:40px 0;">Loading\u2026</p>';
+  wrap.innerHTML = '<div class="wizard-top"><button class="back-link" id="tdBack">'+icon('chevronLeft')+' Technicians</button></div><div class="skel-list" role="status" aria-label="Loading"><span class="skel-row"></span><span class="skel-row"></span><span class="skel-row"></span></div>';
   qs('#tdBack', wrap).addEventListener('click', function(){ navigate('technicians'); });
   loadTechnicianDetail(wrap);
   return wrap;
@@ -12194,30 +12496,29 @@ async function loadTechnicianDetail(wrap){
   let html = '<div class="wizard-top"><button class="back-link" id="tdBack2">'+icon('chevronLeft')+' Technicians</button></div>';
   html += '<div class="profile-hero" style="padding-top:10px;">';
   html += '<div class="ph-avatar">'+escapeHTML(initials(person.full_name))+'</div>';
-  html += '<h2>'+escapeHTML(person.full_name||'(no name set)')+'</h2>';
+  html += '<h2>'+escapeHTML(person.full_name||'Name not set yet')+'</h2>';
   html += '<span class="role-tag">'+roleDisplay(person.role)+(person.active?'':' \u00B7 Inactive')+'</span>';
   html += '</div>';
 
   html += '<div class="card" style="margin-top:8px;">';
   html += '<h3 class="section-title" style="font-size:14px;margin-bottom:10px;">Report activity</h3>';
-  html += '<dl class="kv">';
-  html += '<dt>Reports submitted</dt><dd>'+stats.total+'</dd>';
+  const actTiles = [['Reports submitted', stats.total]];
   ['very_happy','happy','not_happy'].forEach(function(k){
-    if(stats.satisfactionCounts[k]){
-      html += '<dt>'+satisfactionLabel(k)+'</dt><dd>'+stats.satisfactionCounts[k]+'</dd>';
-    }
+    if(stats.satisfactionCounts[k]) actTiles.push([satisfactionLabel(k), stats.satisfactionCounts[k]]);
   });
-  html += '</dl></div>';
+  html += '<div class="stat-grid in-card" style="grid-template-columns:repeat('+(actTiles.length > 3 ? 2 : actTiles.length)+',minmax(0,1fr));">' + actTiles.map(function(t){
+    return '<div class="stat-card"><div class="stat-num">'+escapeHTML(String(t[1]))+'</div><div class="stat-label">'+escapeHTML(t[0])+'</div></div>';
+  }).join('') + '</div></div>';
 
   if(canManage){ // feat: ROLES-4
     const roleOptions = ['technician','supervisor','manager'].filter(function(r){ return roleRank(r) < viewerRank; }); // feat: ROLES-4 — same rule as the Add staff form: never offer a rank at or above your own, so 'admin' is never offered by any viewer
     html += '<div class="card" style="margin-top:14px;">';
     html += '<h3 class="section-title" style="font-size:14px;margin-bottom:2px;">Admin controls</h3>';
     html += '<p class="section-hint">Changes apply immediately.</p>';
-    html += '<div class="field"><label>Role</label><div class="chip-group" id="roleChips">'+
+    html += '<div class="field"><label>Role</label><div class="chip-group seg" id="roleChips">'+
       roleOptions.map(function(r){ return '<button type="button" class="chip'+(person.role===r?' is-on':'')+'" data-role="'+r+'">'+icon('check')+'<span>'+(r.charAt(0).toUpperCase()+r.slice(1))+'</span></button>'; }).join('') +
     '</div></div>';
-    html += '<div class="field" style="margin-bottom:0;"><label>Status</label><div class="chip-group" id="activeChips">'+
+    html += '<div class="field" style="margin-bottom:0;"><label>Status</label><div class="chip-group seg" id="activeChips">'+
       [true,false].map(function(v){ return '<button type="button" class="chip'+(person.active===v?' is-on':'')+'" data-active="'+v+'">'+icon('check')+'<span>'+(v?'Active':'Inactive')+'</span></button>'; }).join('') +
     '</div></div>';
     html += '</div>';
@@ -12298,7 +12599,7 @@ function renderServicesList(){
   if(isAdmin){ html += '<button class="btn btn-primary btn-sm" id="addServiceBtn">'+icon('plus')+' Add service</button>'; }
   html += '</div>';
   html += '<p class="section-hint" style="margin-bottom:16px;">Recurring service agreements per account.</p>';
-  html += '<div id="svcListWrap"><p class="small-muted center" style="padding:30px 0;">Loading\u2026</p></div>';
+  html += '<div id="svcListWrap"><div class="skel-list" role="status" aria-label="Loading"><span class="skel-row"></span><span class="skel-row"></span><span class="skel-row"></span></div></div>';
   wrap.innerHTML = html;
 
   async function load(){
@@ -12315,11 +12616,11 @@ function renderServicesList(){
       return;
     }
     target.innerHTML = '<div class="card" style="padding:2px 14px;">' + rows.map(function(s){
-      let actions = '<div style="display:flex;gap:8px;padding:0 4px 12px;">'+
-        '<button class="btn btn-secondary btn-sm" data-action="schedule" data-id="'+escapeHTML(s.id)+'" style="flex:1;">'+icon('calendar')+' Schedule next visit</button>';
-      if(isAdmin){ actions += '<button class="btn btn-ghost btn-sm" data-action="edit" data-id="'+escapeHTML(s.id)+'" aria-label="Edit '+escapeHTML(s.plan_name)+'">'+icon('pencil')+'</button>'; }
+      let actions = '<div class="svc-actions">'+
+        '<button class="btn btn-secondary btn-sm" data-action="schedule" data-id="'+escapeHTML(s.id)+'">'+icon('calendar')+' Schedule next visit</button>';
+      if(isAdmin){ actions += '<button class="btn btn-secondary btn-sm btn-icon" data-action="edit" data-id="'+escapeHTML(s.id)+'" aria-label="Edit '+escapeHTML(s.plan_name)+'">'+icon('pencil')+'</button>'; }
       actions += '</div>';
-      return serviceRowHTML(s) + actions;
+      return '<div class="svc-item">' + serviceRowHTML(s) + actions + '</div>';
     }).join('') + '</div>';
 
     qsa('[data-action="schedule"]', target).forEach(function(btn){
@@ -12446,7 +12747,7 @@ function renderScheduleList(){
   html += '<div class="chip-group" id="scheduleFilter" style="margin-bottom:16px;">'+
     chipHTML('Upcoming', true) + chipHTML('Completed', false) + chipHTML('Cancelled', false) +
   '</div>';
-  html += '<div id="scheduleListWrap"><p class="small-muted center" style="padding:30px 0;">Loading\u2026</p></div>';
+  html += '<div id="scheduleListWrap"><div class="skel-list" role="status" aria-label="Loading"><span class="skel-row"></span><span class="skel-row"></span><span class="skel-row"></span></div></div>';
   wrap.innerHTML = html;
 
   async function load(){
@@ -12468,12 +12769,12 @@ function renderScheduleList(){
     target.innerHTML = '<div class="card" style="padding:2px 14px;">' + rows.map(function(v){
       let actions = '';
       if(status==='upcoming'){
-        actions = '<div style="display:flex;gap:8px;padding:0 4px 12px;">'+
-          '<button class="btn btn-primary btn-sm" data-action="convert" data-id="'+escapeHTML(v.id)+'" style="flex:1;">'+icon('send')+' Convert to report</button>'+
+        actions = '<div class="svc-actions">'+
+          '<button class="btn btn-primary btn-sm" data-action="convert" data-id="'+escapeHTML(v.id)+'">'+icon('send')+' Convert to report</button>'+
           (isAdmin ? '<button class="btn btn-secondary btn-sm" data-action="cancel" data-id="'+escapeHTML(v.id)+'">'+icon('x')+' Cancel</button>' : '') +
         '</div>';
       }
-      return visitRowHTML(v) + actions;
+      return '<div class="svc-item">' + visitRowHTML(v) + actions + '</div>';
     }).join('') + '</div>';
 
     qsa('[data-action="convert"]', target).forEach(function(btn){
@@ -12578,7 +12879,7 @@ function renderInventoryList(){
   if(isAdmin){ html += '<button class="btn btn-primary btn-sm" id="addItemBtn">'+icon('plus')+' Add item</button>'; }
   html += '</div>';
   html += '<input class="input" id="invSearch" placeholder="Search stock" style="margin-bottom:16px;">';
-  html += '<div id="invListWrap"><p class="small-muted center" style="padding:30px 0;">Loading\u2026</p></div>';
+  html += '<div id="invListWrap"><div class="skel-list" role="status" aria-label="Loading"><span class="skel-row"></span><span class="skel-row"></span><span class="skel-row"></span></div></div>';
   wrap.innerHTML = html;
 
   async function load(){
@@ -12688,7 +12989,7 @@ function renderNotificationsList(){
   html += '<h2 style="font-size:21px;">Notifications</h2>';
   html += '<button class="btn btn-ghost btn-sm" id="markAllReadBtn">Mark all read</button>';
   html += '</div>';
-  html += '<div id="notifListWrap"><p class="small-muted center" style="padding:30px 0;">Loading\u2026</p></div>';
+  html += '<div id="notifListWrap"><div class="skel-list" role="status" aria-label="Loading"><span class="skel-row"></span><span class="skel-row"></span><span class="skel-row"></span></div></div>';
   wrap.innerHTML = html;
 
   async function load(){
@@ -12748,7 +13049,7 @@ function bar(label, count, total){
 }
 function renderAnalytics(){
   const wrap = document.createElement('div');
-  wrap.innerHTML = '<div class="wizard-top"><span class="eyebrow">Analytics</span></div><h2 style="font-size:21px;margin-bottom:16px;">Analytics</h2><p class="small-muted center" style="padding:30px 0;">Loading\u2026</p>';
+  wrap.innerHTML = '<div class="wizard-top"><span class="eyebrow">Analytics</span></div><h2 style="font-size:21px;margin-bottom:16px;">Analytics</h2><div class="skel-list" role="status" aria-label="Loading"><span class="skel-row"></span><span class="skel-row"></span><span class="skel-row"></span></div>';
   loadAnalytics(wrap);
   return wrap;
 }
@@ -12872,6 +13173,7 @@ function showAuthScreen(){
   authRoot.innerHTML = '';
   authRoot.appendChild(renderAuthScreen());
   authRoot.style.display = '';
+  try{ window.scrollTo(0, 0); }catch(e){}   // coming back from a long screen (Profile, a form): the area / sign-in screen starts at its top, where its notes are
 }
 function updateHeaderUserChip(){
   const el = qs('#headerUserBtn');
@@ -12899,7 +13201,7 @@ async function refreshNotificationBadge(){
   if(sidebarNotifLink) sidebarNotifLink.classList.toggle('has-badge', count > 0);
 }
 function showApp(){
-  sessionEnsure(); sessionWatch(); setTimeout(sessionCheck, 400);   // 2-hour session (an app opened after the 2 hours are over is closed again straight away)
+  if(sessionGate()) return;   // this person's 2 hours had already run out: they are sent back instead of the app opening
   applyThemeFromProfile();
   qs('#authRoot').style.display = 'none';
   qs('#authRoot').innerHTML = '';
@@ -12914,6 +13216,7 @@ function showApp(){
   outboxStart();   // reports saved on this phone while there was no internet are sent from here
   storeCacheStart();   // the 7-Eleven store list is kept on this phone, so the store number fills in with no internet
   atStart();   // the fixed technicians of each area are kept on this phone too
+  sessionStart();   // the 2-hour session is watched from here
 }
 
 
@@ -12947,6 +13250,25 @@ const PERM_GROUPS = [
   { key:'dashboard', label:'Dashboard', perms:[
     { k:'dashboard.view', label:'Open the Dashboard', hint:'The full home page with quick links. Without it, the home page is only the New Report screen.' }
   ]},
+  { key:'clients', label:'Clients', perms:[
+    { k:'clients.view', label:'See clients', hint:'Open the Clients list and each client’s page.' },
+    { k:'clients.add',  label:'Add clients', hint:'', needs:'clients.view', db:true },
+    { k:'clients.edit', label:'Edit and archive clients', hint:'', needs:'clients.view', db:true }
+  ]},
+  { key:'accounts', label:'Accounts', perms:[
+    { k:'accounts.view', label:'See accounts', hint:'Open the Accounts list and each account’s page, including its report history.' },
+    { k:'accounts.add',  label:'Add accounts', hint:'', needs:'accounts.view', db:true },
+    { k:'accounts.edit', label:'Edit and archive accounts', hint:'', needs:'accounts.view', db:true }
+  ]},
+  { key:'stores', label:'7-Eleven stores', perms:[
+    { k:'stores.view',   label:'See the store list', hint:'Open the 7-Eleven Stores screen.' },
+    { k:'stores.manage', label:'Add, edit, import and delete stores', hint:'', needs:'stores.view', db:true }
+  ]},
+  { key:'staff', label:'Staff', perms:[
+    { k:'staff.view',   label:'See the staff list', hint:'Open the Technicians screen and each person’s page.' },
+    { k:'staff.invite', label:'Invite new staff', hint:'The database also needs the person to be a Supervisor or higher.', needs:'staff.view', rank:true },
+    { k:'staff.manage', label:'Change someone’s role or active status', hint:'The database also only allows changing people ranked below you.', needs:'staff.view', rank:true }
+  ]},
   { key:'areatechs', label:'Area technicians', perms:[
     { k:'areatechs.view',   label:'See the area technicians', hint:'Open the Area Technicians screen.' },
     { k:'areatechs.manage', label:'Change the area technicians', hint:'The database allows this for Supervisor and higher.', needs:'areatechs.view', rank:true }
@@ -12954,6 +13276,14 @@ const PERM_GROUPS = [
   { key:'schedule', label:'Schedule', perms:[
     { k:'schedule.view',   label:'See the schedule', hint:'Open the Schedule and its visits.' },
     { k:'schedule.manage', label:'Add and cancel visits', hint:'', needs:'schedule.view', db:true }
+  ]},
+  { key:'services', label:'Services', perms:[
+    { k:'services.view',   label:'See services', hint:'Open the Services screen.' },
+    { k:'services.manage', label:'Add and edit services', hint:'', needs:'services.view', db:true }
+  ]},
+  { key:'inventory', label:'Inventory', perms:[
+    { k:'inventory.view',   label:'See inventory', hint:'Open the Inventory screen.' },
+    { k:'inventory.manage', label:'Add and edit inventory items', hint:'', needs:'inventory.view', db:true }
   ]},
   { key:'insights', label:'Analytics and notifications', perms:[
     { k:'analytics.view',     label:'See analytics', hint:'Open the Analytics screen.' },
@@ -13103,9 +13433,15 @@ function screenAllowed(screen){
     case 'wizard': return state.reportType ? canCreateType(state.reportType) : canCreateAnyReport();
     case 'review': case 'success': case 'queued': return canCreateAnyReport();
     case 'history': case 'reportDetail': return canSeeReports();
-    case 'clients': case 'clientDetail': case 'accounts': case 'accountDetail': case 'stores': case 'technicians': case 'technicianDetail': case 'services': case 'inventory': return false;   // these pages were removed from the app
+    case 'clients': case 'clientDetail': return can('clients.view');
+    case 'accounts': return can('accounts.view');
+    case 'accountDetail': return state.backTo === 'stores' ? can('stores.view') : (can('accounts.view') || can('clients.view'));
+    case 'stores': return can('stores.view');
+    case 'technicians': case 'technicianDetail': return can('staff.view');
     case 'areatechs': return can('areatechs.view');
     case 'schedule': return can('schedule.view');
+    case 'services': return can('services.view');
+    case 'inventory': return can('inventory.view');
     case 'analytics': return can('analytics.view');
     case 'notifications': return can('notifications.view');
     case 'settings': return can('settings.view');
@@ -13115,7 +13451,7 @@ function screenAllowed(screen){
   }
 }
 function firstAllowedScreen(){
-  const order = ['home','history','areatechs','schedule','analytics','notifications','settings','profile'];
+  const order = ['home','history','clients','accounts','stores','technicians','areatechs','schedule','services','inventory','analytics','notifications','settings','profile'];
   for(let i = 0; i < order.length; i++){ if(screenAllowed(order[i])) return order[i]; }
   return 'profile';
 }
@@ -13127,8 +13463,14 @@ function navItemAllowed(key){
     case 'dashboard': return can('dashboard.view') || canCreateAnyReport();
     case 'new-report': return canCreateAnyReport();
     case 'history': return canSeeReports();
+    case 'clients': return can('clients.view');
+    case 'accounts': return can('accounts.view');
+    case 'stores': return can('stores.view');
+    case 'technicians': return can('staff.view');
     case 'areatechs': return can('areatechs.view');
     case 'schedule': return can('schedule.view');
+    case 'services': return can('services.view');
+    case 'inventory': return can('inventory.view');
     case 'analytics': return can('analytics.view');
     case 'notifications': return can('notifications.view');
     case 'settings': return can('settings.view');
@@ -13244,17 +13586,17 @@ function ensureUserMgmtCss(){
   st.textContent =
     '.um-tabs{display:flex;gap:6px;background:var(--surface-2);border-radius:12px;padding:4px;margin:0 0 16px}' +
     '.um-tab{flex:1;border:0;background:transparent;border-radius:9px;padding:10px 8px;font:inherit;font-size:14px;font-weight:700;color:var(--ink-soft);cursor:pointer;min-height:44px}' +
-    '.um-tab.is-on{background:var(--surface);color:var(--brand);box-shadow:0 1px 3px rgba(0,0,0,.12)}' +
+    '.um-tab.is-on{background:var(--surface);color:var(--brand-text);box-shadow:0 1px 3px rgba(0,0,0,.12)}' +
     '.um-row{display:flex;align-items:flex-start;gap:12px;padding:12px 4px;border-top:1px solid var(--border);cursor:pointer;min-height:48px}' +
     '.um-row:first-of-type{border-top:0}' +
     '.um-row input{width:20px;height:20px;accent-color:var(--brand);flex:0 0 auto;margin-top:2px}' +
     '.um-txt{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}' +
     '.um-txt b{font-size:14.5px;font-weight:650;line-height:1.3}' +
     '.um-txt small{font-size:12.5px;color:var(--ink-soft);line-height:1.4}' +
-    '.um-pill{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:2px 8px;background:var(--surface-2);color:var(--ink-soft);margin-top:4px;align-self:flex-start}' +
+    '.um-pill{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:2px 8px;background:var(--surface-2);color:var(--ink-soft);margin-top:4px;align-self:flex-start}' +
     '.um-pill.warn{background:rgba(217,119,6,.14);color:#b45309}' +
     '.um-grp-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px}' +
-    '.um-mini{border:0;background:transparent;color:var(--brand);font:inherit;font-size:13px;font-weight:700;cursor:pointer;padding:8px 6px;min-height:36px}' +
+    '.um-mini{border:0;background:transparent;color:var(--brand-text);font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;padding:8px 8px;min-height:44px}' +
     '.um-actions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}' +
     '.um-actions .btn{flex:1 1 180px}' +
     '.um-dirty{display:inline-block;font-size:12px;font-weight:700;color:#b45309;background:rgba(217,119,6,.14);border-radius:999px;padding:3px 10px}' +
@@ -13270,7 +13612,7 @@ function ensureUserMgmtCss(){
     '#previewBar svg{width:20px;height:20px;flex:0 0 auto}#previewBar span{flex:1;min-width:0}' +
     '#previewBar button{border:0;background:#fff;color:#111;font:inherit;font-weight:700;border-radius:10px;padding:8px 12px;min-height:40px;cursor:pointer;flex:0 0 auto}' +
     '@media(min-width:900px){#previewBar{left:auto;right:24px;bottom:24px;max-width:440px}}' +
-    '.um-avatar{width:38px;height:38px;border-radius:50%;background:var(--brand-pale);color:var(--brand);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex:0 0 auto}';
+    '.um-avatar{width:38px;height:38px;border-radius:50%;background:var(--brand-pale);color:var(--brand-text);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex:0 0 auto}';
   document.head.appendChild(st);
 }
 /* ---- staff accounts: a username and a password, no email (email accounts stay for administrators / IT) ----
@@ -13305,7 +13647,7 @@ function showStaffFnSetup(){
       '<li>In Supabase open <strong>Edge Functions → Deploy a new function</strong> (or <em>Create a function</em> in the editor).</li>' +
       '<li>Name it exactly <span class="pill-mono">staff-accounts</span>, delete the sample code, <strong>paste</strong> the copied code and press <strong>Deploy</strong>.</li>' +
       '<li>Come back here and press <strong>Create account</strong> again.</li></ol>' +
-    '<textarea id="staffFnBox" readonly style="width:100%;height:160px;font-family:var(--font-mono);font-size:11.5px;border:1px solid var(--control-border);border-radius:10px;padding:10px;background:var(--field-bg);color:inherit;"></textarea>' +
+    '<textarea id="staffFnBox" readonly style="width:100%;height:160px;font-family:var(--font-mono);font-size:12px;border:1px solid var(--control-border);border-radius:10px;padding:10px;background:var(--field-bg);color:inherit;"></textarea>' +
     '<button class="btn btn-primary btn-block" id="staffFnCopy" style="margin-top:10px;">Copy the code</button>',
     { title:'One-time setup for accounts' });
   const box = qs('#staffFnBox', body); box.value = STAFF_FN_CODE;
@@ -13430,7 +13772,7 @@ function renderUserMgmt(){
   function wireSetup(){ const b = qs('#umShowSql', wrap); if(b) b.addEventListener('click', showAccessSql); }
 
   function draw(){
-    if(um.loading){ wrap.innerHTML = '<div class="wizard-top"><span class="eyebrow">User Management</span></div><p class="small-muted center" style="padding:40px 0;">Loading…</p>'; return; }
+    if(um.loading){ wrap.innerHTML = '<div class="wizard-top"><span class="eyebrow">User Management</span></div><div class="skel-list" role="status" aria-label="Loading"><span class="skel-row"></span><span class="skel-row"></span><span class="skel-row"></span></div>'; return; }
     if(um.editing) drawEditor(); else drawMain();
   }
 
@@ -13458,7 +13800,7 @@ function renderUserMgmt(){
         '<span class="hi-sub">'+pe+(pe===1?' person':' people')+' · '+n+' of '+total+' permissions on'+((p.builtin && !p.saved)?' · recommended':'')+'</span></span>'+icon('chevronRight')+'</button>';
     });
     h += '</div>';
-    h += '<div class="card" style="margin-bottom:14px;"><h3 class="section-title" style="font-size:15px;margin-bottom:2px;">Preview as a position</h3><p class="section-hint">See the app exactly as that position sees it, without signing out.</p><div class="chip-group">' +
+    h += '<div class="card" style="margin-bottom:14px;"><h3 class="section-title" style="font-size:15px;margin-bottom:2px;">Preview as a position</h3><p class="section-hint">See the app exactly as that position sees it, without signing out.</p><div class="chip-group chip-grid">' +
       accessAllPositions().map(function(p){ return '<button type="button" class="chip" data-preview="'+escapeHTML(p.key)+'">'+icon('eye')+'<span>'+escapeHTML(p.label)+'</span></button>'; }).join('') + '</div></div>';
     h += '<div class="um-actions"><button type="button" class="btn btn-primary" id="umAddPos">'+icon('plus')+' Add a position</button>' +
          '<button type="button" class="btn btn-secondary" id="umRecAll">'+icon('checkSeal')+' Recommended settings for everyone</button></div>';
@@ -13853,6 +14195,7 @@ function updateNavActiveStates(){
   if(h) h.classList.toggle('is-active', state.screen==='history');
   if(s) s.classList.toggle('is-active', state.screen==='settings');
 }
+let screenEnterPending = false;
 function navigate(screen, params){
   params = params || {};
   state.screen = screen;
@@ -13865,6 +14208,7 @@ function navigate(screen, params){
   if(params.viewingAccountId !== undefined) state.viewingAccountId = params.viewingAccountId;
   if(params.viewingTechnicianId !== undefined) state.viewingTechnicianId = params.viewingTechnicianId;
   state.backTo = params.backTo || null;   // where the account page's back link goes: 'stores' when it was opened from the 7-Eleven Stores list
+  screenEnterPending = true;              // V3: the page that opens now fades in; redraws of the same page (a chip tapped, a list refreshed) never do
   render();
   window.scrollTo(0,0);
 }
@@ -13882,12 +14226,26 @@ function render(){
   else if(state.screen === 'reportDetail'){ app.appendChild(renderReportDetail()); removeFooterBar(); }
   else if(state.screen === 'settings'){ app.appendChild(renderSettings()); removeFooterBar(); }
   else if(state.screen === 'profile'){ app.appendChild(renderProfile()); removeFooterBar(); }
+  else if(state.screen === 'clients'){ app.appendChild(renderClientsList()); removeFooterBar(); }
+  else if(state.screen === 'clientDetail'){ app.appendChild(renderClientDetail()); removeFooterBar(); }
+  else if(state.screen === 'accounts'){ app.appendChild(renderAccountsList()); removeFooterBar(); }
+  else if(state.screen === 'accountDetail'){ app.appendChild(renderAccountDetail()); removeFooterBar(); }
+  else if(state.screen === 'stores'){ app.appendChild(renderStoresList()); removeFooterBar(); }
+  else if(state.screen === 'technicians'){ app.appendChild(renderTechniciansList()); removeFooterBar(); }
   else if(state.screen === 'areatechs'){ app.appendChild(renderAreaTechs()); removeFooterBar(); }
+  else if(state.screen === 'technicianDetail'){ app.appendChild(renderTechnicianDetail()); removeFooterBar(); }
   else if(state.screen === 'schedule'){ app.appendChild(renderScheduleList()); removeFooterBar(); }
+  else if(state.screen === 'services'){ app.appendChild(renderServicesList()); removeFooterBar(); }
+  else if(state.screen === 'inventory'){ app.appendChild(renderInventoryList()); removeFooterBar(); }
   else if(state.screen === 'notifications'){ app.appendChild(renderNotificationsList()); removeFooterBar(); refreshNotificationBadge(); }
   else if(state.screen === 'analytics'){ app.appendChild(renderAnalytics()); removeFooterBar(); }
   else if(state.screen === 'usermgmt'){ app.appendChild(renderUserMgmt()); removeFooterBar(); }
   else { app.appendChild(renderHome()); removeFooterBar(); }
+  if(screenEnterPending){
+    screenEnterPending = false;
+    const first = app.firstElementChild;
+    if(first && state.screen !== 'home') first.classList.add('screen-enter');   // the dashboard has its own staggered arrival
+  }
   if(typeof outboxChanged === 'function') outboxChanged();   // fills every "Waiting to send" card and the Sync button on the screen that was just drawn
 }
 
@@ -13948,6 +14306,21 @@ function goToNavKey(key){
   if(key==='dashboard' || key==='new-report'){ navigate('home'); return; }
   navigate(key);
 }
+/* The phone tab bar covers the bottom of the page. Its real height (it changes with the iPhone home bar, a turned phone and large text
+   sizes) is measured here and handed to the CSS, which keeps that much room below the last item of every screen. */
+(function watchTabBarHeight(){
+  const bar = document.getElementById('bottomTabBar');
+  if(!bar) return;
+  function measure(){
+    let h = 0;
+    try{ if(getComputedStyle(bar).display !== 'none') h = Math.ceil(bar.getBoundingClientRect().height); }catch(e){}
+    document.documentElement.style.setProperty('--tab-bar-h', h + 'px');
+  }
+  measure();
+  try{ if(window.ResizeObserver) new ResizeObserver(measure).observe(bar); }catch(e){}
+  window.addEventListener('resize', measure);
+  window.addEventListener('orientationchange', function(){ setTimeout(measure, 250); });
+})();
 function wireHeaderChrome(){
   qs('#brandMark').innerHTML = brandMarkHTML();
   qs('#navBellBtn').innerHTML = icon('bell');
@@ -14014,6 +14387,7 @@ function init(){
   wireHeaderChrome();
   /* A phone that has a saved login never sits on a blank or endless "Opening..." screen: see START-UP SCREEN below. */
   bootSupervise();
+  outboxStart();   // waiting reports are sent by themselves from the very start, also while the phone is still on the area screen
   /* Single-file build fix (password-reset link). The current Supabase library reports INITIAL_SESSION first and PASSWORD_RECOVERY a few
      milliseconds later. The code below used to open the app as soon as the profile arrived, which covered the "Set a new password" screen,
      so a person who clicked the reset link in their email landed inside the app and never got to choose a new password. A reset link has
@@ -14086,25 +14460,29 @@ function init(){
         }
       }
       if(event === 'INITIAL_SESSION' && offlineBootEntered){ return; }   // already opened from the saved login (slow connection): stay in the app
-      if(typeof outboxReset === 'function') outboxReset();
-      offlineBootEntered = false;
-      state.profile = null;
-      state.screen = 'home';
-      state.reportType = null;
-      state.step = 0;
-      state.draft = null;
-      state.viewingReportId = null;
-      state.viewingClientId = null;
-      state.viewingAccountId = null;
-      state.viewingTechnicianId = null;
-      pendingVisitId = null;
-      if(sessionKeepDraft){ sessionKeepDraft = false; } else { clearDraftStorage(); }   // (the 2-hour sign-out keeps a half-finished report for "Resume draft?")
-      sessionClear();
-      saveArea(null);
-      authMode = 'area';
-      showAuthScreen();
+      resetToSignedOut();
     }
   });
+}
+/* Nobody is signed in any more: everything goes back to first-load defaults and the area screen is shown. */
+function resetToSignedOut(){
+  if(typeof outboxReset === 'function') outboxReset();
+  offlineBootEntered = false;
+  state.profile = null;
+  state.screen = 'home';
+  state.reportType = null;
+  state.step = 0;
+  state.draft = null;
+  state.viewingReportId = null;
+  state.viewingClientId = null;
+  state.viewingAccountId = null;
+  state.viewingTechnicianId = null;
+  pendingVisitId = null;
+  if(!sessionCtl.keepDraft) clearDraftStorage();   // a person who signs out by hand takes the unfinished report with them; one whose 2 hours ran out gets it back after signing in
+  sessionEnd();
+  saveArea(null);
+  authMode = 'area';
+  showAuthScreen();
 }
 init();
 /* Open the app with no internet: if sw.js sits next to this page on the website, the browser keeps a copy of the app and opens it offline.
