@@ -971,6 +971,15 @@ legend{ padding:0; font-size:12.5px; font-weight:700; color: var(--ink-soft); ma
   body.has-footer-bar .bottom-tab-bar{ display:none; }
   body.has-footer-bar .app-main:not(.no-footer-pad){ padding-bottom: calc(var(--footer-h) + 28px + env(safe-area-inset-bottom, 0px)); }
 }
+/* Fix ("putol yung baba" — the bottom of the form was cut off on computers / wide windows): from 900px wide the page rule
+   `.app-main{ padding:28px 36px 48px }` left only 48px under the form, but the fixed Continue / Back / Send report bar is about 81px tall,
+   so the last fields (Time started / Time finished, and the bottom of the white card) slid under the bar. While the bar is on screen the
+   page now always leaves room for the whole bar plus some air, the same as on phones. Screens without the bar (home, history...) are untouched. */
+@media(min-width:900px){
+  body.has-footer-bar .app-main:not(.no-footer-pad){ padding-bottom: calc(var(--footer-h) + 40px + env(safe-area-inset-bottom, 0px)); }
+}
+/* Tabbing into, or tapping, a field near the bottom scrolls it clear of the fixed bar instead of leaving it hidden underneath. */
+html:has(body.has-footer-bar){ scroll-padding-bottom: calc(var(--footer-h) + 24px + env(safe-area-inset-bottom, 0px)); }
 
 /* ---------- Toasts ---------- */
 .toast-root{ position:fixed; top:16px; left:50%; transform:translateX(-50%); z-index:80; display:flex; flex-direction:column; gap:8px; align-items:center; width:100%; padding:0 16px; pointer-events:none; }
